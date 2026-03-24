@@ -12,7 +12,8 @@ import {
 } from '../models/types';
 import {
   ResourceCost, buildCost, upgradeCost, rathausRequirement,
-  UNIQUE_BUILDINGS, maxInstances, Production, Storage, Earn, Workers,
+  UNIQUE_BUILDINGS, maxInstances, sellValue,
+  Production, Storage, Earn, Workers,
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
 } from '../config/GameConfig';
 
@@ -203,6 +204,56 @@ export function collectAll(state: GameState): GameState {
     }
   }
   return s;
+}
+
+// MARK: - Sell Building
+export interface SellResult {
+  refund: ResourceCost;
+}
+
+export function sellBuilding(
+  state: GameState,
+  buildingID: string,
+): { newState: GameState; refund: ResourceCost } | null {
+  const bIdx = state.buildings.findIndex(b => b.id === buildingID);
+  if (bIdx < 0) return null;
+
+  const building = state.buildings[bIdx];
+  if (building.type === BuildingType.rathaus) return null; // Rathaus is unsellable
+
+  // Clone mutable parts
+  let s: GameState = {
+    ...state,
+    buildings: [...state.buildings],
+    workers:   [...state.workers],
+  };
+
+  // Unassign worker if one is attached to this building
+  if (building.assignedWorkerID) {
+    const wIdx = s.workers.findIndex(w => w.id === building.assignedWorkerID);
+    if (wIdx >= 0) {
+      s.workers[wIdx] = { ...s.workers[wIdx], assignedBuildingID: null };
+    }
+  }
+
+  // Compute 50% refund
+  const refund = sellValue(building.type, building.level);
+
+  // Credit resources
+  s = {
+    ...s,
+    muskelmasse:  s.muskelmasse  + refund.muskelmasse,
+    protein:      s.protein      + refund.protein,
+    wood:         s.wood          + refund.wood,
+    stone:        s.stone         + refund.stone,
+    food:         s.food          + refund.food,
+    streakTokens: s.streakTokens + refund.streakTokens,
+  };
+
+  // Remove building from grid
+  s.buildings = s.buildings.filter(b => b.id !== buildingID);
+
+  return { newState: s, refund };
 }
 
 // MARK: - Collect Result (returned by collectAllWithResult)

@@ -162,6 +162,31 @@ export function upgradeCost(type: BuildingType, currentLevel: number): ResourceC
   }
 }
 
+// MARK: - Sell Value (50% of build + all upgrade costs paid so far)
+export function sellValue(type: BuildingType, currentLevel: number): ResourceCost {
+  const total = { ...buildCost(type) };
+  // Add every upgrade cost from level 1 up to (currentLevel - 1)
+  for (let lvl = 1; lvl < currentLevel; lvl++) {
+    const up = upgradeCost(type, lvl);
+    if (up) {
+      total.muskelmasse  += up.muskelmasse;
+      total.protein      += up.protein;
+      total.wood         += up.wood;
+      total.stone        += up.stone;
+      total.food         += up.food;
+      total.streakTokens += up.streakTokens;
+    }
+  }
+  return {
+    muskelmasse:  Math.floor(total.muskelmasse  * 0.5),
+    protein:      Math.floor(total.protein      * 0.5),
+    wood:         Math.floor(total.wood          * 0.5),
+    stone:        Math.floor(total.stone         * 0.5),
+    food:         Math.floor(total.food          * 0.5),
+    streakTokens: Math.floor(total.streakTokens * 0.5),
+  };
+}
+
 // MARK: - Rathaus Requirements
 export function rathausRequirement(type: BuildingType): number {
   switch (type) {
