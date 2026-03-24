@@ -206,6 +206,16 @@
     "resetCancel": "Abbrechen",
     "resetConfirm": "Zurücksetzen"
   },
+  "storage": {
+    "currentOf": "{{current}} / {{max}}",
+    "almostFull": "Fast voll",
+    "full": "Voll",
+    "lagerbonusTitle": "Lagerbonus dieses Gebäudes",
+    "totalCap": "Gesamtkapazität",
+    "nextLevel": "Nächstes Level",
+    "total": "→ gesamt {{value}}",
+    "productionRate": "{{rate}} {{resource}}/h"
+  },
   "sell": {
     "confirmTitle": "Gebäude verkaufen?",
     "confirmSubtitle": "Überprüfe, was beim Verkauf dieses Gebäudes passiert.",

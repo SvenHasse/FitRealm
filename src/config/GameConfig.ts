@@ -2,7 +2,7 @@
 // FitRealm - All game balance constants and configuration values.
 // Ported 1:1 from GameConfig.swift
 
-import { BuildingType } from '../models/types';
+import { BuildingType, Building } from '../models/types';
 
 // MARK: - ResourceCost
 export interface ResourceCost {
@@ -87,6 +87,63 @@ export const Storage = {
     return base * Math.pow(this.levelScale, level - 1);
   },
 };
+
+// MARK: - Global Storage Capacity (player inventory / wallet caps)
+export interface StorageCapacity {
+  muskelmasse: number;
+  protein: number;
+  wood: number;
+  stone: number;
+  food: number;
+  streakTokens: number;
+}
+
+// Base caps WITHOUT any Lager — enough for ~4-6 hours of casual play
+export const BASE_STORAGE: StorageCapacity = {
+  muskelmasse: 500,   // ~2-3 workouts worth
+  protein: 20,        // rare resource, small cap intentional
+  wood: 300,          // ~15h production at L1 Holzfäller
+  stone: 200,         // ~20h production at L1 Steinbruch
+  food: 250,          // ~30h production at L1 Feld
+  streakTokens: 50,   // plenty of room, not a bottleneck
+};
+
+// Lager bonus per level (cumulative — L2 Lager gives L1+L2 bonus)
+export const LAGER_BONUS_PER_LEVEL: Omit<StorageCapacity, 'streakTokens'>[] = [
+  { muskelmasse: 500,  protein: 10,  wood: 400,  stone: 300,  food: 350  }, // L1
+  { muskelmasse: 1000, protein: 20,  wood: 800,  stone: 600,  food: 700  }, // L2
+  { muskelmasse: 2000, protein: 40,  wood: 1600, stone: 1200, food: 1400 }, // L3
+  { muskelmasse: 4000, protein: 80,  wood: 3200, stone: 2400, food: 2800 }, // L4
+  { muskelmasse: 8000, protein: 160, wood: 6400, stone: 4800, food: 5600 }, // L5
+];
+
+// Helper: calculate total storage cap given current buildings
+export function getTotalStorageCap(buildings: Building[]): StorageCapacity {
+  const cap: StorageCapacity = { ...BASE_STORAGE };
+  for (const b of buildings.filter(b => b.type === BuildingType.lager)) {
+    const bonus = LAGER_BONUS_PER_LEVEL[Math.min(b.level - 1, LAGER_BONUS_PER_LEVEL.length - 1)];
+    cap.muskelmasse += bonus.muskelmasse;
+    cap.protein     += bonus.protein;
+    cap.wood        += bonus.wood;
+    cap.stone       += bonus.stone;
+    cap.food        += bonus.food;
+  }
+  return cap;
+}
+
+// Helper: preview cap if a Lager at given level were added
+export function getStorageCapPreview(buildings: Building[], newLagerLevel: number): StorageCapacity {
+  const bonus = LAGER_BONUS_PER_LEVEL[Math.min(newLagerLevel - 1, LAGER_BONUS_PER_LEVEL.length - 1)];
+  const current = getTotalStorageCap(buildings);
+  return {
+    muskelmasse:  current.muskelmasse  + bonus.muskelmasse,
+    protein:      current.protein      + bonus.protein,
+    wood:         current.wood         + bonus.wood,
+    stone:        current.stone        + bonus.stone,
+    food:         current.food         + bonus.food,
+    streakTokens: current.streakTokens,
+  };
+}
 
 // MARK: - Build Costs
 export function buildCost(type: BuildingType): ResourceCost {

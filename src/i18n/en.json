@@ -206,6 +206,16 @@
     "resetCancel": "Cancel",
     "resetConfirm": "Reset"
   },
+  "storage": {
+    "currentOf": "{{current}} / {{max}}",
+    "almostFull": "Almost full",
+    "full": "Full",
+    "lagerbonusTitle": "Warehouse bonus of this building",
+    "totalCap": "Total capacity",
+    "nextLevel": "Next level",
+    "total": "→ total {{value}}",
+    "productionRate": "{{rate}} {{resource}}/h"
+  },
   "sell": {
     "confirmTitle": "Sell building?",
     "confirmSubtitle": "Review what happens when you sell this building.",

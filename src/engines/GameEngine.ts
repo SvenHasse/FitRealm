@@ -15,6 +15,7 @@ import {
   UNIQUE_BUILDINGS, maxInstances, sellValue,
   Production, Storage, Earn, Workers,
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
+  getTotalStorageCap,
 } from '../config/GameConfig';
 
 const STATE_KEY = 'fitrealmGameState';
@@ -103,6 +104,19 @@ export function buildingStorageCap(building: Building, allBuildings: Building[])
   }
 }
 
+// MARK: - Resource Cap Enforcement
+function capResourcesToStorage(state: GameState): GameState {
+  const cap = getTotalStorageCap(state.buildings);
+  return {
+    ...state,
+    muskelmasse:  Math.min(state.muskelmasse, cap.muskelmasse),
+    protein:      Math.min(state.protein,     cap.protein),
+    wood:         Math.min(state.wood,        cap.wood),
+    stone:        Math.min(state.stone,       cap.stone),
+    food:         Math.min(state.food,        cap.food),
+  };
+}
+
 // MARK: - Production Tick
 export function processTick(state: GameState): GameState {
   const now = new Date();
@@ -166,7 +180,7 @@ export function processTick(state: GameState): GameState {
 
   s.lastProductionTick = now.toISOString();
   console.log(`[GameEngine] Tick: +${Math.floor(elapsed)}s, decayMult=${decayMult}`);
-  return s;
+  return capResourcesToStorage(s);
 }
 
 // MARK: - Collect from building (mutates state in place)
@@ -498,7 +512,7 @@ export function processWorkouts(state: GameState, workouts: WorkoutRecord[], sna
     ? snapshot.restingHeartRateCurrent - snapshot.restingHeartRate30DaysAgo : null;
   if (rhrTrend != null && rhrTrend <= -2) s.protein += 5;
 
-  return s;
+  return capResourcesToStorage(s);
 }
 
 function updateStreak(state: GameState, date: Date): void {
