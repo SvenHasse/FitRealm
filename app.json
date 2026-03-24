@@ -1,30 +1,39 @@
 {
   "expo": {
-    "name": "FitRealmRN",
-    "slug": "FitRealmRN",
+    "name": "FitRealm",
+    "slug": "fitrealm",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1A1A2E"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fitrealm.app",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "FitRealm uses your health data to convert workouts into in-game resources.",
+        "NSHealthUpdateUsageDescription": "FitRealm records your fitness achievements."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1A1A2E",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      "expo-localization"
+    ]
   }
 }
