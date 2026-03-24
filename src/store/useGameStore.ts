@@ -10,7 +10,7 @@ import {
   obstacleRemovalCost,
 } from '../models/types';
 import * as GE from '../engines/GameEngine';
-import type { CollectResult } from '../engines/GameEngine';
+import type { CollectResult, SellConsequences } from '../engines/GameEngine';
 import * as VE from '../engines/VitacoinEngine';
 import * as HK from '../engines/HealthKitManager';
 import * as OM from '../engines/ObstacleManager';
@@ -51,6 +51,7 @@ interface GameStore {
   collectAll: () => CollectResult;
   clearCollectResult: () => void;
   sellBuilding: (id: string) => ResourceCost | null;
+  calculateSellConsequences: (id: string) => SellConsequences | null;
   trainWorker: () => boolean;
   assignWorker: (workerID: string, buildingID: string) => void;
   unassignWorker: (workerID: string) => void;
@@ -194,6 +195,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ gameState: result.newState });
     GE.saveGameState(result.newState);
     return result.refund;
+  },
+
+  calculateSellConsequences(id) {
+    return GE.calculateSellConsequences(get().gameState, id);
   },
 
   trainWorker() {

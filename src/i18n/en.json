@@ -206,6 +206,25 @@
     "resetCancel": "Cancel",
     "resetConfirm": "Reset"
   },
+  "sell": {
+    "confirmTitle": "Sell building?",
+    "confirmSubtitle": "Review what happens when you sell this building.",
+    "refundLabel": "You receive (50% refund)",
+    "pendingLabel": "Pending resources (collected now)",
+    "warningLabel": "Consequences",
+    "confirmBtn": "Sell",
+    "cancelBtn": "Cancel",
+    "dangerConfirmHint": "Tap again to confirm",
+    "warning": {
+      "storage_cap_reduced": "Storage capacity reduced — some resources will be lost.",
+      "workers_dismissed": "{{count}} worker(s) will be dismissed permanently.",
+      "food_production_lost": "Food production stops — workers will go hungry!",
+      "production_lost": "{{resource}} production stops.",
+      "bonus_lost": "Production bonus from {{building}} will be lost.",
+      "worker_unassigned": "Assigned worker will return to idle.",
+      "pending_collected": "Pending resources will be collected before sale."
+    }
+  },
   "resources": {
     "muskelmasse": "Muskelmasse",
     "protein": "Protein",

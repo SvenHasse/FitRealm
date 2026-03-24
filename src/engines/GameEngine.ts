@@ -11,7 +11,7 @@ import {
   findBuildingById, workerStatus,
 } from '../models/types';
 import {
-  ResourceCost, buildCost, upgradeCost, rathausRequirement,
+  ResourceCost, createResourceCost, buildCost, upgradeCost, rathausRequirement,
   UNIQUE_BUILDINGS, maxInstances, sellValue,
   Production, Storage, Earn, Workers,
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
@@ -206,6 +206,151 @@ export function collectAll(state: GameState): GameState {
   return s;
 }
 
+// MARK: - Sell Consequence Types
+export type SellWarningType =
+  | 'storage_cap_reduced'
+  | 'workers_dismissed'
+  | 'food_production_lost'
+  | 'production_lost'
+  | 'bonus_lost'
+  | 'worker_unassigned'
+  | 'pending_collected';
+
+export interface SellWarning {
+  type: SellWarningType;
+  severity: 'info' | 'warning' | 'danger';
+  messageKey: string;
+  values?: Record<string, string | number>;
+}
+
+export interface SellConsequences {
+  refund: ResourceCost;
+  pendingStorage: ResourceCost;
+  workerUnassigned: import('../models/types').Worker | null;
+  workersLost: import('../models/types').Worker[];
+  resourcesLost: ResourceCost;
+  warnings: SellWarning[];
+}
+
+// MARK: - Calculate Sell Consequences (pure — does not mutate state)
+export function calculateSellConsequences(
+  state: GameState,
+  buildingID: string,
+): SellConsequences | null {
+  const building = state.buildings.find(b => b.id === buildingID);
+  if (!building || building.type === BuildingType.rathaus) return null;
+
+  const warnings: SellWarning[] = [];
+  const refund       = sellValue(building.type, building.level);
+  const pendingStorage = createResourceCost();
+  const resourcesLost  = createResourceCost();
+  let workerUnassigned: import('../models/types').Worker | null = null;
+  let workersLost:      import('../models/types').Worker[]      = [];
+
+  // --- Pending storage: paid out automatically on sell ---
+  if (building.currentStorage > 0) {
+    const amt = Math.floor(building.currentStorage);
+    switch (building.type) {
+      case BuildingType.kornkammer:  pendingStorage.muskelmasse = amt; break;
+      case BuildingType.proteinfarm: pendingStorage.protein     = Math.floor(building.currentStorage); break;
+      case BuildingType.holzfaeller: pendingStorage.wood        = amt; break;
+      case BuildingType.steinbruch:  pendingStorage.stone       = amt; break;
+      case BuildingType.feld:        pendingStorage.food        = amt; break;
+    }
+    const hasPending = Object.values(pendingStorage).some(v => v > 0);
+    if (hasPending) {
+      warnings.push({ type: 'pending_collected', severity: 'info', messageKey: 'sell.warning.pending_collected' });
+    }
+  }
+
+  // --- Assigned worker ---
+  if (building.assignedWorkerID) {
+    const w = state.workers.find(w => w.id === building.assignedWorkerID) ?? null;
+    if (w) {
+      workerUnassigned = w;
+      warnings.push({ type: 'worker_unassigned', severity: 'info', messageKey: 'sell.warning.worker_unassigned' });
+    }
+  }
+
+  // --- Lager: storage cap reduction → overflow lost ---
+  if (building.type === BuildingType.lager) {
+    const remainingBuildings = state.buildings.filter(b => b.id !== buildingID);
+    for (const b of state.buildings) {
+      if (b.id === buildingID || b.currentStorage <= 0) continue;
+      const newCap = buildingStorageCap(b, remainingBuildings);
+      if (newCap <= 0) continue;
+      const overflow = Math.max(0, b.currentStorage - newCap);
+      if (overflow <= 0) continue;
+      switch (b.type) {
+        case BuildingType.kornkammer:  resourcesLost.muskelmasse += Math.floor(overflow); break;
+        case BuildingType.holzfaeller: resourcesLost.wood        += Math.floor(overflow); break;
+        case BuildingType.steinbruch:  resourcesLost.stone       += Math.floor(overflow); break;
+        case BuildingType.feld:        resourcesLost.food        += Math.floor(overflow); break;
+        case BuildingType.proteinfarm: resourcesLost.protein     += Math.floor(overflow); break;
+      }
+    }
+    const totalLost = resourcesLost.muskelmasse + resourcesLost.protein +
+                      resourcesLost.wood + resourcesLost.stone + resourcesLost.food;
+    if (totalLost > 0) {
+      warnings.push({
+        type: 'storage_cap_reduced', severity: 'danger',
+        messageKey: 'sell.warning.storage_cap_reduced',
+        values: { amount: totalLost },
+      });
+    }
+  }
+
+  // --- Kaserne: all workers dismissed ---
+  if (building.type === BuildingType.kaserne) {
+    workersLost = [...state.workers];
+    if (workersLost.length > 0) {
+      warnings.push({
+        type: 'workers_dismissed', severity: 'danger',
+        messageKey: 'sell.warning.workers_dismissed',
+        values: { count: workersLost.length },
+      });
+    }
+  }
+
+  // --- Feld: food production lost (workers at risk if any) ---
+  if (building.type === BuildingType.feld) {
+    const hasWorkers = state.workers.length > 0;
+    warnings.push({
+      type: hasWorkers ? 'food_production_lost' : 'production_lost',
+      severity: hasWorkers ? 'warning' : 'info',
+      messageKey: hasWorkers ? 'sell.warning.food_production_lost' : 'sell.warning.production_lost',
+      values: hasWorkers ? undefined : { resource: 'Nahrung' },
+    });
+  }
+
+  // --- Other producers: generic production_lost ---
+  if ([BuildingType.holzfaeller, BuildingType.steinbruch,
+       BuildingType.proteinfarm, BuildingType.kornkammer].includes(building.type)) {
+    const resourceName: Record<string, string> = {
+      [BuildingType.holzfaeller]:  'Holz',
+      [BuildingType.steinbruch]:   'Stein',
+      [BuildingType.proteinfarm]:  'Protein',
+      [BuildingType.kornkammer]:   'Muskelmasse',
+    };
+    warnings.push({
+      type: 'production_lost', severity: 'info',
+      messageKey: 'sell.warning.production_lost',
+      values: { resource: resourceName[building.type] ?? building.type },
+    });
+  }
+
+  // --- Tempel / Bibliothek: bonus lost ---
+  if (building.type === BuildingType.tempel || building.type === BuildingType.bibliothek) {
+    warnings.push({
+      type: 'bonus_lost', severity: 'warning',
+      messageKey: 'sell.warning.bonus_lost',
+      values: { building: building.type },
+    });
+  }
+
+  return { refund, pendingStorage, workerUnassigned, workersLost, resourcesLost, warnings };
+}
+
 // MARK: - Sell Building
 export interface SellResult {
   refund: ResourceCost;
@@ -228,7 +373,13 @@ export function sellBuilding(
     workers:   [...state.workers],
   };
 
-  // Unassign worker if one is attached to this building
+  // 1. Pay out pending storage into player resources first
+  if (building.currentStorage > 0) {
+    s.buildings[bIdx] = { ...s.buildings[bIdx] };
+    collectFromBuilding(s, bIdx);
+  }
+
+  // 2. Unassign worker attached to this building
   if (building.assignedWorkerID) {
     const wIdx = s.workers.findIndex(w => w.id === building.assignedWorkerID);
     if (wIdx >= 0) {
@@ -236,22 +387,37 @@ export function sellBuilding(
     }
   }
 
-  // Compute 50% refund
-  const refund = sellValue(building.type, building.level);
+  // 3. Kaserne: dismiss all workers
+  if (building.type === BuildingType.kaserne) {
+    s.workers = [];
+  }
 
-  // Credit resources
+  // 4. Remove building from grid
+  s.buildings = s.buildings.filter(b => b.id !== buildingID);
+
+  // 5. Lager: cap remaining buildings' resources to their new (reduced) storage cap
+  if (building.type === BuildingType.lager) {
+    for (let i = 0; i < s.buildings.length; i++) {
+      const b = s.buildings[i];
+      if (b.currentStorage <= 0) continue;
+      const newCap = buildingStorageCap(b, s.buildings);
+      if (b.currentStorage > newCap) {
+        s.buildings[i] = { ...b, currentStorage: newCap };
+      }
+    }
+  }
+
+  // 6. Compute 50% refund and credit resources
+  const refund = sellValue(building.type, building.level);
   s = {
     ...s,
     muskelmasse:  s.muskelmasse  + refund.muskelmasse,
     protein:      s.protein      + refund.protein,
-    wood:         s.wood          + refund.wood,
-    stone:        s.stone         + refund.stone,
-    food:         s.food          + refund.food,
+    wood:         s.wood         + refund.wood,
+    stone:        s.stone        + refund.stone,
+    food:         s.food         + refund.food,
     streakTokens: s.streakTokens + refund.streakTokens,
   };
-
-  // Remove building from grid
-  s.buildings = s.buildings.filter(b => b.id !== buildingID);
 
   return { newState: s, refund };
 }
