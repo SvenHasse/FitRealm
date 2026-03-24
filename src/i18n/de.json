@@ -24,7 +24,8 @@
     "holz": "Holz",
     "stein": "Stein",
     "nahrung": "Nahrung",
-    "streak": "Streak"
+    "streak": "Streak",
+    "registry": "Dorf"
   },
   "dashboard": {
     "vitacoins": "VITACOINS",
@@ -47,6 +48,15 @@
   },
   "realm": {
     "tapToPlace": "Tippe auf ein freies Feld: {{building}}"
+  },
+  "registry": {
+    "title": "Mein Dorf",
+    "categoryMain": "Hauptgebäude",
+    "categoryProduction": "Produktion",
+    "categoryInfrastructure": "Infrastruktur",
+    "categorySpecial": "Spezial",
+    "empty": "Noch keine Gebäude gebaut",
+    "storage": "{{current}}/{{max}}"
   },
   "obstacles": {
     "cost": "Kosten: {{cost}}g Muskelmasse",

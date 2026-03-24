@@ -1,11 +1,15 @@
 // RealmScreen.tsx
 // FitRealm - Realm tab: scrollable world map with HUD overlay and sheets
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal,
   Dimensions,
 } from 'react-native';
+import Animated, {
+  useSharedValue, useAnimatedStyle,
+  withSequence, withTiming, Easing,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
@@ -22,9 +26,11 @@ import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
 import WorkerSheet from '../components/WorkerSheet';
 import ResourceInfoModal, { ResourceKey } from '../components/ResourceInfoModal';
+import BuildingRegistryModal from '../components/BuildingRegistryModal';
 
 const CELL_SIZE = 70;
 const GRID_SIZE = WorldConstants.gridSize;
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 export default function RealmScreen() {
   const store = useGameStore();
@@ -34,14 +40,42 @@ export default function RealmScreen() {
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [showBuildMenu, setShowBuildMenu] = useState(false);
   const [showWorkers, setShowWorkers] = useState(false);
+  const [showRegistry, setShowRegistry] = useState(false);
   const [buildPlacementMode, setBuildPlacementMode] = useState<BuildingType | null>(null);
   const [selectedObstacle, setSelectedObstacle] = useState<Obstacle | null>(null);
   const [selectedResource, setSelectedResource] = useState<ResourceKey | null>(null);
+  const [highlightedBuildingId, setHighlightedBuildingId] = useState<string | null>(null);
+
+  // Scroll refs for map navigation
+  const hScrollRef = useRef<ScrollView>(null);
+  const vScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     store.processTick();
     store.checkObstacleCompletion();
   }, []);
+
+  // Clear highlight after 1.5 s
+  useEffect(() => {
+    if (!highlightedBuildingId) return;
+    const timer = setTimeout(() => setHighlightedBuildingId(null), 1500);
+    return () => clearTimeout(timer);
+  }, [highlightedBuildingId]);
+
+  // Scroll map so the building sits roughly at viewport centre
+  const scrollToBuilding = useCallback((row: number, col: number) => {
+    const x = Math.max(0, col * CELL_SIZE + 20 - SCREEN_W / 2 + CELL_SIZE / 2);
+    const y = Math.max(0, row * CELL_SIZE + 20 - SCREEN_H / 2 + CELL_SIZE / 2);
+    hScrollRef.current?.scrollTo({ x, animated: true });
+    vScrollRef.current?.scrollTo({ y, animated: true });
+  }, []);
+
+  // Called when a building is selected in the registry
+  const handleRegistrySelect = useCallback((building: Building) => {
+    setShowRegistry(false);
+    setHighlightedBuildingId(building.id);
+    scrollToBuilding(building.position.row, building.position.col);
+  }, [scrollToBuilding]);
 
   const handleCellPress = (row: number, col: number) => {
     const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
@@ -66,6 +100,7 @@ export default function RealmScreen() {
     <View style={styles.container}>
       {/* World Map Grid */}
       <ScrollView
+        ref={hScrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
           width: GRID_SIZE * CELL_SIZE + 40,
@@ -76,9 +111,10 @@ export default function RealmScreen() {
         directionalLockEnabled={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        contentOffset={{ x: (GRID_SIZE * CELL_SIZE - Dimensions.get('window').width) / 2, y: (GRID_SIZE * CELL_SIZE - Dimensions.get('window').height) / 2 }}
+        contentOffset={{ x: (GRID_SIZE * CELL_SIZE - SCREEN_W) / 2, y: (GRID_SIZE * CELL_SIZE - SCREEN_H) / 2 }}
       >
         <ScrollView
+          ref={vScrollRef}
           nestedScrollEnabled
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE }}
@@ -97,7 +133,7 @@ export default function RealmScreen() {
                     onPress={() => handleCellPress(row, col)}
                     activeOpacity={0.7}
                   >
-                    {building ? <BuildingCell building={building} /> : obstacle ? <ObstacleCell obstacle={obstacle} /> : isPlacementTarget ? <Ionicons name="add" size={20} color="rgba(76,175,80,0.6)" /> : null}
+                    {building ? <BuildingCell building={building} isHighlighted={highlightedBuildingId === building.id} /> : obstacle ? <ObstacleCell obstacle={obstacle} /> : isPlacementTarget ? <Ionicons name="add" size={20} color="rgba(76,175,80,0.6)" /> : null}
                   </TouchableOpacity>
                 );
               })
@@ -121,6 +157,10 @@ export default function RealmScreen() {
           <TouchableOpacity style={styles.hudBtn} onPress={() => setShowWorkers(true)}>
             <Ionicons name="people" size={28} color="#00B4D8" />
             <Text style={styles.hudBtnLabel}>{t('hud.workers')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.hudBtn} onPress={() => setShowRegistry(true)}>
+            <Ionicons name="list" size={28} color="#A78BFA" />
+            <Text style={styles.hudBtnLabel}>{t('hud.registry')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.hudBtn} onPress={() => store.collectAll()}>
             <Ionicons name="download-outline" size={28} color="#00C853" />
@@ -188,16 +228,38 @@ export default function RealmScreen() {
       </Modal>
       {/* Resource Info Modal */}
       <ResourceInfoModal resource={selectedResource} onClose={() => setSelectedResource(null)} />
+
+      {/* Building Registry Modal */}
+      <BuildingRegistryModal
+        visible={showRegistry}
+        onClose={() => setShowRegistry(false)}
+        onSelectBuilding={handleRegistrySelect}
+      />
     </View>
   );
 }
 
 // MARK: - Building Cell
-function BuildingCell({ building }: { building: Building }) {
+function BuildingCell({ building, isHighlighted }: { building: Building; isHighlighted?: boolean }) {
   const accent = buildingAccentColor(building.type);
   const levelColors: Record<number, string> = { 1: '#9E9E9E', 2: '#66BB6A', 3: '#42A5F5', 4: '#AB47BC', 5: '#FFD54F' };
+
+  // Highlight pulse animation (scale 1.0 → 1.15 → 1.0, twice, over 1.5 s)
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    if (isHighlighted) {
+      scale.value = withSequence(
+        withTiming(1.15, { duration: 370, easing: Easing.out(Easing.cubic) }),
+        withTiming(1.0,  { duration: 370, easing: Easing.in(Easing.cubic) }),
+        withTiming(1.15, { duration: 370 }),
+        withTiming(1.0,  { duration: 370 }),
+      );
+    }
+  }, [isHighlighted]);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
   return (
-    <View style={styles.buildingCell}>
+    <Animated.View style={[styles.buildingCell, animStyle, isHighlighted && styles.highlightedCell]}>
       <Ionicons name={buildingIconName(building.type) as any} size={28} color={building.isDecayed ? '#666' : accent} />
       <View style={[styles.levelBadge, { backgroundColor: levelColors[building.level] || '#9E9E9E' }]}>
         <Text style={styles.levelText}>{building.level}</Text>
@@ -207,7 +269,7 @@ function BuildingCell({ building }: { building: Building }) {
           <Text style={styles.resourceBubbleText}>{Math.floor(building.currentStorage)}</Text>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -349,6 +411,7 @@ const styles = StyleSheet.create({
   },
   placementCell: { borderWidth: 1, borderColor: 'rgba(76,175,80,0.4)', borderStyle: 'dashed' },
   buildingCell: { alignItems: 'center', justifyContent: 'center' },
+  highlightedCell: { borderWidth: 3, borderColor: '#F5A623', borderRadius: 8 },
   levelBadge: {
     position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: 8,
     alignItems: 'center', justifyContent: 'center',
