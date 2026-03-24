@@ -189,6 +189,16 @@ export const UNIQUE_BUILDINGS: Set<BuildingType> = new Set([
   BuildingType.tempel,
 ]);
 
+// MARK: - Max Instances per Building Type
+// Mehrfachbau: Feld ≤ 3, Holzfäller ≤ 2, all others ≤ 1
+export function maxInstances(type: BuildingType): number {
+  switch (type) {
+    case BuildingType.feld:        return 3;
+    case BuildingType.holzfaeller: return 2;
+    default:                       return 1;
+  }
+}
+
 // MARK: - Workers
 export const Workers = {
   trainingCost: createResourceCost({ muskelmasse: 50, streakTokens: 1, food: 5 }),

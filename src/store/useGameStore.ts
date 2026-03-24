@@ -7,6 +7,7 @@ import {
   GameState, Building, GridPosition, BuildingType, Obstacle,
   WorkoutRecord, HealthSnapshot, emptyHealthSnapshot,
   createDefaultGameState, gameStateRathausLevel, findBuildingById, workerStatus, WorkerStatus,
+  obstacleRemovalCost,
 } from '../models/types';
 import * as GE from '../engines/GameEngine';
 import * as VE from '../engines/VitacoinEngine';
@@ -309,9 +310,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // MARK: - Obstacle Actions
   removeSmallObstacle(id) {
+    // Find the obstacle before removing it so we can compute its cost
+    const obstacle = get().obstacles.find(o => o.id === id);
+    const cost = obstacle ? obstacleRemovalCost(obstacle.type) : 0;
+
+    // Mark obstacle as cleared
     const obstacles = OM.removeSmallObstacle(get().obstacles, id);
     set({ obstacles });
     OM.saveObstacles(obstacles);
+
+    // Deduct Muskelmasse cost (15g for small obstacles) and persist
+    if (cost > 0) {
+      const gs = get().gameState;
+      const updatedGs = { ...gs, muskelmasse: Math.max(0, gs.muskelmasse - cost) };
+      set({ gameState: updatedGs });
+      GE.saveGameState(updatedGs);
+    }
   },
 
   startClearingObstacle(id) {
