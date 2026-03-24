@@ -11,8 +11,8 @@ import {
   buildingIconName, buildingAccentColor,
   gameStateRathausLevel,
 } from '../models/types';
-import { buildCost, rathausRequirement, maxInstances } from '../config/GameConfig';
-import { canAfford, costString } from '../engines/GameEngine';
+import { buildCost, rathausRequirement, maxInstances, LAGER_BONUS_PER_LEVEL, getTotalStorageCap, Production } from '../config/GameConfig';
+import { canAfford, costString, hourlyProductionRate } from '../engines/GameEngine';
 
 type TabKey = 'production' | 'infrastructure' | 'special';
 
@@ -27,11 +27,29 @@ interface Props {
   onClose: () => void;
 }
 
+// Production rate at L1 for a given building type
+function l1ProductionRate(type: BuildingType): { rate: number; resource: string } | null {
+  const mockBuilding = { type, level: 1, currentStorage: 0, assignedWorkerID: null, isDecayed: false, id: '', position: { row: 0, col: 0 } };
+  const rate = hourlyProductionRate(mockBuilding as any);
+  if (rate <= 0) return null;
+  const resourceMap: Partial<Record<BuildingType, string>> = {
+    [BuildingType.kornkammer]:  'g Muskel/h',
+    [BuildingType.proteinfarm]: ' Protein/h',
+    [BuildingType.holzfaeller]: ' Holz/h',
+    [BuildingType.steinbruch]:  ' Stein/h',
+    [BuildingType.feld]:        ' Nahrung/h',
+  };
+  const suffix = resourceMap[type];
+  if (!suffix) return null;
+  return { rate, resource: suffix };
+}
+
 export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
   const [selectedTab, setSelectedTab] = useState<TabKey>('production');
   const store = useGameStore();
   const { gameState } = store;
   const { t } = useTranslation();
+  const currentCap = getTotalStorageCap(gameState.buildings);
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'production', label: t('buildMenu.production') },
@@ -103,6 +121,29 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
               ) : (
                 <Text style={styles.costText}>{costString(cost)}</Text>
               )}
+              {/* Lager: show bonus preview */}
+              {type === BuildingType.lager && !lockReason && (() => {
+                const b = LAGER_BONUS_PER_LEVEL[0];
+                return (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoRowText}>
+                      📦 +{b.muskelmasse}g · +{b.wood} Holz · +{b.food} Nahr. · +{b.stone} Stein
+                    </Text>
+                    <Text style={styles.infoRowSub}>
+                      Aktuell: {Math.floor(currentCap.muskelmasse)}g / {Math.floor(currentCap.muskelmasse + b.muskelmasse)}g
+                    </Text>
+                  </View>
+                );
+              })()}
+              {/* Production buildings: show L1 rate */}
+              {[BuildingType.holzfaeller, BuildingType.steinbruch, BuildingType.feld,
+                BuildingType.proteinfarm, BuildingType.kornkammer].includes(type) && !lockReason && (() => {
+                const info = l1ProductionRate(type);
+                if (!info) return null;
+                return (
+                  <Text style={styles.infoRowText}>⚡ {info.rate % 1 === 0 ? info.rate : info.rate.toFixed(1)}{info.resource}</Text>
+                );
+              })()}
             </TouchableOpacity>
           );
         })}
@@ -138,4 +179,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4, paddingVertical: 1,
   },
   countBadgeText: { fontSize: 9, fontWeight: 'bold', color: '#000' },
+  infoRow: { alignItems: 'center', gap: 2 },
+  infoRowText: { fontSize: 9, color: '#4DD0E1', textAlign: 'center' },
+  infoRowSub: { fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: 'center' },
 });

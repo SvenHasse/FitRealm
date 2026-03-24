@@ -313,29 +313,57 @@ function ObstacleCell({ obstacle }: { obstacle: Obstacle }) {
   );
 }
 
+// MARK: - Number formatting
+function fmtNum(n: number, lang: string): string {
+  const sep = lang === 'de' ? '.' : ',';
+  return Math.floor(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, sep);
+}
+
 // MARK: - Top Resource Bar
 function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey) => void }) {
   const gs = useGameStore(s => s.gameState);
-  const { t } = useTranslation();
+  const cap = useGameStore(s => s.storageCap);
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   return (
     <View style={styles.resourceBar}>
       <View style={styles.resourceRow}>
-        <ResourcePill icon="barbell" iconColor={AppColors.gold} value={`${Math.floor(gs.muskelmasse)}g`} label={t('hud.muskel')} onPress={() => onResourcePress('muskelmasse')} />
+        <ResourcePill icon="barbell" iconColor={AppColors.gold}
+          value={`${fmtNum(gs.muskelmasse, lang)}g`}
+          max={cap.muskelmasse} current={gs.muskelmasse} suffix="g"
+          label={t('hud.muskel')} onPress={() => onResourcePress('muskelmasse')} lang={lang} />
         <View style={styles.divider} />
-        <ResourcePill icon="medkit" iconColor="#00BCD4" value={`${gs.protein}`} label={t('hud.protein')} onPress={() => onResourcePress('protein')} />
+        <ResourcePill icon="medkit" iconColor="#00BCD4"
+          value={`${fmtNum(gs.protein, lang)}`}
+          max={cap.protein} current={gs.protein}
+          label={t('hud.protein')} onPress={() => onResourcePress('protein')} lang={lang} />
         <View style={styles.divider} />
-        <ResourcePill icon="flame" iconColor="#FF9800" value={`${gs.streakTokens}`} label={t('hud.token')} onPress={() => onResourcePress('streakTokens')} />
+        <ResourcePill icon="flame" iconColor="#FF9800"
+          value={`${fmtNum(gs.streakTokens, lang)}`}
+          max={cap.streakTokens} current={gs.streakTokens}
+          label={t('hud.token')} onPress={() => onResourcePress('streakTokens')} lang={lang} />
       </View>
-      <View style={[styles.resourceRow, { opacity: 0.85 }]}>
-        <ResourcePill icon="hammer" iconColor="#8B7355" value={`${gs.wood}`} label={t('hud.holz')} onPress={() => onResourcePress('wood')} />
+      <View style={[styles.resourceRow, { opacity: 0.9 }]}>
+        <ResourcePill icon="hammer" iconColor="#8B7355"
+          value={`${fmtNum(gs.wood, lang)}`}
+          max={cap.wood} current={gs.wood}
+          label={t('hud.holz')} onPress={() => onResourcePress('wood')} lang={lang} />
         <View style={styles.divider} />
-        <ResourcePill icon="cube" iconColor="#9E9E9E" value={`${gs.stone}`} label={t('hud.stein')} onPress={() => onResourcePress('stone')} />
+        <ResourcePill icon="cube" iconColor="#9E9E9E"
+          value={`${fmtNum(gs.stone, lang)}`}
+          max={cap.stone} current={gs.stone}
+          label={t('hud.stein')} onPress={() => onResourcePress('stone')} lang={lang} />
         <View style={styles.divider} />
-        <ResourcePill icon="leaf" iconColor="#4CAF50" value={`${gs.food}`} label={t('hud.nahrung')} onPress={() => onResourcePress('food')} />
+        <ResourcePill icon="leaf" iconColor="#4CAF50"
+          value={`${fmtNum(gs.food, lang)}`}
+          max={cap.food} current={gs.food}
+          label={t('hud.nahrung')} onPress={() => onResourcePress('food')} lang={lang} />
         {gs.currentStreak > 0 && (
           <>
             <View style={styles.divider} />
-            <ResourcePill icon="flash" iconColor="#FFEB3B" value={`${gs.currentStreak}d`} label={t('hud.streak')} onPress={() => onResourcePress('streakTokens')} />
+            <ResourcePill icon="flash" iconColor="#FFEB3B"
+              value={`${gs.currentStreak}d`}
+              label={t('hud.streak')} onPress={() => onResourcePress('streakTokens')} lang={lang} />
           </>
         )}
       </View>
@@ -343,13 +371,43 @@ function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey)
   );
 }
 
-function ResourcePill({ icon, iconColor, value, label, onPress }: { icon: string; iconColor: string; value: string; label: string; onPress: () => void }) {
+interface ResourcePillProps {
+  icon: string;
+  iconColor: string;
+  value: string;
+  label: string;
+  onPress: () => void;
+  lang: string;
+  max?: number;
+  current?: number;
+  suffix?: string;
+}
+
+function ResourcePill({ icon, iconColor, value, label, onPress, lang, max, current }: ResourcePillProps) {
+  const ratio = (max && max > 0 && current !== undefined) ? current / max : 0;
+  const isFull   = ratio >= 1.0;
+  const isAlmost = ratio >= 0.8 && !isFull;
+  const borderColor = isFull ? '#FF6B6B' : isAlmost ? '#F5A623' : 'transparent';
+  const bgColor = isFull ? 'rgba(255,80,80,0.15)' : 'transparent';
+  const maxStr = max !== undefined ? fmtNum(max, lang) : null;
+
   return (
-    <TouchableOpacity style={styles.pill} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[styles.pill, { borderColor, borderWidth: isFull || isAlmost ? 1 : 0, borderRadius: 8, backgroundColor: bgColor }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <Ionicons name={icon as any} size={11} color={iconColor} />
-      <Text style={styles.pillValue}>{value}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 1 }}>
+        <Text style={styles.pillValue}>{value}</Text>
+        {maxStr !== null && (
+          <Text style={styles.pillMax}> /{maxStr}</Text>
+        )}
+      </View>
       <Text style={styles.pillLabel}>{label}</Text>
-      <Ionicons name="information-circle-outline" size={12} color="rgba(255,255,255,0.4)" />
+      {isFull   && <Text style={{ fontSize: 9 }}>🔴</Text>}
+      {isAlmost && !isFull && <Text style={{ fontSize: 9 }}>⚠️</Text>}
+      {!isFull  && !isAlmost && <Ionicons name="information-circle-outline" size={12} color="rgba(255,255,255,0.4)" />}
     </TouchableOpacity>
   );
 }
@@ -461,8 +519,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(26,26,46,0.92)', borderRadius: 14, paddingVertical: 8,
     shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
-  pill: { flex: 1, alignItems: 'center', gap: 1 },
+  pill: { flex: 1, alignItems: 'center', gap: 1, paddingVertical: 2, paddingHorizontal: 2 },
   pillValue: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
+  pillMax: { fontSize: 10, color: 'rgba(255,255,255,0.45)' },
   pillLabel: { fontSize: 8, color: 'rgba(255,255,255,0.55)' },
   divider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.1)' },
   explorationPill: {
