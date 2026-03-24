@@ -1,21 +1,29 @@
 // App.tsx
-// FitRealm - Root entry point with tab navigation
+// FitRealm – Root navigator:
+//   RootStack (native stack, no header)
+//     ├─ Main  → Tab navigator (Dashboard / Realm / Goals / Settings)
+//     └─ WorkoutReward → WorkoutRewardScreen (modal presentation)
 
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import './src/i18n'; // initialize i18n before anything renders
+import './src/i18n';
 import { useGameStore } from './src/store/useGameStore';
 import { AppColors } from './src/models/types';
+import { RootStackParamList } from './src/navigation/types';
+
 import DashboardScreen from './src/screens/DashboardScreen';
 import RealmScreen from './src/screens/RealmScreen';
 import GoalsScreen from './src/screens/GoalsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import WorkoutRewardScreen from './src/screens/WorkoutRewardScreen';
 
 const Tab = createBottomTabNavigator();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 const DarkTheme = {
   ...DefaultTheme,
@@ -30,9 +38,40 @@ const DarkTheme = {
   },
 };
 
+function TabNavigator() {
+  const { t } = useTranslation();
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = 'home';
+          if (route.name === 'Dashboard') iconName = 'home';
+          else if (route.name === 'Realm') iconName = 'map';
+          else if (route.name === 'Goals') iconName = 'trophy';
+          else if (route.name === 'Settings') iconName = 'settings';
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: AppColors.gold,
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.4)',
+        tabBarStyle: {
+          backgroundColor: AppColors.cardBackground,
+          borderTopColor: 'transparent',
+        },
+        headerStyle: { backgroundColor: AppColors.background },
+        headerTintColor: AppColors.textPrimary,
+        headerTitleStyle: { fontWeight: 'bold' as const },
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: t('tabs.dashboard') }} />
+      <Tab.Screen name="Realm" component={RealmScreen} options={{ headerShown: false, title: t('tabs.realm') }} />
+      <Tab.Screen name="Goals" component={GoalsScreen} options={{ title: t('tabs.goals') }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabs.settings') }} />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
   const initialize = useGameStore(s => s.initialize);
-  const { t } = useTranslation();
 
   useEffect(() => {
     initialize();
@@ -41,32 +80,14 @@ export default function App() {
   return (
     <NavigationContainer theme={DarkTheme}>
       <StatusBar style="light" />
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ color, size }) => {
-            let iconName: keyof typeof Ionicons.glyphMap = 'home';
-            if (route.name === 'Dashboard') iconName = 'home';
-            else if (route.name === 'Realm') iconName = 'map';
-            else if (route.name === 'Goals') iconName = 'trophy';
-            else if (route.name === 'Settings') iconName = 'settings';
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-          tabBarActiveTintColor: AppColors.gold,
-          tabBarInactiveTintColor: 'rgba(255,255,255,0.4)',
-          tabBarStyle: {
-            backgroundColor: AppColors.cardBackground,
-            borderTopColor: 'transparent',
-          },
-          headerStyle: { backgroundColor: AppColors.background },
-          headerTintColor: AppColors.textPrimary,
-          headerTitleStyle: { fontWeight: 'bold' },
-        })}
-      >
-        <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: t('tabs.dashboard') }} />
-        <Tab.Screen name="Realm" component={RealmScreen} options={{ headerShown: false, title: t('tabs.realm') }} />
-        <Tab.Screen name="Goals" component={GoalsScreen} options={{ title: t('tabs.goals') }} />
-        <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabs.settings') }} />
-      </Tab.Navigator>
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        <RootStack.Screen name="Main" component={TabNavigator} />
+        <RootStack.Screen
+          name="WorkoutReward"
+          component={WorkoutRewardScreen}
+          options={{ presentation: 'modal' }}
+        />
+      </RootStack.Navigator>
     </NavigationContainer>
   );
 }

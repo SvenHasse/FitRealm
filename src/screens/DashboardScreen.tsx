@@ -7,7 +7,7 @@
 //   5. Recent Workouts + Health Trends
 //   6. Sync button
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useGameStore } from '../store/useGameStore';
 import { useHealthData } from '../hooks/useHealthData';
@@ -31,12 +32,14 @@ import {
   restingHRTrend,
   vo2MaxTrend,
 } from '../models/types';
+import { RootStackParamList, MOCK_WORKOUT } from '../navigation/types';
 
 import DailyMetricCard from '../components/DailyMetricCard';
 import StreakCounter from '../components/StreakCounter';
 import ProgressProjectionWidget from '../components/ProgressProjectionWidget';
 import WorkoutRecognitionCard from '../components/WorkoutRecognitionCard';
-import WorkoutRewardScreen from './WorkoutRewardScreen';
+
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 // ─── Shared components (also imported by WorkerSheet, SettingsScreen) ─────────
 
@@ -97,7 +100,11 @@ export default function DashboardScreen() {
   const { recentWorkouts, healthSnapshot, isSyncing, syncHealthData } = useGameStore();
   const health = useHealthData();
   const { t } = useTranslation();
-  const [showReward, setShowReward] = useState(false);
+  const navigation = useNavigation<NavProp>();
+
+  const openReward = () => {
+    navigation.navigate('WorkoutReward', { workout: MOCK_WORKOUT });
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -140,7 +147,7 @@ export default function DashboardScreen() {
         <StreakCounter streak={health.currentStreak} milestone={health.streakMilestone} />
 
         {/* ── 3. Workout Recognition Card ────────────────────────────── */}
-        <WorkoutRecognitionCard onPress={() => setShowReward(true)} />
+        <WorkoutRecognitionCard onPress={openReward} />
 
         {/* ── 4. Progress Projection ─────────────────────────────────── */}
         <ProgressProjectionWidget stepsToday={health.stepsToday} stepsGoal={health.stepsGoal} />
@@ -156,11 +163,6 @@ export default function DashboardScreen() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
-
-      {/* Workout Reward modal */}
-      <Modal visible={showReward} animationType="slide" presentationStyle="pageSheet">
-        <WorkoutRewardScreen onClose={() => setShowReward(false)} />
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -198,8 +200,7 @@ function WorkoutRow({ workout }: { workout: WorkoutRecord }) {
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-          <Ionicons name="ellipse" size={10} color={AppColors.gold} />
-          <Text style={styles.workoutCoins}>+{Math.floor(workout.vitacoinsEarned)}</Text>
+          <Text style={styles.workoutCoins}>💪 +{Math.floor(workout.vitacoinsEarned)}g</Text>
         </View>
         <Text style={styles.workoutDate}>{dateStr}</Text>
       </View>
