@@ -80,7 +80,7 @@ function CurrencySlot({ icon, color, value, unit = '', label, align = 'center' }
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CurrencyBar() {
-  const { muskelmasse, protein, streakTokens } = useGameStore();
+  const { muskelmasse, protein, currentStreak } = useGameStore();
 
   return (
     <View style={styles.container}>
@@ -104,7 +104,8 @@ export default function CurrencyBar() {
       <CurrencySlot
         icon="fire"
         color="#FF6B35"
-        value={streakTokens}
+        value={currentStreak}
+        unit=" T"
         label="Streak"
         align="right"
       />

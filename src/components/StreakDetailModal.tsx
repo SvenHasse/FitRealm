@@ -1,7 +1,7 @@
 // StreakDetailModal.tsx
 // Full-screen modal: flame header → 48h countdown → scrollable milestone rewards board.
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated as RNAnimated,
   Dimensions,
@@ -352,11 +352,13 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
   const effectiveCollected = collectedMilestones;
 
   // Last workout date: prefer store value, fall back to recentWorkouts.
-  // For type/duration we still use mock data when the engine is in mock mode
-  // because that data lives in the engine store's recentWorkouts array.
-  const lastWorkoutDate: Date | null = lastWorkoutDateStr
-    ? new Date(lastWorkoutDateStr)
-    : recentWorkouts.length > 0 ? new Date(recentWorkouts[0].date) : null;
+  // useMemo keeps the Date reference stable so the countdown useEffect below
+  // doesn't fire every render (new Date() !== new Date() even for same string).
+  const lastWorkoutDate: Date | null = useMemo(() => {
+    if (lastWorkoutDateStr) return new Date(lastWorkoutDateStr);
+    if (recentWorkouts.length > 0) return new Date(recentWorkouts[0].date);
+    return null;
+  }, [lastWorkoutDateStr, recentWorkouts]);
 
   const lastWorkoutType    = useMockData ? MOCK.lastWorkoutType    : recentWorkouts[0]?.workoutType ?? '';
   const lastWorkoutMinutes = useMockData ? MOCK.lastWorkoutDuration : recentWorkouts[0] ? Math.floor(recentWorkouts[0].durationMinutes) : 0;
