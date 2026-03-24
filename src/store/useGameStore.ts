@@ -14,7 +14,7 @@ import type { CollectResult, SellConsequences } from '../engines/GameEngine';
 import * as VE from '../engines/VitacoinEngine';
 import * as HK from '../engines/HealthKitManager';
 import * as OM from '../engines/ObstacleManager';
-import { ResourceCost, buildCost, upgradeCost, rathausRequirement, UNIQUE_BUILDINGS, Workers } from '../config/GameConfig';
+import { ResourceCost, StorageCapacity, getTotalStorageCap, buildCost, upgradeCost, rathausRequirement, UNIQUE_BUILDINGS, Workers } from '../config/GameConfig';
 
 interface GameStore {
   // Game State
@@ -39,6 +39,9 @@ interface GameStore {
 
   // Collect popup
   lastCollectResult: CollectResult | null;
+
+  // Storage capacity (recalculated whenever buildings change)
+  storageCap: StorageCapacity;
 
   // Actions - Init
   initialize: () => Promise<void>;
@@ -99,6 +102,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   useMockData: false,
   obstacles: [],
   lastCollectResult: null,
+  storageCap: getTotalStorageCap([]),
 
   // MARK: - Initialize
   async initialize() {
@@ -131,6 +135,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       vitacoinsEarnedToday: vs.vitacoinsEarnedToday ?? 0,
       useMockData: mockData,
       obstacles,
+      storageCap: getTotalStorageCap(gs.buildings),
     });
 
     // If mock mode, load the mock game state with pre-built buildings
@@ -148,14 +153,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // MARK: - Game Engine Actions
   processTick() {
     const newState = GE.processTick(get().gameState);
-    set({ gameState: newState });
+    set({ gameState: newState, storageCap: getTotalStorageCap(newState.buildings) });
     GE.saveGameState(newState);
   },
 
   buildBuilding(type, position) {
     const result = GE.buildBuilding(get().gameState, type, position);
     if (!result) return false;
-    set({ gameState: result });
+    set({ gameState: result, storageCap: getTotalStorageCap(result.buildings) });
     GE.saveGameState(result);
     return true;
   },
@@ -163,7 +168,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   upgradeBuilding(buildingID) {
     const result = GE.upgradeBuilding(get().gameState, buildingID);
     if (!result) return false;
-    set({ gameState: result });
+    set({ gameState: result, storageCap: getTotalStorageCap(result.buildings) });
     GE.saveGameState(result);
     return true;
   },
@@ -192,7 +197,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   sellBuilding(id) {
     const result = GE.sellBuilding(get().gameState, id);
     if (!result) return null;
-    set({ gameState: result.newState });
+    set({ gameState: result.newState, storageCap: getTotalStorageCap(result.newState.buildings) });
     GE.saveGameState(result.newState);
     return result.refund;
   },
@@ -257,7 +262,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         // Forward workouts to game engine
         const gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot);
-        set({ gameState: gs });
+        set({ gameState: gs, storageCap: getTotalStorageCap(gs.buildings) });
         GE.saveGameState(gs);
       } else {
         // Real HealthKit sync (stubs for managed workflow)
@@ -333,7 +338,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   loadMockGameState() {
     const mock = GE.loadMockGameState();
-    set({ gameState: mock });
+    set({ gameState: mock, storageCap: getTotalStorageCap(mock.buildings) });
     GE.saveGameState(mock);
   },
 
