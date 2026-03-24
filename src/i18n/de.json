@@ -117,7 +117,9 @@
     "special": "Spezial",
     "alreadyBuilt": "Bereits gebaut",
     "rathausRequired": "Rathaus L{{level}}",
-    "tooExpensive": "Zu teuer"
+    "tooExpensive": "Zu teuer",
+    "maxReached": "Max erreicht",
+    "instanceCount": "{{current}}/{{max}}"
   },
   "workerSheet": {
     "title": "Arbeiter",

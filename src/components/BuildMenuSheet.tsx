@@ -11,7 +11,7 @@ import {
   buildingIconName, buildingAccentColor,
   gameStateRathausLevel,
 } from '../models/types';
-import { buildCost, rathausRequirement, UNIQUE_BUILDINGS } from '../config/GameConfig';
+import { buildCost, rathausRequirement, maxInstances } from '../config/GameConfig';
 import { canAfford, costString } from '../engines/GameEngine';
 
 type TabKey = 'production' | 'infrastructure' | 'special';
@@ -70,13 +70,17 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
         {filteredTypes.map(type => {
           const cost = buildCost(type);
           const reqLevel = rathausRequirement(type);
+          const max = maxInstances(type);
+          const existingCount = gameState.buildings.filter(b => b.type === type).length;
           const meetsReq = gameStateRathausLevel(gameState) >= reqLevel;
           const affordable = canAfford(gameState, cost);
-          const alreadyBuilt = UNIQUE_BUILDINGS.has(type) && gameState.buildings.some(b => b.type === type);
-          const canPlace = meetsReq && affordable && !alreadyBuilt;
-          const lockReason = alreadyBuilt ? t('buildMenu.alreadyBuilt')
+          const atMax = existingCount >= max;
+          const canPlace = meetsReq && affordable && !atMax;
+          const lockReason = atMax ? t('buildMenu.maxReached')
             : !meetsReq ? t('buildMenu.rathausRequired', { level: reqLevel })
             : !affordable ? t('buildMenu.tooExpensive') : null;
+          // Show "1/2" badge when multi-build is partially used
+          const showCount = max > 1 && existingCount > 0 && !atMax;
 
           return (
             <TouchableOpacity
@@ -85,7 +89,14 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
               onPress={() => canPlace && onSelectBuilding(type)}
               activeOpacity={canPlace ? 0.7 : 1}
             >
-              <Ionicons name={buildingIconName(type) as any} size={36} color={canPlace ? buildingAccentColor(type) : 'rgba(255,255,255,0.3)'} />
+              <View style={{ position: 'relative' }}>
+                <Ionicons name={buildingIconName(type) as any} size={36} color={canPlace ? buildingAccentColor(type) : 'rgba(255,255,255,0.3)'} />
+                {showCount && (
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>{t('buildMenu.instanceCount', { current: existingCount, max })}</Text>
+                  </View>
+                )}
+              </View>
               <Text style={[styles.buildName, !canPlace && { opacity: 0.4 }]}>{t(`buildings.${type}`)}</Text>
               {lockReason ? (
                 <Text style={styles.lockReason}>{lockReason}</Text>
@@ -121,4 +132,10 @@ const styles = StyleSheet.create({
   buildName: { fontSize: 13, fontWeight: '600', color: '#fff' },
   lockReason: { fontSize: 10, fontWeight: '500', color: 'rgba(244,67,54,0.8)' },
   costText: { fontSize: 10, color: 'rgba(255,255,255,0.5)', textAlign: 'center' },
+  countBadge: {
+    position: 'absolute', top: -4, right: -10,
+    backgroundColor: AppColors.gold, borderRadius: 8,
+    paddingHorizontal: 4, paddingVertical: 1,
+  },
+  countBadgeText: { fontSize: 9, fontWeight: 'bold', color: '#000' },
 });
