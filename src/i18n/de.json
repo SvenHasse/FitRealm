@@ -206,6 +206,25 @@
     "resetCancel": "Abbrechen",
     "resetConfirm": "Zurücksetzen"
   },
+  "sell": {
+    "confirmTitle": "Gebäude verkaufen?",
+    "confirmSubtitle": "Überprüfe, was beim Verkauf dieses Gebäudes passiert.",
+    "refundLabel": "Du erhältst (50% Rückerstattung)",
+    "pendingLabel": "Ausstehende Ressourcen (werden jetzt gesammelt)",
+    "warningLabel": "Konsequenzen",
+    "confirmBtn": "Verkaufen",
+    "cancelBtn": "Abbrechen",
+    "dangerConfirmHint": "Nochmal tippen zum Bestätigen",
+    "warning": {
+      "storage_cap_reduced": "Lagerkapazität wird reduziert — einige Ressourcen gehen verloren.",
+      "workers_dismissed": "{{count}} Arbeiter werden dauerhaft entlassen.",
+      "food_production_lost": "Nahrungsproduktion stoppt — Arbeiter werden hungern!",
+      "production_lost": "{{resource}}-Produktion stoppt.",
+      "bonus_lost": "Produktionsbonus von {{building}} geht verloren.",
+      "worker_unassigned": "Zugewiesener Arbeiter kehrt zum Leerlauf zurück.",
+      "pending_collected": "Ausstehende Ressourcen werden vor dem Verkauf gesammelt."
+    }
+  },
   "resources": {
     "muskelmasse": "Muskelmasse",
     "protein": "Protein",
