@@ -6,7 +6,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { WorkoutRewardData } from '../navigation/types';
 import { calculateReward, RewardResult } from '../utils/currencyCalculator';
 import { markWorkoutProcessed } from '../utils/workoutProcessor';
-import { useGameStore } from '../store/useGameStore';
+import { useGameStore as useEngineStore } from '../store/useGameStore';
+import { useGameStore } from '../store/gameStore';
 
 export type RewardPhase =
   | 'header'       // header animates in
@@ -26,7 +27,8 @@ interface UseWorkoutRewardReturn {
 
 export function useWorkoutReward(workout: WorkoutRewardData): UseWorkoutRewardReturn {
   const [phase, setPhase] = useState<RewardPhase>('header');
-  const { gameState, collectAll } = useGameStore();
+  const { gameState, collectAll } = useEngineStore();
+  const { addMuskelmasse, addProtein, addStreakTokens, setLastWorkoutDate } = useGameStore();
 
   const reward = calculateReward({
     durationMinutes: workout.durationMinutes,
@@ -56,9 +58,14 @@ export function useWorkoutReward(workout: WorkoutRewardData): UseWorkoutRewardRe
   const collect = useCallback(async () => {
     setPhase('collecting');
     await markWorkoutProcessed(workout.id);
+    // Credit currencies to the global store → CurrencyBar animates automatically
+    addMuskelmasse(reward.totalMuskelmasse);
+    if (reward.protein > 0) addProtein(reward.protein);
+    if (reward.streakToken) addStreakTokens(1);
+    setLastWorkoutDate(new Date());
     // Give animation time to play before signalling done
     setTimeout(() => setPhase('done'), 900);
-  }, [workout.id]);
+  }, [workout.id, reward, addMuskelmasse, addProtein, addStreakTokens, setLastWorkoutDate]);
 
   return { phase, reward, collect };
 }

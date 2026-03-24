@@ -29,7 +29,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AppColors } from '../models/types';
-import { useGameStore } from '../store/useGameStore';
+import { useGameStore }                        from '../store/gameStore';
+import { useGameStore as useEngineStore }       from '../store/useGameStore';
 import { getWorkoutIcon } from '../utils/workoutIcons';
 import {
   computeMilestoneStatuses,
@@ -47,6 +48,7 @@ const STREAK_COLOR = '#FF6B35';
 const GOLD         = AppColors.gold;
 const CARD_WIDTH   = 160;
 const CARD_GAP     = 12;
+// COLLECTED_KEY kept for backwards-compat migration; new state lives in gameStore
 const COLLECTED_KEY = 'collected_streak_rewards';
 
 const LEVEL_COLORS = {
@@ -329,35 +331,40 @@ interface Props {
 }
 
 export default function StreakDetailModal({ visible, onClose }: Props) {
-  const { gameState, recentWorkouts, useMockData } = useGameStore();
+  // ── Global store (single source of truth) ─────────────────────────────────
+  const {
+    currentStreak,
+    lastWorkoutDate: lastWorkoutDateStr,
+    collectedMilestones,
+    collectMilestone,
+    addStreakTokens,
+  } = useGameStore();
+  const { recentWorkouts, useMockData } = useEngineStore();
 
-  const [collectedIds, setCollectedIds]   = useState<number[]>([]);
-  const [countdown, setCountdown]         = useState<CountdownInfo>({ msRemaining: 0, level: 'safe', text: '' });
+  const [countdown,      setCountdown]      = useState<CountdownInfo>({ msRemaining: 0, level: 'safe', text: '' });
   const [confettiActive, setConfettiActive] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  const currentStreak      = useMockData ? MOCK.currentStreak      : gameState.currentStreak;
-  const lastWorkoutDate    = useMockData ? MOCK.lastWorkoutDate    : recentWorkouts.length > 0 ? new Date(recentWorkouts[0].date) : null;
+  const effectiveStreak = useMockData ? MOCK.currentStreak : currentStreak;
+
+  // Last workout date: prefer store value, fall back to recentWorkouts
+  const lastWorkoutDate: Date | null = useMockData
+    ? MOCK.lastWorkoutDate
+    : lastWorkoutDateStr
+      ? new Date(lastWorkoutDateStr)
+      : recentWorkouts.length > 0 ? new Date(recentWorkouts[0].date) : null;
+
   const lastWorkoutType    = useMockData ? MOCK.lastWorkoutType    : recentWorkouts[0]?.workoutType ?? '';
   const lastWorkoutMinutes = useMockData ? MOCK.lastWorkoutDuration : recentWorkouts[0] ? Math.floor(recentWorkouts[0].durationMinutes) : 0;
 
-  const displayStreak = useCountUp(visible ? currentStreak : 0, 600);
+  // collectedMilestones comes from the store (persisted, no local state needed)
+  const effectiveCollected = useMockData ? MOCK.collectedMilestones : collectedMilestones;
 
-  const milestoneStatuses = computeMilestoneStatuses(currentStreak, collectedIds);
+  const displayStreak = useCountUp(visible ? effectiveStreak : 0, 600);
+
+  const milestoneStatuses = computeMilestoneStatuses(effectiveStreak, effectiveCollected);
   const nextIndex         = milestoneStatuses.findIndex(m => m.status === 'next');
-
-  // ── Load collected IDs ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!visible) return;
-    if (useMockData) {
-      setCollectedIds(MOCK.collectedMilestones);
-      return;
-    }
-    AsyncStorage.getItem(COLLECTED_KEY).then(raw => {
-      setCollectedIds(raw ? JSON.parse(raw) : []);
-    });
-  }, [visible, useMockData]);
 
   // ── Live countdown ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -395,16 +402,14 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
     transform: [{ scale: flameScale.value }],
   }));
 
-  // ── Collect handler ───────────────────────────────────────────────────────
+  // ── Collect handler — writes to global store ───────────────────────────────
   const handleCollect = useCallback(async (milestoneDays: number) => {
     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); } catch {}
-    const updated = [...collectedIds, milestoneDays];
-    setCollectedIds(updated);
-    await AsyncStorage.setItem(COLLECTED_KEY, JSON.stringify(updated));
-    // TODO: add milestone.rewardDetails values to gameState resources
+    collectMilestone(milestoneDays);  // persisted via store middleware
+    addStreakTokens(1);               // reward: +1 streak token
     setConfettiActive(true);
     setTimeout(() => setConfettiActive(false), 1400);
-  }, [collectedIds]);
+  }, [collectMilestone, addStreakTokens]);
 
   // ── Last workout label ────────────────────────────────────────────────────
   const lastWorkoutStr = lastWorkoutDate
@@ -456,7 +461,7 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
                 key={milestone.days}
                 milestone={milestone}
                 status={status}
-                currentStreak={currentStreak}
+                currentStreak={effectiveStreak}
                 onCollect={() => handleCollect(milestone.days)}
               />
             ))}

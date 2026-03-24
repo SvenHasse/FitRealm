@@ -28,7 +28,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { useGameStore } from '../store/useGameStore';
+import { useGameStore as useEngineStore } from '../store/useGameStore';
 import { useHealthData } from '../hooks/useHealthData';
 import {
   AppColors,
@@ -39,13 +39,17 @@ import {
 } from '../models/types';
 import { RootStackParamList, MOCK_WORKOUT } from '../navigation/types';
 
-import DailyMetricCard       from '../components/DailyMetricCard';
-import StreakCounter          from '../components/StreakCounter';
-import StreakDetailModal      from '../components/StreakDetailModal';
+import DailyMetricCard         from '../components/DailyMetricCard';
+import StreakCounter            from '../components/StreakCounter';
+import StreakDetailModal        from '../components/StreakDetailModal';
 import ProgressProjectionWidget from '../components/ProgressProjectionWidget';
-import WorkoutRecognitionCard from '../components/WorkoutRecognitionCard';
-import WorkoutBreakdownSheet  from '../components/WorkoutBreakdownSheet';
-import { getWorkoutIcon }     from '../utils/workoutIcons';
+import WorkoutRecognitionCard   from '../components/WorkoutRecognitionCard';
+import WorkoutBreakdownSheet    from '../components/WorkoutBreakdownSheet';
+import CurrencyBar              from '../components/CurrencyBar';
+import StatsHistoryModal        from '../components/StatsHistoryModal';
+import { getWorkoutIcon }       from '../utils/workoutIcons';
+import { useGameStore }         from '../store/gameStore';
+import { STREAK_MILESTONES }    from '../utils/streakUtils';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -151,13 +155,19 @@ function CompactSyncButton({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
-  const { recentWorkouts, healthSnapshot, isSyncing, syncHealthData } = useGameStore();
+  const { recentWorkouts, healthSnapshot, isSyncing, syncHealthData } = useEngineStore();
   const health = useHealthData();
   const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
 
-  const [selectedWorkout,  setSelectedWorkout]  = useState<WorkoutRecord | null>(null);
-  const [streakModalOpen,  setStreakModalOpen]   = useState(false);
+  const [selectedWorkout,   setSelectedWorkout]   = useState<WorkoutRecord | null>(null);
+  const [streakModalOpen,   setStreakModalOpen]    = useState(false);
+  const [statsModalOpen,    setStatsModalOpen]     = useState(false);
+
+  // Read streak from global store so Dashboard + StreakDetailModal stay in sync
+  const { currentStreak } = useGameStore();
+  const streakMilestone   = STREAK_MILESTONES.find(m => m.days > currentStreak)?.days
+    ?? STREAK_MILESTONES[STREAK_MILESTONES.length - 1].days;
 
   const openReward = () => navigation.navigate('WorkoutReward', { workout: MOCK_WORKOUT });
 
@@ -168,13 +178,18 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── 0. Currency Bar ────────────────────────────────────────── */}
+        <CurrencyBar />
+
         {/* ── 1. Tages-Übersicht ─────────────────────────────────────── */}
+        <TouchableOpacity activeOpacity={0.85} onPress={() => setStatsModalOpen(true)}>
         <View style={cardBackground}>
           {/* Header row: "Heute" title  +  compact sync button */}
           <View style={styles.heuteHeaderRow}>
             <Ionicons name="sunny" size={16} color={AppColors.gold} />
             <Text style={styles.heuteTitle}>Heute</Text>
             <View style={{ flex: 1 }} />
+            <MaterialCommunityIcons name="chart-line" size={14} color={AppColors.textSecondary} style={{ marginRight: 8 }} />
             <CompactSyncButton isSyncing={isSyncing} onPress={syncHealthData} />
           </View>
 
@@ -204,11 +219,12 @@ export default function DashboardScreen() {
             />
           </View>
         </View>
+        </TouchableOpacity>
 
         {/* ── 2. Streak Counter ──────────────────────────────────────── */}
         <StreakCounter
-          streak={health.currentStreak}
-          milestone={health.streakMilestone}
+          streak={currentStreak}
+          milestone={streakMilestone}
           onPress={() => setStreakModalOpen(true)}
         />
 
@@ -237,6 +253,11 @@ export default function DashboardScreen() {
       <StreakDetailModal
         visible={streakModalOpen}
         onClose={() => setStreakModalOpen(false)}
+      />
+
+      <StatsHistoryModal
+        visible={statsModalOpen}
+        onClose={() => setStatsModalOpen(false)}
       />
     </SafeAreaView>
   );
