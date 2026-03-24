@@ -4,11 +4,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import CircularProgressRing from './CircularProgressRing';
 import { AppColors } from '../models/types';
 
-// Plain JS counter – reliable on all RN versions
 function useCountUp(target: number, duration = 800): number {
   const [val, setVal] = useState(0);
   useEffect(() => {
@@ -27,13 +25,13 @@ function useCountUp(target: number, duration = 800): number {
 }
 
 interface Props {
-  icon: keyof typeof Ionicons.glyphMap;
+  /** Pass any @expo/vector-icons element — no string names, no emoji */
+  icon: React.ReactNode;
   value: number;
   label: string;
   unit?: string;
   color: string;
-  /** Pass 0–1 to show a circular ring; omit for a plain icon circle */
-  progress?: number;
+  progress?: number; // 0–1, enables circular ring
   ringSize?: number;
 }
 
@@ -50,7 +48,7 @@ export default function DailyMetricCard({
 
   const inner = (
     <View style={styles.inner}>
-      <Ionicons name={icon} size={18} color={color} />
+      {icon}
       <Text style={[styles.value, { color }]}>{display.toLocaleString('de-DE')}</Text>
       {unit ? <Text style={[styles.unit, { color }]}>{unit}</Text> : null}
     </View>

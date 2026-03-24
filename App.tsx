@@ -3,13 +3,17 @@
 //   RootStack (native stack, no header)
 //     ├─ Main  → Tab navigator (Dashboard / Realm / Goals / Settings)
 //     └─ WorkoutReward → WorkoutRewardScreen (modal presentation)
+//
+// Fonts are pre-loaded before anything renders so icons never show as "?".
 
 import React, { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 import { useTranslation } from 'react-i18next';
 import './src/i18n';
 import { useGameStore } from './src/store/useGameStore';
@@ -73,9 +77,24 @@ function TabNavigator() {
 export default function App() {
   const initialize = useGameStore(s => s.initialize);
 
+  // Pre-load ALL icon fonts before rendering anything.
+  // Without this, icons on the first screen can render as "?" on cold start.
+  const [fontsLoaded] = useFonts({
+    ...Ionicons.font,
+    ...MaterialCommunityIcons.font,
+  });
+
   useEffect(() => {
     initialize();
   }, []);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: AppColors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={AppColors.gold} />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer theme={DarkTheme}>

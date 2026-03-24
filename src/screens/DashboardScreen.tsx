@@ -17,7 +17,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -120,14 +120,14 @@ export default function DashboardScreen() {
           <SectionHeader title="Heute" icon="sunny" />
           <View style={styles.metricsRow}>
             <DailyMetricCard
-              icon="footsteps"
+              icon={<MaterialCommunityIcons name="shoe-print" size={18} color="#4CAF50" />}
               value={health.stepsToday}
               label="Schritte"
               color="#4CAF50"
               progress={health.stepsToday / health.stepsGoal}
             />
             <DailyMetricCard
-              icon="flame"
+              icon={<MaterialCommunityIcons name="fire" size={18} color="#FF9800" />}
               value={health.activeCaloriesToday}
               label="Aktive kcal"
               unit=" kcal"
@@ -135,7 +135,7 @@ export default function DashboardScreen() {
               progress={Math.min(health.activeCaloriesToday / 600, 1)}
             />
             <DailyMetricCard
-              icon="time"
+              icon={<Ionicons name="time-outline" size={18} color={AppColors.teal} />}
               value={health.workoutMinutesToday}
               label={health.workoutTypeToday}
               unit=" min"

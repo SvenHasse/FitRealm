@@ -18,7 +18,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
+  withRepeat,
+  withSequence,
   Easing,
 } from 'react-native-reanimated';
 
@@ -82,19 +83,27 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
   const dividerStyle = useAnimatedStyle(() => ({ opacity: dividerOpacity.value }));
 
   const btnScale = useSharedValue(1);
+  const btnOpacity = useSharedValue(1);
   useEffect(() => {
     if (phase === 'ready') {
-      const pulse = () => {
-        btnScale.value = withTiming(1.03, { duration: 600 }, () => {
-          btnScale.value = withTiming(1.0, { duration: 600 }, pulse);
-        });
-      };
-      pulse();
+      btnOpacity.value = 1;
+      // withRepeat+withSequence is worklet-safe — no JS closures in callbacks
+      btnScale.value = withRepeat(
+        withSequence(
+          withTiming(1.03, { duration: 600 }),
+          withTiming(1.0,  { duration: 600 }),
+        ),
+        -1,   // infinite
+        false,
+      );
+    }
+    if (phase === 'collecting' || phase === 'done') {
+      btnOpacity.value = withTiming(0.4, { duration: 200 });
     }
   }, [phase]);
   const btnStyle = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
-    opacity: phase === 'collecting' || phase === 'done' ? 0.4 : 1,
+    opacity: btnOpacity.value,
   }));
 
   // ── Phase flags ───────────────────────────────────────────────────────────
