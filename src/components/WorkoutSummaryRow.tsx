@@ -13,7 +13,7 @@ import Animated, {
 import { AppColors } from '../models/types';
 
 interface Props {
-  emoji: string;
+  icon: React.ReactNode;
   label: string;
   value: string;
   valueColor?: string;
@@ -21,7 +21,7 @@ interface Props {
 }
 
 export default function WorkoutSummaryRow({
-  emoji,
+  icon,
   label,
   value,
   valueColor = AppColors.textPrimary,
@@ -45,7 +45,7 @@ export default function WorkoutSummaryRow({
 
   return (
     <Animated.View style={[styles.row, style]}>
-      <Text style={styles.emoji}>{emoji}</Text>
+      <View style={styles.iconWrap}>{icon}</View>
       <Text style={styles.label}>{label}</Text>
       <Text style={[styles.value, { color: valueColor }]}>{value}</Text>
     </Animated.View>
@@ -56,13 +56,12 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingVertical: 12,
     gap: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  emoji: { fontSize: 20, width: 28, textAlign: 'center' },
+  iconWrap: { width: 24, alignItems: 'center' },
   label: { flex: 1, fontSize: 15, color: AppColors.textSecondary },
   value: { fontSize: 16, fontWeight: '700' },
 });

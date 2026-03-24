@@ -7,7 +7,7 @@
 //   5. Recent Workouts + Health Trends
 //   6. Sync button
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,6 @@ import {
   AppColors,
   WorkoutRecord,
   HealthSnapshot,
-  workoutIconName,
   restingHRTrend,
   vo2MaxTrend,
 } from '../models/types';
@@ -38,6 +37,8 @@ import DailyMetricCard from '../components/DailyMetricCard';
 import StreakCounter from '../components/StreakCounter';
 import ProgressProjectionWidget from '../components/ProgressProjectionWidget';
 import WorkoutRecognitionCard from '../components/WorkoutRecognitionCard';
+import WorkoutIcon from '../components/WorkoutIcon';
+import WorkoutBreakdownSheet from '../components/WorkoutBreakdownSheet';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -101,6 +102,7 @@ export default function DashboardScreen() {
   const health = useHealthData();
   const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutRecord | null>(null);
 
   const openReward = () => {
     navigation.navigate('WorkoutReward', { workout: MOCK_WORKOUT });
@@ -153,7 +155,7 @@ export default function DashboardScreen() {
         <ProgressProjectionWidget stepsToday={health.stepsToday} stepsGoal={health.stepsGoal} />
 
         {/* ── 5. Recent Workouts ─────────────────────────────────────── */}
-        <RecentWorkoutsCard workouts={recentWorkouts.slice(0, 7)} />
+        <RecentWorkoutsCard workouts={recentWorkouts.slice(0, 7)} onSelectWorkout={setSelectedWorkout} />
 
         {/* ── 6. Health Trends ───────────────────────────────────────── */}
         <HealthTrendsCard snapshot={healthSnapshot} />
@@ -163,13 +165,25 @@ export default function DashboardScreen() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      <WorkoutBreakdownSheet
+        workout={selectedWorkout}
+        visible={selectedWorkout !== null}
+        onClose={() => setSelectedWorkout(null)}
+      />
     </SafeAreaView>
   );
 }
 
 // ─── Recent Workouts ──────────────────────────────────────────────────────────
 
-function RecentWorkoutsCard({ workouts }: { workouts: WorkoutRecord[] }) {
+function RecentWorkoutsCard({
+  workouts,
+  onSelectWorkout,
+}: {
+  workouts: WorkoutRecord[];
+  onSelectWorkout: (w: WorkoutRecord) => void;
+}) {
   const { t } = useTranslation();
   return (
     <View style={cardBackground}>
@@ -177,19 +191,21 @@ function RecentWorkoutsCard({ workouts }: { workouts: WorkoutRecord[] }) {
       {workouts.length === 0 ? (
         <EmptyDataNotice message={t('dashboard.noHealthData')} />
       ) : (
-        workouts.map(w => <WorkoutRow key={w.id} workout={w} />)
+        workouts.map(w => (
+          <WorkoutRow key={w.id} workout={w} onPress={() => onSelectWorkout(w)} />
+        ))
       )}
     </View>
   );
 }
 
-function WorkoutRow({ workout }: { workout: WorkoutRecord }) {
+function WorkoutRow({ workout, onPress }: { workout: WorkoutRecord; onPress: () => void }) {
   const { t } = useTranslation();
   const dateStr = new Date(workout.date).toLocaleDateString('de-DE');
   return (
-    <View style={styles.workoutRow}>
-      <View style={styles.workoutIcon}>
-        <Ionicons name={workoutIconName(workout.workoutType) as any} size={22} color={AppColors.teal} />
+    <TouchableOpacity style={styles.workoutRow} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.workoutIconWrap}>
+        <WorkoutIcon workoutType={workout.workoutType} size={22} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.workoutType}>{workout.workoutType}</Text>
@@ -198,13 +214,12 @@ function WorkoutRow({ workout }: { workout: WorkoutRecord }) {
           <Text style={styles.workoutDetail}>{Math.floor(workout.caloriesBurned)} kcal</Text>
         </View>
       </View>
-      <View style={{ alignItems: 'flex-end' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-          <Text style={styles.workoutCoins}>💪 +{Math.floor(workout.vitacoinsEarned)}g</Text>
-        </View>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+        <Text style={styles.workoutCoins}>+{Math.floor(workout.vitacoinsEarned)}g 💪</Text>
         <Text style={styles.workoutDate}>{dateStr}</Text>
       </View>
-    </View>
+      <Ionicons name="chevron-forward" size={16} color={AppColors.textSecondary} style={{ marginLeft: 4 }} />
+    </TouchableOpacity>
   );
 }
 
@@ -312,12 +327,12 @@ const styles = StyleSheet.create({
 
   metricsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
 
-  workoutRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  workoutIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0,180,216,0.15)',
+  workoutRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  workoutIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },

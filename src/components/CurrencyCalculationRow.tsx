@@ -13,11 +13,11 @@ import Animated, {
 import { AppColors } from '../models/types';
 
 interface Props {
-  emoji: string;
+  icon: React.ReactNode;
   title: string;
   formula: string;
-  finalValue: number;       // raw number to count up to
-  unit: string;             // e.g. "g" or " Protein"
+  finalValue: number;
+  unit: string;
   valueColor?: string;
   delayMs?: number;
   countDuration?: number;
@@ -43,7 +43,7 @@ function useCountUp(target: number, durationMs: number, startAfterMs: number): n
 }
 
 export default function CurrencyCalculationRow({
-  emoji,
+  icon,
   title,
   formula,
   finalValue,
@@ -68,7 +68,6 @@ export default function CurrencyCalculationRow({
     transform: [{ translateY: translateY.value }],
   }));
 
-  // Count starts after the row has faded in
   const displayed = useCountUp(finalValue, countDuration, delayMs + 200);
   const displayStr =
     finalValue % 1 === 0
@@ -79,7 +78,7 @@ export default function CurrencyCalculationRow({
     <Animated.View style={[styles.wrapper, rowStyle]}>
       <View style={styles.left}>
         <View style={styles.titleRow}>
-          <Text style={styles.emoji}>{emoji}</Text>
+          <View style={styles.iconWrap}>{icon}</View>
           <Text style={styles.title}>{title}</Text>
         </View>
         <Text style={styles.formula}>{formula}</Text>
@@ -96,15 +95,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.06)',
     gap: 8,
   },
   left: { flex: 1, gap: 3 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  emoji: { fontSize: 18 },
+  iconWrap: { width: 20, alignItems: 'center' },
   title: { fontSize: 14, fontWeight: '600', color: AppColors.textPrimary },
-  formula: { fontSize: 12, color: AppColors.textSecondary, marginLeft: 26 },
+  formula: { fontSize: 12, color: AppColors.textSecondary, marginLeft: 28, lineHeight: 17 },
   result: { fontSize: 20, fontWeight: 'bold', minWidth: 72, textAlign: 'right' },
 });
