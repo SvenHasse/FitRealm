@@ -10,6 +10,7 @@ import {
   obstacleRemovalCost,
 } from '../models/types';
 import * as GE from '../engines/GameEngine';
+import type { CollectResult } from '../engines/GameEngine';
 import * as VE from '../engines/VitacoinEngine';
 import * as HK from '../engines/HealthKitManager';
 import * as OM from '../engines/ObstacleManager';
@@ -36,6 +37,9 @@ interface GameStore {
   // Obstacles
   obstacles: Obstacle[];
 
+  // Collect popup
+  lastCollectResult: CollectResult | null;
+
   // Actions - Init
   initialize: () => Promise<void>;
 
@@ -44,7 +48,8 @@ interface GameStore {
   buildBuilding: (type: BuildingType, position: GridPosition) => boolean;
   upgradeBuilding: (buildingID: string) => boolean;
   collectResources: (buildingID: string) => void;
-  collectAll: () => void;
+  collectAll: () => CollectResult;
+  clearCollectResult: () => void;
   trainWorker: () => boolean;
   assignWorker: (workerID: string, buildingID: string) => void;
   unassignWorker: (workerID: string) => void;
@@ -91,6 +96,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   permissionStatus: {},
   useMockData: false,
   obstacles: [],
+  lastCollectResult: null,
 
   // MARK: - Initialize
   async initialize() {
@@ -167,9 +173,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   collectAll() {
-    const result = GE.collectAll(get().gameState);
-    set({ gameState: result });
-    GE.saveGameState(result);
+    const { newState, result } = GE.collectAllWithResult(get().gameState);
+    set({
+      gameState: newState,
+      // Only surface popup when at least one building contributed resources
+      lastCollectResult: result.totalBuildings > 0 ? result : null,
+    });
+    GE.saveGameState(newState);
+    return result;
+  },
+
+  clearCollectResult() {
+    set({ lastCollectResult: null });
   },
 
   trainWorker() {

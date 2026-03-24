@@ -49,6 +49,12 @@
   "realm": {
     "tapToPlace": "Tap an empty cell: {{building}}"
   },
+  "collect": {
+    "title": "Collected!",
+    "subtitle": "From {{count}} buildings",
+    "closeButton": "Nice!",
+    "nothingToCollect": "Nothing to collect"
+  },
   "registry": {
     "title": "My Village",
     "categoryMain": "Main Buildings",
