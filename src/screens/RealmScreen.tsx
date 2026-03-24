@@ -27,6 +27,7 @@ import BuildMenuSheet from '../components/BuildMenuSheet';
 import WorkerSheet from '../components/WorkerSheet';
 import ResourceInfoModal, { ResourceKey } from '../components/ResourceInfoModal';
 import BuildingRegistryModal from '../components/BuildingRegistryModal';
+import CollectRewardPopup from '../components/CollectRewardPopup';
 
 const CELL_SIZE = 70;
 const GRID_SIZE = WorldConstants.gridSize;
@@ -45,6 +46,9 @@ export default function RealmScreen() {
   const [selectedObstacle, setSelectedObstacle] = useState<Obstacle | null>(null);
   const [selectedResource, setSelectedResource] = useState<ResourceKey | null>(null);
   const [highlightedBuildingId, setHighlightedBuildingId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const lastCollectResult = useGameStore(s => s.lastCollectResult);
+  const clearCollectResult = useGameStore(s => s.clearCollectResult);
 
   // Scroll refs for map navigation
   const hScrollRef = useRef<ScrollView>(null);
@@ -162,7 +166,13 @@ export default function RealmScreen() {
             <Ionicons name="list" size={28} color="#A78BFA" />
             <Text style={styles.hudBtnLabel}>{t('hud.registry')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.hudBtn} onPress={() => store.collectAll()}>
+          <TouchableOpacity style={styles.hudBtn} onPress={() => {
+            const result = store.collectAll();
+            if (result.totalBuildings === 0) {
+              setToastMessage(t('collect.nothingToCollect'));
+              setTimeout(() => setToastMessage(null), 2000);
+            }
+          }}>
             <Ionicons name="download-outline" size={28} color="#00C853" />
             <Text style={styles.hudBtnLabel}>{t('hud.collect')}</Text>
           </TouchableOpacity>
@@ -235,6 +245,18 @@ export default function RealmScreen() {
         onClose={() => setShowRegistry(false)}
         onSelectBuilding={handleRegistrySelect}
       />
+
+      {/* Collect Reward Popup */}
+      {lastCollectResult && (
+        <CollectRewardPopup result={lastCollectResult} onClose={clearCollectResult} />
+      )}
+
+      {/* Nothing-to-collect toast */}
+      {toastMessage && (
+        <View style={styles.toast} pointerEvents="none">
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -473,4 +495,12 @@ const styles = StyleSheet.create({
   },
   sheetTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
   actionButton: { width: '100%', paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+  toast: {
+    position: 'absolute', bottom: 120, left: 40, right: 40,
+    backgroundColor: 'rgba(26,26,46,0.95)', borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 20, alignItems: 'center',
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  toastText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
 });
