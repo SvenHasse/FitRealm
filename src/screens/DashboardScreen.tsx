@@ -1,26 +1,32 @@
 // DashboardScreen.tsx
-// FitRealm – redesigned Dashboard:
-//   1. Tages-Übersicht  (3 animated metric rings)
-//   2. Streak Counter
+// FitRealm – Dashboard:
+//   1. Tages-Übersicht  (3 animated metric rings + compact sync button)
+//   2. Streak Counter   (tappable → StreakDetailModal)
 //   3. Workout Recognition Card
 //   4. Progress Projection Widget
 //   5. Recent Workouts + Health Trends
-//   6. Sync button
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { useGameStore } from '../store/useGameStore';
 import { useHealthData } from '../hooks/useHealthData';
@@ -33,12 +39,13 @@ import {
 } from '../models/types';
 import { RootStackParamList, MOCK_WORKOUT } from '../navigation/types';
 
-import DailyMetricCard from '../components/DailyMetricCard';
-import StreakCounter from '../components/StreakCounter';
+import DailyMetricCard       from '../components/DailyMetricCard';
+import StreakCounter          from '../components/StreakCounter';
+import StreakDetailModal      from '../components/StreakDetailModal';
 import ProgressProjectionWidget from '../components/ProgressProjectionWidget';
 import WorkoutRecognitionCard from '../components/WorkoutRecognitionCard';
-import WorkoutBreakdownSheet from '../components/WorkoutBreakdownSheet';
-import { getWorkoutIcon } from '../utils/workoutIcons';
+import WorkoutBreakdownSheet  from '../components/WorkoutBreakdownSheet';
+import { getWorkoutIcon }     from '../utils/workoutIcons';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -95,6 +102,52 @@ export const cardBackground = {
   elevation: 4,
 } as const;
 
+// ─── Compact sync button (Heute header) ───────────────────────────────────────
+
+function CompactSyncButton({
+  isSyncing,
+  onPress,
+}: {
+  isSyncing: boolean;
+  onPress: () => void;
+}) {
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    if (isSyncing) {
+      rotation.value = withRepeat(
+        withTiming(360, { duration: 1000, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    } else {
+      cancelAnimation(rotation);
+      rotation.value = 0;
+    }
+  }, [isSyncing]);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  return (
+    <TouchableOpacity
+      style={styles.syncCircle}
+      onPress={onPress}
+      disabled={isSyncing}
+      activeOpacity={0.7}
+    >
+      <Animated.View style={iconStyle}>
+        <MaterialCommunityIcons
+          name="sync"
+          size={18}
+          color={isSyncing ? AppColors.gold : AppColors.textSecondary}
+        />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
@@ -102,11 +155,11 @@ export default function DashboardScreen() {
   const health = useHealthData();
   const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
-  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutRecord | null>(null);
 
-  const openReward = () => {
-    navigation.navigate('WorkoutReward', { workout: MOCK_WORKOUT });
-  };
+  const [selectedWorkout,  setSelectedWorkout]  = useState<WorkoutRecord | null>(null);
+  const [streakModalOpen,  setStreakModalOpen]   = useState(false);
+
+  const openReward = () => navigation.navigate('WorkoutReward', { workout: MOCK_WORKOUT });
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -117,7 +170,14 @@ export default function DashboardScreen() {
       >
         {/* ── 1. Tages-Übersicht ─────────────────────────────────────── */}
         <View style={cardBackground}>
-          <SectionHeader title="Heute" icon="sunny" />
+          {/* Header row: "Heute" title  +  compact sync button */}
+          <View style={styles.heuteHeaderRow}>
+            <Ionicons name="sunny" size={16} color={AppColors.gold} />
+            <Text style={styles.heuteTitle}>Heute</Text>
+            <View style={{ flex: 1 }} />
+            <CompactSyncButton isSyncing={isSyncing} onPress={syncHealthData} />
+          </View>
+
           <View style={styles.metricsRow}>
             <DailyMetricCard
               icon={<MaterialCommunityIcons name="shoe-print" size={18} color="#4CAF50" />}
@@ -146,7 +206,11 @@ export default function DashboardScreen() {
         </View>
 
         {/* ── 2. Streak Counter ──────────────────────────────────────── */}
-        <StreakCounter streak={health.currentStreak} milestone={health.streakMilestone} />
+        <StreakCounter
+          streak={health.currentStreak}
+          milestone={health.streakMilestone}
+          onPress={() => setStreakModalOpen(true)}
+        />
 
         {/* ── 3. Workout Recognition Card ────────────────────────────── */}
         <WorkoutRecognitionCard onPress={openReward} />
@@ -160,16 +224,19 @@ export default function DashboardScreen() {
         {/* ── 6. Health Trends ───────────────────────────────────────── */}
         <HealthTrendsCard snapshot={healthSnapshot} />
 
-        {/* ── 7. Sync button ─────────────────────────────────────────── */}
-        <SyncButton isSyncing={isSyncing} onPress={syncHealthData} />
-
         <View style={{ height: 24 }} />
       </ScrollView>
 
+      {/* ── Sheets & Modals ────────────────────────────────────────── */}
       <WorkoutBreakdownSheet
         workout={selectedWorkout}
         visible={selectedWorkout !== null}
         onClose={() => setSelectedWorkout(null)}
+      />
+
+      <StreakDetailModal
+        visible={streakModalOpen}
+        onClose={() => setStreakModalOpen(false)}
       />
     </SafeAreaView>
   );
@@ -201,7 +268,7 @@ function RecentWorkoutsCard({
 
 function WorkoutRow({ workout, onPress }: { workout: WorkoutRecord; onPress: () => void }) {
   const { t } = useTranslation();
-  const dateStr = new Date(workout.date).toLocaleDateString('de-DE');
+  const dateStr  = new Date(workout.date).toLocaleDateString('de-DE');
   const iconInfo = getWorkoutIcon(workout.workoutType);
   return (
     <TouchableOpacity style={styles.workoutRow} onPress={onPress} activeOpacity={0.7}>
@@ -216,7 +283,7 @@ function WorkoutRow({ workout, onPress }: { workout: WorkoutRecord; onPress: () 
         </View>
       </View>
       <View style={{ alignItems: 'flex-end', gap: 4 }}>
-        <Text style={styles.workoutCoins}>+{Math.floor(workout.vitacoinsEarned)}g 💪</Text>
+        <Text style={styles.workoutCoins}>+{Math.floor(workout.vitacoinsEarned)}g</Text>
         <Text style={styles.workoutDate}>{dateStr}</Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color={AppColors.textSecondary} style={{ marginLeft: 4 }} />
@@ -274,7 +341,7 @@ function TrendTile({
 }) {
   const { t } = useTranslation();
   const improving = trend != null ? (lowerIsBetter ? trend < 0 : trend > 0) : null;
-  const trendStr = trend != null ? `${trend > 0 ? '+' : ''}${trend.toFixed(1)}` : '';
+  const trendStr  = trend != null ? `${trend > 0 ? '+' : ''}${trend.toFixed(1)}` : '';
   return (
     <View style={styles.trendTile}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -301,30 +368,37 @@ function TrendTile({
   );
 }
 
-// ─── Sync button ──────────────────────────────────────────────────────────────
-
-function SyncButton({ isSyncing, onPress }: { isSyncing: boolean; onPress: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <TouchableOpacity style={styles.syncBtn} onPress={onPress} disabled={isSyncing}>
-      {isSyncing ? (
-        <ActivityIndicator size="small" color="#000" />
-      ) : (
-        <Ionicons name="refresh" size={16} color="#000" />
-      )}
-      <Text style={styles.syncText}>
-        {isSyncing ? t('dashboard.syncing') : t('dashboard.syncHealthData')}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: AppColors.background },
-  scroll: { flex: 1 },
+  safe:    { flex: 1, backgroundColor: AppColors.background },
+  scroll:  { flex: 1 },
   content: { padding: 16, paddingTop: 8 },
+
+  // Heute header row
+  heuteHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 14,
+  },
+  heuteTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: AppColors.textPrimary,
+  },
+
+  // Compact circular sync button
+  syncCircle: {
+    width:  36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   metricsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
 
@@ -333,14 +407,13 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  workoutType: { fontSize: 15, fontWeight: '600', color: AppColors.textPrimary },
+  workoutType:   { fontSize: 15, fontWeight: '600', color: AppColors.textPrimary },
   workoutDetail: { fontSize: 12, color: AppColors.textSecondary },
-  workoutCoins: { fontSize: 14, fontWeight: 'bold', color: AppColors.gold },
-  workoutDate: { fontSize: 11, color: AppColors.textSecondary },
+  workoutCoins:  { fontSize: 14, fontWeight: 'bold', color: AppColors.gold },
+  workoutDate:   { fontSize: 11, color: AppColors.textSecondary },
 
   trendTile: {
     flex: 1,
@@ -351,18 +424,6 @@ const styles = StyleSheet.create({
   },
   trendTitle: { fontSize: 12, fontWeight: '500', color: AppColors.textSecondary },
   trendValue: { fontSize: 22, fontWeight: 'bold', color: AppColors.textPrimary },
-
-  syncBtn: {
-    backgroundColor: AppColors.gold,
-    borderRadius: 14,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginTop: 4,
-  },
-  syncText: { fontSize: 16, fontWeight: '600', color: '#000' },
 });
 
 // Shared styles for the exported SectionHeader / StatTile / EmptyDataNotice
