@@ -37,8 +37,8 @@ import DailyMetricCard from '../components/DailyMetricCard';
 import StreakCounter from '../components/StreakCounter';
 import ProgressProjectionWidget from '../components/ProgressProjectionWidget';
 import WorkoutRecognitionCard from '../components/WorkoutRecognitionCard';
-import WorkoutIcon from '../components/WorkoutIcon';
 import WorkoutBreakdownSheet from '../components/WorkoutBreakdownSheet';
+import { getWorkoutIcon } from '../utils/workoutIcons';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -202,10 +202,11 @@ function RecentWorkoutsCard({
 function WorkoutRow({ workout, onPress }: { workout: WorkoutRecord; onPress: () => void }) {
   const { t } = useTranslation();
   const dateStr = new Date(workout.date).toLocaleDateString('de-DE');
+  const iconInfo = getWorkoutIcon(workout.workoutType);
   return (
     <TouchableOpacity style={styles.workoutRow} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.workoutIconWrap}>
-        <WorkoutIcon workoutType={workout.workoutType} size={22} />
+      <View style={[styles.workoutIconWrap, { backgroundColor: `${iconInfo.color}20` }]}>
+        <MaterialCommunityIcons name={iconInfo.name as any} size={22} color={iconInfo.color} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.workoutType}>{workout.workoutType}</Text>
