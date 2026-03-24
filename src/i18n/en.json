@@ -117,7 +117,9 @@
     "special": "Special",
     "alreadyBuilt": "Already built",
     "rathausRequired": "Rathaus L{{level}}",
-    "tooExpensive": "Too expensive"
+    "tooExpensive": "Too expensive",
+    "maxReached": "Max reached",
+    "instanceCount": "{{current}}/{{max}}"
   },
   "workerSheet": {
     "title": "Workers",
