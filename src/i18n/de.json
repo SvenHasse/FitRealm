@@ -49,6 +49,12 @@
   "realm": {
     "tapToPlace": "Tippe auf ein freies Feld: {{building}}"
   },
+  "building": {
+    "sell": "Verkaufen",
+    "sellConfirmTitle": "Gebäude verkaufen?",
+    "sellConfirmMessage": "Du erhältst 50% der Baukosten zurück.",
+    "sellRefundToast": "Verkauft! +{{muskelmasse}}g · +{{wood}} Holz"
+  },
   "collect": {
     "title": "Eingesammelt!",
     "subtitle": "Von {{count}} Gebäuden",

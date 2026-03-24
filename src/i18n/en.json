@@ -49,6 +49,12 @@
   "realm": {
     "tapToPlace": "Tap an empty cell: {{building}}"
   },
+  "building": {
+    "sell": "Sell",
+    "sellConfirmTitle": "Sell building?",
+    "sellConfirmMessage": "You will receive 50% of the build cost back.",
+    "sellRefundToast": "Sold! +{{muskelmasse}}g · +{{wood}} Wood"
+  },
   "collect": {
     "title": "Collected!",
     "subtitle": "From {{count}} buildings",

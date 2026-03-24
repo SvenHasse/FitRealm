@@ -1,17 +1,17 @@
 // BuildingDetailSheet.tsx
 // FitRealm - Building detail modal with new bottom sheet styling + i18n
 
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import {
-  AppColors, Building, buildingIconName, buildingAccentColor,
+  AppColors, Building, BuildingType, buildingIconName, buildingAccentColor,
   buildingProducesResource, ResourceType,
   findBuildingById, workerStatus, WorkerStatus,
 } from '../models/types';
-import { upgradeCost } from '../config/GameConfig';
+import { upgradeCost, sellValue } from '../config/GameConfig';
 import { costString, canAfford, hourlyProductionRate, buildingStorageCap } from '../engines/GameEngine';
 
 interface Props {
@@ -23,6 +23,7 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
   const store = useGameStore();
   const { t } = useTranslation();
   const building = findBuildingById(store.gameState, buildingID);
+  const [soldMessage, setSoldMessage] = useState<string | null>(null);
 
   if (!building) {
     return (
@@ -102,6 +103,25 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
           <Ionicons name="warning" size={16} color="#FF9800" />
           <Text style={{ fontSize: 12, fontWeight: '500', color: '#FF9800', flex: 1 }}>{t('buildingDetail.decayWarning')}</Text>
         </View>
+      )}
+
+      {/* Sold success banner */}
+      {soldMessage && (
+        <View style={styles.soldBanner}>
+          <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+          <Text style={styles.soldBannerText}>{soldMessage}</Text>
+        </View>
+      )}
+
+      {/* Sell button — hidden for Rathaus */}
+      {building.type !== BuildingType.rathaus && !soldMessage && (
+        <SellSection
+          building={building}
+          onSold={(msg) => {
+            setSoldMessage(msg);
+            setTimeout(onClose, 1400);
+          }}
+        />
       )}
 
       <View style={{ height: 20 }} />
@@ -203,6 +223,47 @@ function WorkerSection({ building }: { building: Building }) {
   );
 }
 
+function SellSection({
+  building,
+  onSold,
+}: {
+  building: Building;
+  onSold: (message: string) => void;
+}) {
+  const store = useGameStore();
+  const { t } = useTranslation();
+  const refundPreview = sellValue(building.type, building.level);
+  const previewStr = costString(refundPreview);
+
+  const handleSell = () => {
+    Alert.alert(
+      t('building.sellConfirmTitle'),
+      `${t('building.sellConfirmMessage')}\n\n${previewStr}`,
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('building.sell'),
+          style: 'destructive',
+          onPress: () => {
+            const refund = store.sellBuilding(building.id);
+            if (refund) {
+              const msg = `${t('building.sell')}! ${costString(refund)}`;
+              onSold(msg);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  return (
+    <TouchableOpacity style={styles.sellBtn} onPress={handleSell} activeOpacity={0.8}>
+      <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+      <Text style={styles.sellBtnText}>{t('building.sell')}</Text>
+    </TouchableOpacity>
+  );
+}
+
 function rateLabel(building: Building, rate: number): string {
   return buildingProducesResource(building.type) === ResourceType.muskelmasse
     ? `${rate.toFixed(1)}g` : `${Math.round(rate)}`;
@@ -248,5 +309,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     padding: 12, backgroundColor: 'rgba(255,152,0,0.12)',
     borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,152,0,0.3)',
+    marginBottom: 12,
   },
+  sellBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 13, marginBottom: 12,
+    backgroundColor: 'transparent',
+    borderWidth: 1, borderColor: 'rgba(255,80,80,0.45)', borderRadius: 14,
+  },
+  sellBtnText: { fontSize: 15, fontWeight: '600', color: '#FF6B6B' },
+  soldBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    padding: 14, backgroundColor: 'rgba(76,175,80,0.12)',
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(76,175,80,0.3)',
+    marginBottom: 12,
+  },
+  soldBannerText: { fontSize: 13, fontWeight: '600', color: '#4CAF50', flex: 1 },
 });

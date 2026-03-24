@@ -50,6 +50,7 @@ interface GameStore {
   collectResources: (buildingID: string) => void;
   collectAll: () => CollectResult;
   clearCollectResult: () => void;
+  sellBuilding: (id: string) => ResourceCost | null;
   trainWorker: () => boolean;
   assignWorker: (workerID: string, buildingID: string) => void;
   unassignWorker: (workerID: string) => void;
@@ -185,6 +186,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   clearCollectResult() {
     set({ lastCollectResult: null });
+  },
+
+  sellBuilding(id) {
+    const result = GE.sellBuilding(get().gameState, id);
+    if (!result) return null;
+    set({ gameState: result.newState });
+    GE.saveGameState(result.newState);
+    return result.refund;
   },
 
   trainWorker() {
