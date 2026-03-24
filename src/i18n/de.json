@@ -49,6 +49,12 @@
   "realm": {
     "tapToPlace": "Tippe auf ein freies Feld: {{building}}"
   },
+  "collect": {
+    "title": "Eingesammelt!",
+    "subtitle": "Von {{count}} Gebäuden",
+    "closeButton": "Super!",
+    "nothingToCollect": "Nichts zu sammeln"
+  },
   "registry": {
     "title": "Mein Dorf",
     "categoryMain": "Hauptgebäude",

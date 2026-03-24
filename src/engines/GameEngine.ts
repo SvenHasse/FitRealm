@@ -205,6 +205,46 @@ export function collectAll(state: GameState): GameState {
   return s;
 }
 
+// MARK: - Collect Result (returned by collectAllWithResult)
+export interface CollectResult {
+  muskelmasse: number;
+  protein:     number;
+  wood:        number;
+  stone:       number;
+  food:        number;
+  totalBuildings: number; // producing buildings that had storage > 0
+}
+
+const PRODUCING_TYPES = new Set([
+  BuildingType.kornkammer, BuildingType.proteinfarm,
+  BuildingType.holzfaeller, BuildingType.steinbruch, BuildingType.feld,
+]);
+
+export function collectAllWithResult(state: GameState): { newState: GameState; result: CollectResult } {
+  const before = {
+    muskelmasse: state.muskelmasse,
+    protein:     state.protein,
+    wood:        state.wood,
+    stone:       state.stone,
+    food:        state.food,
+  };
+  const totalBuildings = state.buildings.filter(
+    b => b.currentStorage > 0 && PRODUCING_TYPES.has(b.type),
+  ).length;
+  const newState = collectAll(state);
+  return {
+    newState,
+    result: {
+      muskelmasse:   Math.max(0, newState.muskelmasse - before.muskelmasse),
+      protein:       Math.max(0, newState.protein     - before.protein),
+      wood:          Math.max(0, newState.wood         - before.wood),
+      stone:         Math.max(0, newState.stone        - before.stone),
+      food:          Math.max(0, newState.food         - before.food),
+      totalBuildings,
+    },
+  };
+}
+
 // MARK: - Workout Processing
 export function processWorkouts(state: GameState, workouts: WorkoutRecord[], snapshot: HealthSnapshot): GameState {
   const newWorkouts = workouts.filter(w => !state.processedGameWorkoutIDs.includes(w.id));
