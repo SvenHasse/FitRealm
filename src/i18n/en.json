@@ -24,7 +24,8 @@
     "holz": "Wood",
     "stein": "Stone",
     "nahrung": "Food",
-    "streak": "Streak"
+    "streak": "Streak",
+    "registry": "Village"
   },
   "dashboard": {
     "vitacoins": "VITACOINS",
@@ -47,6 +48,15 @@
   },
   "realm": {
     "tapToPlace": "Tap an empty cell: {{building}}"
+  },
+  "registry": {
+    "title": "My Village",
+    "categoryMain": "Main Buildings",
+    "categoryProduction": "Production",
+    "categoryInfrastructure": "Infrastructure",
+    "categorySpecial": "Special",
+    "empty": "No buildings placed yet",
+    "storage": "{{current}}/{{max}}"
   },
   "obstacles": {
     "cost": "Cost: {{cost}}g Muskelmasse",
