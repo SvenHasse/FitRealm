@@ -12,7 +12,7 @@ import {
 } from '../models/types';
 import {
   ResourceCost, buildCost, upgradeCost, rathausRequirement,
-  UNIQUE_BUILDINGS, Production, Storage, Earn, Workers,
+  UNIQUE_BUILDINGS, maxInstances, Production, Storage, Earn, Workers,
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
 } from '../config/GameConfig';
 
@@ -297,8 +297,10 @@ export function canBuild(state: GameState, type: BuildingType, position: GridPos
   if (gameStateRathausLevel(state) < req) {
     return [false, `Rathaus level ${req} required.`];
   }
-  if (UNIQUE_BUILDINGS.has(type) && state.buildings.some(b => b.type === type)) {
-    return [false, `Already have a ${type}.`];
+  const existingCount = state.buildings.filter(b => b.type === type).length;
+  const max = maxInstances(type);
+  if (existingCount >= max) {
+    return [false, `Maximum ${max} of this building already placed.`];
   }
   if (!canAfford(state, buildCost(type))) {
     return [false, 'Not enough resources.'];
