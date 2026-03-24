@@ -346,20 +346,20 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
   const scrollRef = useRef<ScrollView>(null);
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  const effectiveStreak = useMockData ? MOCK.currentStreak : currentStreak;
+  // Always read streak + milestones directly from gameStore — the single source
+  // of truth. Never override with mock values so Dashboard and Modal always agree.
+  const effectiveStreak    = currentStreak;
+  const effectiveCollected = collectedMilestones;
 
-  // Last workout date: prefer store value, fall back to recentWorkouts
-  const lastWorkoutDate: Date | null = useMockData
-    ? MOCK.lastWorkoutDate
-    : lastWorkoutDateStr
-      ? new Date(lastWorkoutDateStr)
-      : recentWorkouts.length > 0 ? new Date(recentWorkouts[0].date) : null;
+  // Last workout date: prefer store value, fall back to recentWorkouts.
+  // For type/duration we still use mock data when the engine is in mock mode
+  // because that data lives in the engine store's recentWorkouts array.
+  const lastWorkoutDate: Date | null = lastWorkoutDateStr
+    ? new Date(lastWorkoutDateStr)
+    : recentWorkouts.length > 0 ? new Date(recentWorkouts[0].date) : null;
 
   const lastWorkoutType    = useMockData ? MOCK.lastWorkoutType    : recentWorkouts[0]?.workoutType ?? '';
   const lastWorkoutMinutes = useMockData ? MOCK.lastWorkoutDuration : recentWorkouts[0] ? Math.floor(recentWorkouts[0].durationMinutes) : 0;
-
-  // collectedMilestones comes from the store (persisted, no local state needed)
-  const effectiveCollected = useMockData ? MOCK.collectedMilestones : collectedMilestones;
 
   const displayStreak = useCountUp(visible ? effectiveStreak : 0, 600);
 
