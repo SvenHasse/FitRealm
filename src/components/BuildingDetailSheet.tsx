@@ -2,7 +2,7 @@
 // FitRealm - Building detail modal with new bottom sheet styling + i18n
 
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
@@ -11,8 +11,9 @@ import {
   buildingProducesResource, ResourceType,
   findBuildingById, workerStatus, WorkerStatus,
 } from '../models/types';
-import { upgradeCost, sellValue } from '../config/GameConfig';
-import { costString, canAfford, hourlyProductionRate, buildingStorageCap } from '../engines/GameEngine';
+import { upgradeCost } from '../config/GameConfig';
+import { costString, canAfford, hourlyProductionRate, buildingStorageCap, SellConsequences } from '../engines/GameEngine';
+import SellConfirmModal from './SellConfirmModal';
 
 interface Props {
   buildingID: string;
@@ -24,6 +25,8 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
   const { t } = useTranslation();
   const building = findBuildingById(store.gameState, buildingID);
   const [soldMessage, setSoldMessage] = useState<string | null>(null);
+  const [sellModalVisible, setSellModalVisible] = useState(false);
+  const [sellConsequences, setSellConsequences] = useState<SellConsequences | null>(null);
 
   if (!building) {
     return (
@@ -115,16 +118,36 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
 
       {/* Sell button — hidden for Rathaus */}
       {building.type !== BuildingType.rathaus && !soldMessage && (
-        <SellSection
-          building={building}
-          onSold={(msg) => {
-            setSoldMessage(msg);
-            setTimeout(onClose, 1400);
+        <TouchableOpacity
+          style={styles.sellBtn}
+          onPress={() => {
+            const consequences = store.calculateSellConsequences(building.id);
+            setSellConsequences(consequences);
+            setSellModalVisible(true);
           }}
-        />
+          activeOpacity={0.8}
+        >
+          <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+          <Text style={styles.sellBtnText}>{t('building.sell')}</Text>
+        </TouchableOpacity>
       )}
 
       <View style={{ height: 20 }} />
+
+      <SellConfirmModal
+        visible={sellModalVisible}
+        buildingName={t(`buildings.${building.type}`)}
+        consequences={sellConsequences}
+        onCancel={() => setSellModalVisible(false)}
+        onConfirm={() => {
+          setSellModalVisible(false);
+          const refund = store.sellBuilding(building.id);
+          if (refund) {
+            setSoldMessage(`${t('building.sell')}! ${costString(refund)}`);
+            setTimeout(onClose, 1400);
+          }
+        }}
+      />
     </ScrollView>
   );
 }
@@ -223,46 +246,6 @@ function WorkerSection({ building }: { building: Building }) {
   );
 }
 
-function SellSection({
-  building,
-  onSold,
-}: {
-  building: Building;
-  onSold: (message: string) => void;
-}) {
-  const store = useGameStore();
-  const { t } = useTranslation();
-  const refundPreview = sellValue(building.type, building.level);
-  const previewStr = costString(refundPreview);
-
-  const handleSell = () => {
-    Alert.alert(
-      t('building.sellConfirmTitle'),
-      `${t('building.sellConfirmMessage')}\n\n${previewStr}`,
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('building.sell'),
-          style: 'destructive',
-          onPress: () => {
-            const refund = store.sellBuilding(building.id);
-            if (refund) {
-              const msg = `${t('building.sell')}! ${costString(refund)}`;
-              onSold(msg);
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  return (
-    <TouchableOpacity style={styles.sellBtn} onPress={handleSell} activeOpacity={0.8}>
-      <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
-      <Text style={styles.sellBtnText}>{t('building.sell')}</Text>
-    </TouchableOpacity>
-  );
-}
 
 function rateLabel(building: Building, rate: number): string {
   return buildingProducesResource(building.type) === ResourceType.muskelmasse
