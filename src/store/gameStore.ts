@@ -34,6 +34,7 @@ interface GameState {
   addNahrung:       (amount: number) => void;
   addStein:         (amount: number) => void;
   setStreak:        (days: number)   => void;
+  addStreak:        (days: number)   => void;
   setLastWorkoutDate: (date: Date)   => void;
   collectMilestone: (days: number)   => void;
 
@@ -42,6 +43,8 @@ interface GameState {
   devAddProtein:      (amount: number) => void;
   devAddStreakTokens: (amount: number) => void;
   devAddStreak:       (days: number)   => void;
+  devAddHolz:         (amount: number) => void;
+  devAddNahrung:      (amount: number) => void;
   devResetAll:        ()               => void;
 }
 
@@ -68,6 +71,7 @@ export const useGameStore = create<GameState>()(
       addStein:        (a) => set((s) => ({ stein:        s.stein        + a })),
 
       setStreak:          (days) => set({ currentStreak:    days }),
+      addStreak:          (days) => set((s) => ({ currentStreak: s.currentStreak + days })),
       setLastWorkoutDate: (date) => set({ lastWorkoutDate:  date.toISOString() }),
       collectMilestone:   (days) => set((s) => ({
         collectedMilestones: [...s.collectedMilestones, days],
@@ -78,6 +82,8 @@ export const useGameStore = create<GameState>()(
       devAddProtein:      (a) => set((s) => ({ protein:      s.protein      + a })),
       devAddStreakTokens: (a) => set((s) => ({ streakTokens: s.streakTokens + a })),
       devAddStreak:       (a) => set((s) => ({ currentStreak: s.currentStreak + a })),
+      devAddHolz:         (a) => set((s) => ({ holz:         s.holz         + a })),
+      devAddNahrung:      (a) => set((s) => ({ nahrung:      s.nahrung      + a })),
       devResetAll:        ()  => set({
         muskelmasse: 0, protein: 0, streakTokens: 0,
         holz: 0, nahrung: 0, stein: 0,

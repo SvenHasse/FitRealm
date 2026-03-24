@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useGameStore } from '../store/useGameStore';
+import { useGameStore as useEngineStore } from '../store/useGameStore';
+import { useGameStore } from '../store/gameStore';
 import {
   AppColors, Building, BuildingType, Obstacle,
   buildingIconName, buildingAccentColor,
@@ -27,7 +28,7 @@ const CELL_SIZE = 70;
 const GRID_SIZE = WorldConstants.gridSize;
 
 export default function RealmScreen() {
-  const store = useGameStore();
+  const store = useEngineStore();
   const { gameState, obstacles } = store;
   const { t } = useTranslation();
 
@@ -231,16 +232,19 @@ function ObstacleCell({ obstacle }: { obstacle: Obstacle }) {
 
 // MARK: - Top Resource Bar
 function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey) => void }) {
-  const gs = useGameStore(s => s.gameState);
+  // Building-produced resources (wood/stone/food) live in the game engine store
+  const gs = useEngineStore(s => s.gameState);
+  // Workout-earned currencies + streak are the single source of truth in gameStore
+  const { muskelmasse, protein, streakTokens, currentStreak } = useGameStore();
   const { t } = useTranslation();
   return (
     <View style={styles.resourceBar}>
       <View style={styles.resourceRow}>
-        <ResourcePill icon="barbell" iconColor={AppColors.gold} value={`${Math.floor(gs.muskelmasse)}g`} label={t('hud.muskel')} onPress={() => onResourcePress('muskelmasse')} />
+        <ResourcePill icon="barbell" iconColor={AppColors.gold} value={`${Math.floor(muskelmasse)}g`} label={t('hud.muskel')} onPress={() => onResourcePress('muskelmasse')} />
         <View style={styles.divider} />
-        <ResourcePill icon="medkit" iconColor="#00BCD4" value={`${gs.protein}`} label={t('hud.protein')} onPress={() => onResourcePress('protein')} />
+        <ResourcePill icon="medkit" iconColor="#00BCD4" value={`${protein}`} label={t('hud.protein')} onPress={() => onResourcePress('protein')} />
         <View style={styles.divider} />
-        <ResourcePill icon="flame" iconColor="#FF9800" value={`${gs.streakTokens}`} label={t('hud.token')} onPress={() => onResourcePress('streakTokens')} />
+        <ResourcePill icon="flame" iconColor="#FF9800" value={`${streakTokens}`} label={t('hud.token')} onPress={() => onResourcePress('streakTokens')} />
       </View>
       <View style={[styles.resourceRow, { opacity: 0.85 }]}>
         <ResourcePill icon="hammer" iconColor="#8B7355" value={`${gs.wood}`} label={t('hud.holz')} onPress={() => onResourcePress('wood')} />
@@ -248,10 +252,10 @@ function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey)
         <ResourcePill icon="cube" iconColor="#9E9E9E" value={`${gs.stone}`} label={t('hud.stein')} onPress={() => onResourcePress('stone')} />
         <View style={styles.divider} />
         <ResourcePill icon="leaf" iconColor="#4CAF50" value={`${gs.food}`} label={t('hud.nahrung')} onPress={() => onResourcePress('food')} />
-        {gs.currentStreak > 0 && (
+        {currentStreak > 0 && (
           <>
             <View style={styles.divider} />
-            <ResourcePill icon="flash" iconColor="#FFEB3B" value={`${gs.currentStreak}d`} label={t('hud.streak')} onPress={() => onResourcePress('streakTokens')} />
+            <ResourcePill icon="flash" iconColor="#FFEB3B" value={`${currentStreak}d`} label={t('hud.streak')} onPress={() => onResourcePress('streakTokens')} />
           </>
         )}
       </View>
@@ -292,11 +296,14 @@ function ExplorationTimer({ endDate }: { endDate: string }) {
 
 // MARK: - Obstacle Removal Sheet
 function ObstacleRemovalSheet({ obstacle, onClose }: { obstacle: Obstacle; onClose: () => void }) {
-  const store = useGameStore();
+  // Engine store handles obstacle actions and worker state
+  const store = useEngineStore();
+  // New gameStore is the source of truth for muskelmasse
+  const { muskelmasse } = useGameStore();
   const { t } = useTranslation();
   const isSmall = obstacleIsSmall(obstacle.type);
   const cost = obstacleRemovalCost(obstacle.type);
-  const canRemove = isSmall && store.gameState.muskelmasse >= cost;
+  const canRemove = isSmall && muskelmasse >= cost;
   const hasIdleWorker = store.gameState.workers.some(w => workerStatus(w) === WorkerStatus.idle);
 
   return (
