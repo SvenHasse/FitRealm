@@ -384,6 +384,14 @@ export interface GameState {
   activeWave: MonsterWave | null;
   nextWaveAt: number | null;           // Unix timestamp ms
   damageEffects: DamageEffect[];       // Aktive Schadenseffekte auf Gebäuden
+
+  // HRmax Intensity Tracking
+  intensiveWorkoutTracker: {
+    weeklyCount: number;
+    weekStart: number;
+    biweeklyCount: number;
+    biweeklyStart: number;
+  };
 }
 
 export function gameStateRathausLevel(state: GameState): number {
@@ -436,6 +444,12 @@ export function createDefaultGameState(): GameState {
     activeWave: null,
     nextWaveAt: null,
     damageEffects: [],
+    intensiveWorkoutTracker: {
+      weeklyCount: 0,
+      weekStart: Date.now(),
+      biweeklyCount: 0,
+      biweeklyStart: Date.now(),
+    },
   };
 }
 

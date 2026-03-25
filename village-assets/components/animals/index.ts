@@ -1,3 +1,9 @@
 export { Erntehuhn } from './Erntehuhn';
 export { Lastesel } from './Lastesel';
 export { Holzbaer } from './Holzbaer';
+export { Spaehfalke } from './Spaehfalke';
+export { Steinbock } from './Steinbock';
+export { MystischerHirsch } from './MystischerHirsch';
+export { Kriegswolf } from './Kriegswolf';
+export { Gluecksphoenixt } from './Gluecksphoenixt';
+export { UralterDrache } from './UralterDrache';
