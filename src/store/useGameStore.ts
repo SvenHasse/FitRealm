@@ -15,6 +15,7 @@ import * as VE from '../engines/VitacoinEngine';
 import * as HK from '../engines/HealthKitManager';
 import * as OM from '../engines/ObstacleManager';
 import { ResourceCost, StorageCapacity, getTotalStorageCap, buildCost, upgradeCost, rathausRequirement, UNIQUE_BUILDINGS, Workers } from '../config/GameConfig';
+import { useGameStore as useCurrencyStore } from './gameStore';
 
 interface GameStore {
   // Game State
@@ -75,6 +76,12 @@ interface GameStore {
   resetGameState: () => Promise<void>;
   resetAllData: () => Promise<void>;
   loadMockGameState: () => void;
+
+  // Actions - Manual workout injection (dev/test)
+  injectManualWorkout: (workout: WorkoutRecord) => void;
+
+  // Actions - Sync currencies between stores
+  patchGameStateCurrencies: (patch: Partial<Pick<GameState, 'muskelmasse' | 'protein' | 'streakTokens' | 'currentStreak' | 'wood' | 'stone' | 'food'>>) => void;
 
   // Actions - Obstacles
   removeSmallObstacle: (id: string) => void;
@@ -145,6 +152,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Process tick on startup
     get().processTick();
+
+    // Sync engine → currency store so both have the same values on startup
+    _syncAllCurrencies(get().gameState);
 
     // Auto-sync health data
     await get().syncHealthData();
@@ -342,6 +352,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
     GE.saveGameState(mock);
   },
 
+  // MARK: - Manual Workout Injection
+  injectManualWorkout(workout) {
+    // Add to recentWorkouts list
+    const updatedWorkouts = [...get().recentWorkouts, workout];
+    set({ recentWorkouts: updatedWorkouts });
+
+    // Process through game engine (calculates muskelmasse, protein, streak, etc.)
+    const prevGs = get().gameState;
+    const newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot);
+    set({ gameState: newGs, storageCap: getTotalStorageCap(newGs.buildings) });
+    GE.saveGameState(newGs);
+
+    // Sync earned currencies to the currency store
+    _syncAllCurrencies(newGs);
+
+    console.log(`[Store] Manual workout injected: ${workout.durationMinutes}min, ${workout.averageHeartRate ?? '?'}bpm → +${Math.floor(newGs.muskelmasse - prevGs.muskelmasse)}g Muskelmasse`);
+  },
+
+  // MARK: - Patch GameState Currencies (for dev tools sync)
+  patchGameStateCurrencies(patch) {
+    const gs = get().gameState;
+    const updatedGs = { ...gs, ...patch };
+    set({ gameState: updatedGs });
+    GE.saveGameState(updatedGs);
+  },
+
   // MARK: - Obstacle Actions
   removeSmallObstacle(id) {
     // Find the obstacle before removing it so we can compute its cost
@@ -389,3 +425,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return GE.buildingStorageCap(building, get().gameState.buildings);
   },
 }));
+
+/** Sync all currency fields from engine GameState → currency store (gameStore) */
+function _syncAllCurrencies(gs: GameState) {
+  const cs = useCurrencyStore.getState();
+  // Overwrite currency store with engine state values to keep them in sync
+  if (Math.floor(gs.muskelmasse) !== Math.floor(cs.muskelmasse)) {
+    useCurrencyStore.setState({ muskelmasse: gs.muskelmasse });
+  }
+  if (gs.protein !== cs.protein) {
+    useCurrencyStore.setState({ protein: gs.protein });
+  }
+  if (gs.streakTokens !== cs.streakTokens) {
+    useCurrencyStore.setState({ streakTokens: gs.streakTokens });
+  }
+  if (gs.currentStreak !== cs.currentStreak) {
+    useCurrencyStore.setState({ currentStreak: gs.currentStreak });
+  }
+}

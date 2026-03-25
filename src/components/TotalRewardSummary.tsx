@@ -1,5 +1,6 @@
 // TotalRewardSummary.tsx
-// Big "total earned" block that scales in with a golden glow after all rows complete.
+// Compact "total earned" block — scales in with golden glow.
+// Shows Muskelmasse + Protein only (no streak tokens).
 
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
@@ -47,9 +48,6 @@ export default function TotalRewardSummary({
         {formatGrams(totalMuskelmasse)} Muskelmasse
         {protein > 0 ? ` + ${protein} Protein` : ''}
       </Text>
-      {streakToken > 0 && (
-        <Text style={styles.streakLine}>Streak Token +{streakToken} 🔥</Text>
-      )}
     </Animated.View>
   );
 }
@@ -57,7 +55,7 @@ export default function TotalRewardSummary({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: 14,
     paddingHorizontal: 20,
     marginTop: 8,
     borderRadius: 16,
@@ -69,22 +67,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
     borderRadius: 16,
-    // Simulated glow via shadow
     shadowColor: AppColors.gold,
     shadowOpacity: 0.4,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 0 },
   },
   totalLine: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
     color: AppColors.gold,
     textAlign: 'center',
-    lineHeight: 34,
-  },
-  streakLine: {
-    marginTop: 8,
-    fontSize: 16,
-    color: AppColors.textSecondary,
+    lineHeight: 30,
   },
 });

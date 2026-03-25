@@ -1,11 +1,17 @@
 // CurrencyBar.tsx
-// Horizontal currency display: Muskelmasse · Protein · Streak Tokens.
-// Reads exclusively from the global gameStore.
-// Values animate with a count-up whenever they increase.
+// Polished game-like currency display: Muskelmasse + Protein.
+// Gradient background, icon glow, pulse animation on value change.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useGameStore } from '../store/gameStore';
 import { AppColors } from '../models/types';
 
@@ -13,16 +19,13 @@ import { AppColors } from '../models/types';
 
 function useAnimatedCounter(target: number, durationMs = 800): number {
   const [displayed, setDisplayed] = useState(target);
-  const prevRef   = useRef(target);
-  const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevRef  = useRef(target);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const from = prevRef.current;
     prevRef.current = target;
-
     if (from === target) return;
-
-    // Clear any in-progress animation
     if (timerRef.current) clearInterval(timerRef.current);
 
     const STEPS    = 40;
@@ -32,7 +35,6 @@ function useAnimatedCounter(target: number, durationMs = 800): number {
     timerRef.current = setInterval(() => {
       count++;
       const t = count / STEPS;
-      // Ease-out cubic
       const eased = 1 - Math.pow(1 - t, 3);
       setDisplayed(Math.round(from + (target - from) * eased));
       if (count >= STEPS) {
@@ -41,38 +43,57 @@ function useAnimatedCounter(target: number, durationMs = 800): number {
       }
     }, interval);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [target, durationMs]);
 
   return displayed;
 }
 
-// ─── Single currency slot ─────────────────────────────────────────────────────
+// ─── Single currency slot with glow + pulse ──────────────────────────────────
 
 interface SlotProps {
-  icon:   string;
-  color:  string;
-  value:  number;
-  unit?:  string;
-  label:  string;
-  align?: 'left' | 'center' | 'right';
+  icon:  string;
+  color: string;
+  value: number;
+  unit?: string;
+  label: string;
 }
 
-function CurrencySlot({ icon, color, value, unit = '', label, align = 'center' }: SlotProps) {
+function CurrencySlot({ icon, color, value, unit = '', label }: SlotProps) {
   const displayed = useAnimatedCounter(value);
+  const scale = useSharedValue(1);
+  const prevVal = useRef(value);
 
-  const textAlign = align === 'left' ? 'left' : align === 'right' ? 'right' : 'center';
+  useEffect(() => {
+    if (prevVal.current !== value) {
+      prevVal.current = value;
+      scale.value = withSequence(
+        withTiming(1.15, { duration: 150 }),
+        withTiming(1.0,  { duration: 250 }),
+      );
+    }
+  }, [value]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <View style={[styles.slot, { alignItems: align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center' }]}>
-      <MaterialCommunityIcons name={icon as any} size={20} color={color} />
-      <Text style={[styles.value, { color }]}>
-        {displayed.toLocaleString('de-DE')}
-        {unit && <Text style={[styles.unit, { color }]}>{unit}</Text>}
-      </Text>
-      <Text style={[styles.label, { textAlign }]}>{label}</Text>
+    <View style={styles.slot}>
+      {/* Icon with glow */}
+      <View style={styles.iconWrap}>
+        <View style={[styles.glow, { backgroundColor: color }]} />
+        <MaterialCommunityIcons name={icon as any} size={22} color={color} />
+      </View>
+      {/* Value with pulse */}
+      <Animated.View style={pulseStyle}>
+        <Text style={styles.value}>
+          {displayed.toLocaleString('de-DE')}
+          {unit ? <Text style={styles.unit}>{unit}</Text> : null}
+        </Text>
+      </Animated.View>
+      {/* Label */}
+      <Text style={styles.label}>{label}</Text>
     </View>
   );
 }
@@ -80,35 +101,30 @@ function CurrencySlot({ icon, color, value, unit = '', label, align = 'center' }
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CurrencyBar() {
-  const { muskelmasse, protein, streakTokens } = useGameStore();
+  const { muskelmasse, protein } = useGameStore();
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#1E1E3A', '#252547']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
       <CurrencySlot
         icon="dumbbell"
-        color={AppColors.gold}
+        color="#F5A623"
         value={muskelmasse}
         unit="g"
-        label="Muskelmasse"
-        align="left"
+        label="MUSKELMASSE"
       />
       <View style={styles.divider} />
       <CurrencySlot
         icon="diamond-stone"
-        color={AppColors.teal}
+        color="#00BCD4"
         value={protein}
-        label="Protein"
-        align="center"
+        label="PROTEIN"
       />
-      <View style={styles.divider} />
-      <CurrencySlot
-        icon="fire"
-        color="#FF6B35"
-        value={streakTokens}
-        label="Streak"
-        align="right"
-      />
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -116,35 +132,51 @@ export default function CurrencyBar() {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection:   'row',
-    backgroundColor: '#1A1A2E',
-    borderRadius:    16,
-    paddingVertical:   12,
+    flexDirection:     'row',
+    borderRadius:      20,
+    paddingVertical:   14,
     paddingHorizontal: 16,
-    marginBottom:    12,
-    alignItems:      'center',
+    marginBottom:      12,
+    alignItems:        'center',
+    borderWidth:       1,
+    borderColor:       'rgba(245,166,35,0.2)',
   },
   slot: {
-    flex:  1,
-    gap:   3,
+    flex:       1,
+    alignItems: 'center',
+    gap:        4,
+  },
+  iconWrap: {
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  glow: {
+    position:     'absolute',
+    width:        34,
+    height:       34,
+    borderRadius: 17,
+    opacity:      0.15,
   },
   value: {
-    fontSize:   18,
+    fontSize:   20,
     fontWeight: 'bold',
-    lineHeight: 22,
+    color:      '#FFFFFF',
+    lineHeight: 24,
   },
   unit: {
-    fontSize:   12,
+    fontSize:   13,
     fontWeight: '500',
   },
   label: {
-    fontSize: 10,
-    color:    AppColors.textSecondary,
+    fontSize:       10,
+    color:          'rgba(255,255,255,0.6)',
+    textTransform:  'uppercase',
+    letterSpacing:  0.5,
   },
   divider: {
-    width:            1,
-    height:           36,
-    backgroundColor:  'rgba(255,255,255,0.08)',
+    width:           1,
+    height:          44,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     marginHorizontal: 12,
   },
 });
