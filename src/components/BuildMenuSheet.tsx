@@ -16,7 +16,7 @@ type TabKey = 'production' | 'infrastructure' | 'special';
 
 const categoryMap: Record<TabKey, BuildingType[]> = {
   production:     [BuildingType.kornkammer, BuildingType.proteinfarm, BuildingType.holzfaeller, BuildingType.steinbruch, BuildingType.feld],
-  infrastructure: [BuildingType.holzlager, BuildingType.steinlager, BuildingType.nahrungslager, BuildingType.kaserne],
+  infrastructure: [BuildingType.holzlager, BuildingType.steinlager, BuildingType.nahrungslager, BuildingType.kaserne, BuildingType.stall],
   special:        [BuildingType.tempel, BuildingType.bibliothek, BuildingType.marktplatz, BuildingType.stammeshaus],
 };
 

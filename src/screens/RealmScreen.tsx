@@ -34,6 +34,8 @@ import WorkerSheet from '../components/WorkerSheet';
 import ResourceInfoModal, { ResourceKey } from '../components/ResourceInfoModal';
 import BuildingRegistryModal from '../components/BuildingRegistryModal';
 import CollectRewardPopup from '../components/CollectRewardPopup';
+import AnimalSheet from '../components/AnimalSheet';
+import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
 
 const CELL_SIZE = 70;
 const GRID_SIZE = WorldConstants.gridSize;
@@ -69,6 +71,7 @@ const CELL_CFG: Record<string, { icon: string; color: string }> = {
   bibliothek:   { icon: 'bookshelf',     color: '#5C8A6A' },
   marktplatz:   { icon: 'store',         color: '#FF7043' },
   stammeshaus:  { icon: 'account-group', color: '#2196F3' },
+  stall:        { icon: 'paw',           color: '#C4934A' },
 };
 
 export default function RealmScreen() {
@@ -77,6 +80,7 @@ export default function RealmScreen() {
   const { t } = useTranslation();
 
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
+  const [selectedStall, setSelectedStall] = useState<Building | null>(null);
   const [showBuildMenu, setShowBuildMenu] = useState(false);
   const [showWorkers, setShowWorkers] = useState(false);
   const [showRegistry, setShowRegistry] = useState(false);
@@ -121,7 +125,14 @@ export default function RealmScreen() {
 
   const handleCellPress = (row: number, col: number) => {
     const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
-    if (building) { setSelectedBuilding(building); return; }
+    if (building) {
+      if (building.type === BuildingType.stall && building.level >= 1) {
+        setSelectedStall(building);
+      } else {
+        setSelectedBuilding(building);
+      }
+      return;
+    }
 
     const obstacle = obstacles.find(o => o.row === row && o.col === col && !o.isCleared);
     if (obstacle) { setSelectedObstacle(obstacle); return; }
@@ -130,8 +141,14 @@ export default function RealmScreen() {
       if (obstacles.some(o => o.row === row && o.col === col && !o.isCleared)) return;
       const [ok] = canBuild(gameState, buildPlacementMode, { row, col });
       if (ok) {
+        const isFirstStall = buildPlacementMode === BuildingType.stall &&
+          !gameState.buildings.some(b => b.type === BuildingType.stall);
         store.buildBuilding(buildPlacementMode, { row, col });
         setBuildPlacementMode(null);
+        if (isFirstStall) {
+          setToastMessage('Ein Erntehuhn hat sich in deinem Stall niedergelassen!');
+          setTimeout(() => setToastMessage(null), 3500);
+        }
       }
     }
   };
@@ -186,7 +203,7 @@ export default function RealmScreen() {
                     onPress={() => handleCellPress(row, col)}
                     activeOpacity={0.7}
                   >
-                    {building ? <BuildingCell building={building} isHighlighted={highlightedBuildingId === building.id} idx={row * GRID_SIZE + col} /> : obstacle ? <ObstacleCell obstacle={obstacle} /> : isPlacementTarget ? <Ionicons name="add" size={20} color="rgba(76,175,80,0.6)" /> : null}
+                    {building ? <BuildingCell building={building} isHighlighted={highlightedBuildingId === building.id} idx={row * GRID_SIZE + col} assignedAnimal={gameState.animals.find(a => a.assignment.type === 'building' && (a.assignment as any).buildingId === building.id)} /> : obstacle ? <ObstacleCell obstacle={obstacle} /> : isPlacementTarget ? <Ionicons name="add" size={20} color="rgba(76,175,80,0.6)" /> : null}
                   </TouchableOpacity>
                 );
               })
@@ -274,6 +291,18 @@ export default function RealmScreen() {
         </View>
       </Modal>
 
+      {/* Animal Sheet Modal */}
+      <Modal visible={selectedStall != null} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.dragHandle} />
+            {selectedStall && (
+              <AnimalSheet stall={selectedStall} onClose={() => setSelectedStall(null)} />
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Obstacle Modal */}
       <Modal visible={selectedObstacle != null} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -319,7 +348,7 @@ function fmtConstructionTime(endsAt: number | null): string | null {
 }
 
 // MARK: - Building Cell
-function BuildingCell({ building, isHighlighted, idx }: { building: Building; isHighlighted?: boolean; idx: number }) {
+function BuildingCell({ building, isHighlighted, idx, assignedAnimal }: { building: Building; isHighlighted?: boolean; idx: number; assignedAnimal?: import('../models/types').Animal | null }) {
   const cfg   = CELL_CFG[building.type] ?? { icon: 'help-circle', color: '#888' };
   const color = building.isDecayed ? '#555' : cfg.color;
   const LEVEL_COLORS: Record<number, string> = { 1:'#9E9E9E', 2:'#66BB6A', 3:'#42A5F5', 4:'#AB47BC', 5:'#FFD54F' };
@@ -354,6 +383,22 @@ function BuildingCell({ building, isHighlighted, idx }: { building: Building; is
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: hiScale.value * breath.value }],
+  }));
+
+  const bounce = useSharedValue(0);
+  useEffect(() => {
+    if (assignedAnimal) {
+      bounce.value = withRepeat(
+        withSequence(
+          withTiming(-2, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0,  { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1, false,
+      );
+    }
+  }, [assignedAnimal?.id]);
+  const bounceStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: bounce.value }],
   }));
 
   // Construction countdown (updates every 10 s)
@@ -400,6 +445,11 @@ function BuildingCell({ building, isHighlighted, idx }: { building: Building; is
         <View style={styles.resourceBubble}>
           <Text style={styles.resourceBubbleText}>{Math.floor(building.currentStorage)}</Text>
         </View>
+      )}
+      {assignedAnimal && (
+        <Animated.View style={[styles.animalSprite, bounceStyle]} pointerEvents="none">
+          <AnimalRenderer type={assignedAnimal.type} size={20} />
+        </Animated.View>
       )}
     </Animated.View>
   );
@@ -786,6 +836,14 @@ const styles = StyleSheet.create({
     borderRadius: 5, paddingHorizontal: 3, paddingVertical: 1,
   },
   resourceBubbleText: { fontSize: 7, fontWeight: 'bold', color: '#fff' },
+  animalSprite: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 10,
+    padding: 1,
+  },
   hudTop: { position: 'absolute', top: 50, left: 12, right: 12 },
   hudBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', gap: 6 },
   bottomBar: {
