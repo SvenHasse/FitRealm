@@ -154,9 +154,15 @@ export function processTick(state: GameState): GameState {
   const elapsed = (now.getTime() - lastTick.getTime()) / 1000;
   if (elapsed <= 1) return state;
 
-  const s = { ...state, buildings: [...state.buildings], workers: [...state.workers], zones: [...state.zones] };
+  const s = { ...state, buildings: [...state.buildings], workers: [...state.workers], zones: [...state.zones], damageEffects: [...(state.damageEffects ?? [])] };
   const decayMult = gameStateDecayMultiplier(s);
   const isDecayed = decayMult < 1.0;
+
+  // Cleanup expired damage effects
+  const nowMs = now.getTime();
+  if (s.damageEffects && s.damageEffects.length > 0) {
+    s.damageEffects = s.damageEffects.filter(e => e.endsAt > nowMs);
+  }
 
   // Passive building production (skip buildings under construction)
   for (let i = 0; i < s.buildings.length; i++) {
@@ -165,6 +171,16 @@ export function processTick(state: GameState): GameState {
     b.isDecayed = isDecayed;
     const rate = hourlyProductionRate(b);
     if (rate > 0) {
+      // Check for active productionStop damage effect
+      const activeDamage = (s.damageEffects ?? []).find(
+        e => e.buildingId === b.id && e.endsAt > nowMs && e.effectType === 'productionStop',
+      );
+      if (activeDamage) {
+        // Production stopped — skip
+        s.buildings[i] = b;
+        continue;
+      }
+
       // Animal production bonus
       let animalMult = 1.0;
       const assignedAnimal = s.animals.find(a => {

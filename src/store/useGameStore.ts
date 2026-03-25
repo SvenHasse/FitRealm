@@ -9,8 +9,11 @@ import {
   createDefaultGameState, gameStateRathausLevel, findBuildingById, workerStatus, WorkerStatus,
   obstacleRemovalCost,
   Animal, AnimalEgg, AnimalAssignment, MonsterWave, WaveResult, DamageEffect, DefenseBreakdown,
+  LootDrop, EggRarity,
 } from '../models/types';
 import { ANIMAL_CONFIGS, STALL_CONFIG, WAVE_CONFIG, DEFENSE_CONFIG } from '../config/EntityConfig';
+import { waveService } from '../services/WaveService';
+import { combatService } from '../services/CombatService';
 import * as GE from '../engines/GameEngine';
 import type { CollectResult, SellConsequences } from '../engines/GameEngine';
 import * as VE from '../engines/VitacoinEngine';
@@ -42,6 +45,17 @@ interface GameStore {
 
   // Collect popup
   lastCollectResult: CollectResult | null;
+
+  // Wave System
+  pendingWaveResult: {
+    wave: MonsterWave;
+    result: WaveResult;
+    defenseVP: number;
+    effectiveAK: number;
+    damages: DamageEffect[];
+    loot: LootDrop[];
+    nextWaveIn: number;
+  } | null;
 
   // Storage capacity (recalculated whenever buildings change)
   storageCap: StorageCapacity;
@@ -107,6 +121,10 @@ interface GameStore {
   scheduleNextWave: () => void;
   startWave: (wave: MonsterWave) => void;
   resolveWave: (waveId: string, result: WaveResult) => void;
+  initializeWaveSystem: () => void;
+  triggerWaveResolution: () => void;
+  applyLoot: (loot: LootDrop[]) => void;
+  clearPendingWaveResult: () => void;
 
   // Actions - Entity System (Schaden)
   addDamageEffect: (effect: DamageEffect) => void;
@@ -136,6 +154,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   useMockData: false,
   obstacles: [],
   lastCollectResult: null,
+  pendingWaveResult: null,
   storageCap: getTotalStorageCap([]),
 
   // MARK: - Initialize
@@ -624,6 +643,167 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newGs = { ...gs, waves: updatedWaves, activeWave };
     set({ gameState: newGs });
     GE.saveGameState(newGs);
+  },
+
+  // MARK: - Wave System Initialization
+
+  initializeWaveSystem() {
+    const gs = get().gameState;
+
+    if (!gs.nextWaveAt) {
+      // No wave scheduled → schedule one
+      get().scheduleNextWave();
+      return;
+    }
+
+    if (gs.nextWaveAt <= Date.now()) {
+      // Wave time has passed → resolve offline combat
+      if (gs.activeWave && gs.activeWave.status !== 'resolved') {
+        // Existing active wave — resolve it
+        get().triggerWaveResolution();
+      } else {
+        // Generate a new wave and immediately resolve it
+        const rathausLevel = gameStateRathausLevel(gs);
+        const lastWorkoutTs = gs.lastWorkoutDate
+          ? new Date(gs.lastWorkoutDate).getTime()
+          : Date.now() - 72 * 60 * 60 * 1000;
+        const wave = waveService.generateWave(rathausLevel, lastWorkoutTs);
+        const startWaveGs: GameState = {
+          ...gs,
+          activeWave: { ...wave, status: 'active' },
+          waves: [...gs.waves, { ...wave, status: 'active' }],
+        };
+        set({ gameState: startWaveGs });
+        GE.saveGameState(startWaveGs);
+        get().triggerWaveResolution();
+      }
+    }
+    // If nextWaveAt is in the future, nothing to do — the UI will show a countdown
+  },
+
+  triggerWaveResolution() {
+    const gs = get().gameState;
+    if (!gs.activeWave) return;
+
+    const defense = get().calculateDefense();
+    const { result, damages, loot, effectiveAK } = combatService.resolveCombat(
+      defense,
+      gs.activeWave,
+      gs.animals,
+      gs.buildings,
+    );
+
+    const resolvedAt = Date.now();
+    const resolvedWave: MonsterWave = {
+      ...gs.activeWave,
+      status: 'resolved',
+      resolvedAt,
+      result,
+    };
+
+    // Apply damages
+    const allDamages = [...gs.damageEffects, ...damages];
+
+    // Apply loot
+    get().applyLoot(loot);
+
+    // Update state
+    const updatedGs = get().gameState; // re-read after applyLoot
+    const updatedWaves = updatedGs.waves.map(w =>
+      w.id === resolvedWave.id ? resolvedWave : w,
+    );
+    // If wave wasn't in array yet, add it
+    const waveInArray = updatedWaves.find(w => w.id === resolvedWave.id);
+    const finalWaves = waveInArray ? updatedWaves : [...updatedWaves, resolvedWave];
+
+    // Schedule next wave
+    const nextWaveAt = waveService.scheduleNextWave(resolvedAt);
+
+    const finalGs: GameState = {
+      ...updatedGs,
+      activeWave: null,
+      waves: finalWaves,
+      nextWaveAt,
+      damageEffects: allDamages,
+    };
+    set({ gameState: finalGs });
+    GE.saveGameState(finalGs);
+
+    // Set pending result for UI
+    set({
+      pendingWaveResult: {
+        wave: resolvedWave,
+        result,
+        defenseVP: defense.totalVP,
+        effectiveAK,
+        damages,
+        loot,
+        nextWaveIn: nextWaveAt - Date.now(),
+      },
+    });
+  },
+
+  applyLoot(loot) {
+    const gs = get().gameState;
+    let updatedGs = { ...gs };
+    const newEggs: AnimalEgg[] = [];
+
+    for (const drop of loot) {
+      switch (drop.type) {
+        case 'muskelmasse':
+          updatedGs = { ...updatedGs, muskelmasse: updatedGs.muskelmasse + drop.amount };
+          break;
+        case 'protein':
+          updatedGs = { ...updatedGs, protein: updatedGs.protein + drop.amount };
+          break;
+        case 'holz':
+          updatedGs = { ...updatedGs, wood: updatedGs.wood + drop.amount };
+          break;
+        case 'stein':
+          updatedGs = { ...updatedGs, stone: updatedGs.stone + drop.amount };
+          break;
+        case 'nahrung':
+          updatedGs = { ...updatedGs, food: updatedGs.food + drop.amount };
+          break;
+        case 'egg': {
+          // Generate an egg
+          const { EGG_HATCH_CONFIGS, ANIMAL_CONFIGS: AC } = require('../config/EntityConfig');
+          const rarity: EggRarity = (drop.eggRarity as EggRarity) ?? 'common';
+          const cfg = EGG_HATCH_CONFIGS[rarity];
+          // Pick a random animal type that matches the rarity
+          const possibleTypes = Object.values(AC).filter(
+            (ac: any) => ac.rarity === rarity,
+          ) as any[];
+          if (possibleTypes.length > 0) {
+            const chosenAnimal = possibleTypes[Math.floor(Math.random() * possibleTypes.length)];
+            const egg: AnimalEgg = {
+              id: `egg_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+              rarity,
+              hatchesInto: chosenAnimal.type,
+              workoutsRequired: cfg.workoutsRequired,
+              workoutsCompleted: 0,
+              requiresConsecutive: cfg.requiresConsecutive,
+              requiresMinHRmax: cfg.requiresMinHRmax,
+              obtainedAt: Date.now(),
+            };
+            newEggs.push(egg);
+          }
+          break;
+        }
+      }
+    }
+
+    if (newEggs.length > 0) {
+      updatedGs = { ...updatedGs, eggs: [...updatedGs.eggs, ...newEggs] };
+    }
+
+    set({ gameState: updatedGs });
+    GE.saveGameState(updatedGs);
+    _syncAllCurrencies(updatedGs);
+  },
+
+  clearPendingWaveResult() {
+    set({ pendingWaveResult: null });
   },
 
   // MARK: - Entity System — Schadens-Effekte

@@ -36,6 +36,9 @@ import BuildingRegistryModal from '../components/BuildingRegistryModal';
 import CollectRewardPopup from '../components/CollectRewardPopup';
 import AnimalSheet from '../components/AnimalSheet';
 import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
+import WaveBanner from '../components/WaveBanner';
+import WaveResultSheet from '../components/WaveResultSheet';
+import WaveDetailSheet from '../components/WaveDetailSheet';
 
 const CELL_SIZE = 70;
 const GRID_SIZE = WorldConstants.gridSize;
@@ -89,8 +92,12 @@ export default function RealmScreen() {
   const [selectedResource, setSelectedResource] = useState<ResourceKey | null>(null);
   const [highlightedBuildingId, setHighlightedBuildingId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [waveDetailVisible, setWaveDetailVisible] = useState(false);
   const lastCollectResult = useGameStore(s => s.lastCollectResult);
   const clearCollectResult = useGameStore(s => s.clearCollectResult);
+  const pendingWaveResult = useGameStore(s => s.pendingWaveResult);
+  const clearPendingWaveResult = useGameStore(s => s.clearPendingWaveResult);
+  const activeWave = gameState.activeWave;
 
   // Scroll refs for map navigation
   const hScrollRef = useRef<ScrollView>(null);
@@ -154,6 +161,9 @@ export default function RealmScreen() {
   };
 
   const activeZone = gameState.zones.find(z => zoneIsExploring(z));
+  const isWaveApproaching = activeWave != null && (activeWave.status === 'approaching' || activeWave.status === 'active');
+  const currentDefenseVP = store.calculateDefense().totalVP;
+  const stallBuilding = gameState.buildings.find(b => b.type === BuildingType.stall && b.level >= 1) ?? null;
 
   return (
     <View style={styles.container}>
@@ -212,9 +222,22 @@ export default function RealmScreen() {
         </ScrollView>
       </ScrollView>
 
+      {/* Danger overlay — red border when wave approaching */}
+      {isWaveApproaching && (
+        <View style={styles.dangerOverlay} pointerEvents="none" />
+      )}
+
       {/* HUD Top */}
       <View style={styles.hudTop}>
         <TopResourceBar onResourcePress={setSelectedResource} />
+        {activeWave && (activeWave.status === 'approaching' || activeWave.status === 'active') && (
+          <WaveBanner
+            wave={activeWave}
+            defenseVP={currentDefenseVP}
+            onDetails={() => setWaveDetailVisible(true)}
+            onPrepare={() => { if (stallBuilding) setSelectedStall(stallBuilding); }}
+          />
+        )}
       </View>
 
       {/* HUD Bottom — compact bar */}
@@ -329,6 +352,31 @@ export default function RealmScreen() {
         <CollectRewardPopup result={lastCollectResult} onClose={clearCollectResult} />
       )}
 
+      {/* Wave Result Sheet */}
+      {pendingWaveResult && (
+        <WaveResultSheet
+          visible={!!pendingWaveResult}
+          wave={pendingWaveResult.wave}
+          result={pendingWaveResult.result}
+          defenseVP={pendingWaveResult.defenseVP}
+          effectiveAK={pendingWaveResult.effectiveAK}
+          damages={pendingWaveResult.damages}
+          loot={pendingWaveResult.loot}
+          nextWaveIn={pendingWaveResult.nextWaveIn}
+          onClose={clearPendingWaveResult}
+        />
+      )}
+
+      {/* Wave Detail Sheet */}
+      {activeWave && (
+        <WaveDetailSheet
+          visible={waveDetailVisible}
+          wave={activeWave}
+          defense={store.calculateDefense()}
+          onClose={() => setWaveDetailVisible(false)}
+        />
+      )}
+
       {/* Nothing-to-collect toast */}
       {toastMessage && (
         <View style={styles.toast} pointerEvents="none">
@@ -352,6 +400,24 @@ function BuildingCell({ building, isHighlighted, idx, assignedAnimal }: { buildi
   const cfg   = CELL_CFG[building.type] ?? { icon: 'help-circle', color: '#888' };
   const color = building.isDecayed ? '#555' : cfg.color;
   const LEVEL_COLORS: Record<number, string> = { 1:'#9E9E9E', 2:'#66BB6A', 3:'#42A5F5', 4:'#AB47BC', 5:'#FFD54F' };
+  const damageEffects = useGameStore(s => s.gameState.damageEffects);
+  const hasDamage = damageEffects.some(e => e.buildingId === building.id && e.endsAt > Date.now());
+  const damagePulse = useSharedValue(1);
+  useEffect(() => {
+    if (hasDamage) {
+      damagePulse.value = withRepeat(
+        withSequence(
+          withTiming(0.3, { duration: 600 }),
+          withTiming(1.0, { duration: 600 }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      damagePulse.value = 1;
+    }
+  }, [hasDamage]);
+  const damagePulseStyle = useAnimatedStyle(() => ({ opacity: damagePulse.value }));
 
   // Highlight pulse
   const hiScale = useSharedValue(1);
@@ -449,6 +515,11 @@ function BuildingCell({ building, isHighlighted, idx, assignedAnimal }: { buildi
       {assignedAnimal && (
         <Animated.View style={[styles.animalSprite, bounceStyle]} pointerEvents="none">
           <AnimalRenderer type={assignedAnimal.type} size={20} />
+        </Animated.View>
+      )}
+      {hasDamage && (
+        <Animated.View style={[styles.damageIndicator, damagePulseStyle]} pointerEvents="none">
+          <Text style={styles.damageIndicatorText}>!</Text>
         </Animated.View>
       )}
     </Animated.View>
@@ -804,6 +875,14 @@ function ObstacleRemovalSheet({ obstacle, onClose }: { obstacle: Obstacle; onClo
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#091808' },
   mapScroll: { flex: 1, backgroundColor: '#091808' },
+  dangerOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    borderWidth: 3,
+    borderColor: 'rgba(239,83,80,0.4)',
+    zIndex: 5,
+    pointerEvents: 'none',
+  },
   gridContainer: {
     position: 'relative',
     borderRadius: 6,
@@ -843,6 +922,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 10,
     padding: 1,
+  },
+  damageIndicator: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#EF5350',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  damageIndicatorText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   hudTop: { position: 'absolute', top: 50, left: 12, right: 12 },
   hudBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', gap: 6 },
