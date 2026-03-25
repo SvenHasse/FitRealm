@@ -118,6 +118,7 @@ export const NAHRUNGSLAGER_STORAGE = [450, 900, 1800, 3600, 7200];
 export function getTotalStorageCap(buildings: Building[]): StorageCapacity {
   const cap: StorageCapacity = { ...BASE_STORAGE };
   for (const b of buildings) {
+    if (b.level < 1) continue; // Skip buildings still under initial construction
     if (b.type === BuildingType.holzlager) {
       cap.wood  += HOLZLAGER_STORAGE[Math.min(b.level - 1, HOLZLAGER_STORAGE.length - 1)];
     } else if (b.type === BuildingType.steinlager) {
@@ -347,6 +348,37 @@ export function nextInstanceUnlockLevel(type: BuildingType, currentInstances: nu
 export function maxInstances(type: BuildingType): number {
   const unlocks = MULTI_BUILD_UNLOCK[type];
   if (unlocks) return unlocks.length;
+  return 1;
+}
+
+// MARK: - Construction Time (seconds per level)
+export const CONSTRUCTION_TIME: Partial<Record<BuildingType, number[]>> = {
+  // [L1, L2, L3, L4, L5]
+  rathaus:       [120,  300,  600, 1200, 2400],
+  kornkammer:    [ 60,  120,  240,  480,  960],
+  proteinfarm:   [120,  240,  480,  960, 1920],
+  holzfaeller:   [ 60,  120,  240,  480,  960],
+  steinbruch:    [ 90,  180,  360,  720, 1440],
+  feld:          [ 60,  120,  240,  480,  960],
+  holzlager:     [ 60,  120,  240,  480,  960],
+  steinlager:    [ 90,  180,  360,  720, 1440],
+  nahrungslager: [ 60,  120,  240,  480,  960],
+  kaserne:       [120,  240,  480,  960, 1920],
+  tempel:        [300,  600, 1200, 2400, 4800],
+  bibliothek:    [300,  600, 1200, 2400, 4800],
+  marktplatz:    [240,  480,  960, 1920, 3840],
+  stammeshaus:   [600, 1200, 2400, 4800, 9600],
+};
+
+/** Construction time in seconds for a building at a given target level */
+export function constructionTime(type: BuildingType, targetLevel: number): number {
+  const table = CONSTRUCTION_TIME[type];
+  if (!table) return 0;
+  return table[Math.min(targetLevel - 1, table.length - 1)] ?? 0;
+}
+
+/** Protein cost to instantly complete construction */
+export function skipConstructionCost(_type: BuildingType, _targetLevel: number): number {
   return 1;
 }
 

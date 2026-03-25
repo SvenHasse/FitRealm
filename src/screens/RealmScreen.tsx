@@ -262,6 +262,18 @@ export default function RealmScreen() {
   );
 }
 
+// MARK: - Construction countdown helper
+function fmtConstructionTime(endsAt: number | null): string | null {
+  if (!endsAt) return null;
+  const rem = Math.max(0, (endsAt - Date.now()) / 1000);
+  if (rem <= 0) return null;
+  const h = Math.floor(rem / 3600);
+  const m = Math.floor((rem % 3600) / 60);
+  if (h > 0) return `${h}h`;
+  if (m > 0) return `${m}m`;
+  return `<1m`;
+}
+
 // MARK: - Building Cell
 function BuildingCell({ building, isHighlighted }: { building: Building; isHighlighted?: boolean }) {
   const accent = buildingAccentColor(building.type);
@@ -280,6 +292,31 @@ function BuildingCell({ building, isHighlighted }: { building: Building; isHighl
     }
   }, [isHighlighted]);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  // Construction countdown (updates every 10s)
+  const [countdown, setCountdown] = useState(() => fmtConstructionTime(building.constructionEndsAt));
+  useEffect(() => {
+    if (!building.isUnderConstruction) return;
+    setCountdown(fmtConstructionTime(building.constructionEndsAt));
+    const id = setInterval(() => setCountdown(fmtConstructionTime(building.constructionEndsAt)), 10000);
+    return () => clearInterval(id);
+  }, [building.isUnderConstruction, building.constructionEndsAt]);
+
+  if (building.isUnderConstruction) {
+    return (
+      <Animated.View style={[styles.buildingCell, animStyle, { borderWidth: 2, borderColor: `${AppColors.gold}90`, borderRadius: 6 }]}>
+        <Ionicons name={"build-outline" as any} size={24} color={AppColors.gold} />
+        <View style={[styles.levelBadge, { backgroundColor: AppColors.gold }]}>
+          <Text style={[styles.levelText, { color: '#000' }]}>{building.targetLevel}</Text>
+        </View>
+        {countdown !== null && (
+          <View style={[styles.resourceBubble, { backgroundColor: '#333' }]}>
+            <Text style={[styles.resourceBubbleText, { color: AppColors.gold }]}>{countdown}</Text>
+          </View>
+        )}
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View style={[styles.buildingCell, animStyle, isHighlighted && styles.highlightedCell]}>

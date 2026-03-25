@@ -59,6 +59,8 @@ interface GameStore {
   trainWorker: () => boolean;
   assignWorker: (workerID: string, buildingID: string) => void;
   unassignWorker: (workerID: string) => void;
+  assignWorkerToConstruction: (buildingID: string, workerID: string) => boolean;
+  skipConstruction: (buildingID: string) => boolean;
   unlockZone: (zoneID: number) => boolean;
   startExploration: (zoneID: number) => boolean;
   claimExplorationReward: (zoneID: number) => boolean;
@@ -234,6 +236,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const result = GE.unassignWorker(get().gameState, workerID);
     set({ gameState: result });
     GE.saveGameState(result);
+  },
+
+  assignWorkerToConstruction(buildingID, workerID) {
+    const result = GE.assignWorkerToConstruction(get().gameState, buildingID, workerID);
+    if (!result) return false;
+    set({ gameState: result });
+    GE.saveGameState(result);
+    return true;
+  },
+
+  skipConstruction(buildingID) {
+    const result = GE.skipConstructionWithProtein(get().gameState, buildingID);
+    if (!result) return false;
+    set({ gameState: result, storageCap: getTotalStorageCap(result.buildings) });
+    GE.saveGameState(result);
+    return true;
   },
 
   unlockZone(zoneID) {

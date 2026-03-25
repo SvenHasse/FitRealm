@@ -1,7 +1,7 @@
 // BuildingDetailSheet.tsx
 // FitRealm - Building detail modal with new bottom sheet styling + i18n
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +11,7 @@ import {
   buildingProducesResource, ResourceType,
   findBuildingById, workerStatus, WorkerStatus,
 } from '../models/types';
-import { upgradeCost, getTotalStorageCap, getStorageBonusArray, storageBuildingResource } from '../config/GameConfig';
+import { upgradeCost, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, constructionTime, skipConstructionCost } from '../config/GameConfig';
 import { costString, canAfford, hourlyProductionRate, buildingStorageCap, SellConsequences } from '../engines/GameEngine';
 import SellConfirmModal from './SellConfirmModal';
 
@@ -53,16 +53,22 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
 
       {/* Hero card */}
       <View style={styles.heroCard}>
-        <Ionicons name={buildingIconName(building.type) as any} size={64} color={building.isDecayed ? '#666' : accent} />
+        <Ionicons
+          name={building.isUnderConstruction ? ('build-outline' as any) : (buildingIconName(building.type) as any)}
+          size={64}
+          color={building.isUnderConstruction ? AppColors.gold : (building.isDecayed ? '#666' : accent)}
+        />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
           <Text style={styles.heroName}>{t(`buildings.${building.type}`)}</Text>
-          <View style={[styles.badge, { backgroundColor: levelColors[building.level] || '#9E9E9E' }]}>
-            <Text style={styles.badgeText}>L{building.level}</Text>
+          <View style={[styles.badge, { backgroundColor: building.isUnderConstruction ? AppColors.gold : (levelColors[building.level] || '#9E9E9E') }]}>
+            <Text style={[styles.badgeText, building.isUnderConstruction && { color: '#000' }]}>
+              {building.isUnderConstruction ? `L${building.targetLevel}` : `L${building.level}`}
+            </Text>
           </View>
         </View>
         <Text style={styles.heroDesc}>{t(`buildings.${building.type}Desc`)}</Text>
 
-        {rate > 0 && (
+        {!building.isUnderConstruction && rate > 0 && (
           <>
             <View style={{ flexDirection: 'row', gap: 20, marginTop: 12 }}>
               <InfoChip icon="time" value={rateLabel(building, rate)} label={t('buildingDetail.perHour')} color={accent} />
@@ -78,32 +84,39 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
         )}
       </View>
 
-      {/* Storage bonus section for dedicated storage buildings */}
-      {storageBuildingResource(building.type) !== null && (
-        <StorageBonusSection building={building} />
-      )}
+      {building.isUnderConstruction ? (
+        /* Construction card replaces collect / upgrade / worker sections */
+        <ConstructionCard building={building} />
+      ) : (
+        <>
+          {/* Storage bonus section for dedicated storage buildings */}
+          {storageBuildingResource(building.type) !== null && (
+            <StorageBonusSection building={building} />
+          )}
 
-      {/* Collect */}
-      {building.currentStorage > 0 && (
-        <View style={styles.card}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{t('buildingDetail.available')}</Text>
-              <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#4CAF50' }}>{collectLabel(building, t)}</Text>
+          {/* Collect */}
+          {building.currentStorage > 0 && (
+            <View style={styles.card}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{t('buildingDetail.available')}</Text>
+                  <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#4CAF50' }}>{collectLabel(building, t)}</Text>
+                </View>
+                <TouchableOpacity style={styles.goldBtn} onPress={() => store.collectResources(building.id)}>
+                  <Ionicons name="download" size={14} color="#000" />
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#000' }}>{t('buildingDetail.collect')}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <TouchableOpacity style={styles.goldBtn} onPress={() => store.collectResources(building.id)}>
-              <Ionicons name="download" size={14} color="#000" />
-              <Text style={{ fontSize: 14, fontWeight: '600', color: '#000' }}>{t('buildingDetail.collect')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          )}
+
+          {/* Upgrade */}
+          <UpgradeSection building={building} />
+
+          {/* Worker */}
+          <WorkerSection building={building} />
+        </>
       )}
-
-      {/* Upgrade */}
-      <UpgradeSection building={building} />
-
-      {/* Worker */}
-      <WorkerSection building={building} />
 
       {/* Decay banner */}
       {building.isDecayed && (
@@ -254,6 +267,113 @@ function WorkerSection({ building }: { building: Building }) {
   );
 }
 
+
+// MARK: - Construction Card
+function fmtTimeLeft(endsAt: number | null): string | null {
+  if (!endsAt) return null;
+  const rem = Math.max(0, (endsAt - Date.now()) / 1000);
+  if (rem <= 0) return null;
+  const h = Math.floor(rem / 3600);
+  const m = Math.floor((rem % 3600) / 60);
+  const s = Math.floor(rem % 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function ConstructionCard({ building }: { building: Building }) {
+  const store = useGameStore();
+  const { t } = useTranslation();
+  const [timeLeft, setTimeLeft] = useState(() => fmtTimeLeft(building.constructionEndsAt));
+
+  useEffect(() => {
+    const id = setInterval(() => setTimeLeft(fmtTimeLeft(building.constructionEndsAt)), 1000);
+    return () => clearInterval(id);
+  }, [building.constructionEndsAt]);
+
+  const totalDuration = constructionTime(building.type, building.targetLevel);
+  const elapsed = building.constructionEndsAt
+    ? totalDuration - Math.max(0, (building.constructionEndsAt - Date.now()) / 1000)
+    : totalDuration;
+  const progress = totalDuration > 0 ? Math.min(elapsed / totalDuration, 1) : 1;
+
+  const conWorker = building.constructionWorkerID
+    ? store.gameState.workers.find(w => w.id === building.constructionWorkerID)
+    : null;
+
+  const idleWorkers = store.gameState.workers.filter(w => {
+    const st = workerStatus(w);
+    return st === WorkerStatus.idle || (st === WorkerStatus.active && !w.assignedBuildingID);
+  });
+
+  const skipCost = skipConstructionCost(building.type, building.targetLevel);
+  const canSkip = store.gameState.protein >= skipCost;
+
+  return (
+    <View style={[styles.card, { borderWidth: 1, borderColor: 'rgba(245,166,35,0.35)' }]}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <Ionicons name={'construct-outline' as any} size={18} color={AppColors.gold} />
+        <Text style={{ fontSize: 15, fontWeight: '600', color: AppColors.gold }}>
+          {building.targetLevel === 1 ? t('construction.inProgress') : t('construction.upgrading')}
+        </Text>
+      </View>
+
+      {/* Progress bar */}
+      <View style={{ height: 8, backgroundColor: '#1E1E3A', borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+        <View style={{ height: 8, borderRadius: 4, width: `${Math.round(progress * 100)}%` as any, backgroundColor: AppColors.gold }} />
+      </View>
+
+      {/* Time remaining */}
+      <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 14 }}>
+        {timeLeft ? t('construction.finishedIn', { time: timeLeft }) : t('construction.complete')}
+      </Text>
+
+      {/* Worker on site */}
+      {conWorker ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12,
+          padding: 10, backgroundColor: 'rgba(255,152,0,0.1)', borderRadius: 10 }}>
+          <Ionicons name={'person' as any} size={16} color="#FF9800" />
+          <Text style={{ fontSize: 13, color: '#FF9800' }}>{t('construction.workerOnSite', { name: conWorker.name })}</Text>
+        </View>
+      ) : idleWorkers.length > 0 ? (
+        <View style={{ marginBottom: 12 }}>
+          {idleWorkers.slice(0, 1).map(w => (
+            <TouchableOpacity
+              key={w.id}
+              style={{ flexDirection: 'row', alignItems: 'center', padding: 10,
+                backgroundColor: 'rgba(0,188,212,0.1)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,188,212,0.25)' }}
+              onPress={() => store.assignWorkerToConstruction(building.id, w.id)}
+            >
+              <Ionicons name={'person-add-outline' as any} size={16} color="#00BCD4" style={{ marginRight: 8 }} />
+              <Text style={{ flex: 1, fontSize: 13, color: '#fff' }}>{w.name}</Text>
+              <Text style={{ fontSize: 12, color: '#00BCD4', fontWeight: '600' }}>{t('construction.assignWorker')}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
+
+      {/* Skip with Protein */}
+      <TouchableOpacity
+        style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+          paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+          canSkip
+            ? { borderColor: 'rgba(77,208,225,0.5)', backgroundColor: 'rgba(77,208,225,0.08)' }
+            : { borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'transparent' },
+        ]}
+        onPress={() => canSkip && store.skipConstruction(building.id)}
+        disabled={!canSkip}
+      >
+        <Ionicons name={'flash' as any} size={14} color={canSkip ? '#4DD0E1' : '#555'} />
+        <Text style={{ fontSize: 13, fontWeight: '600', color: canSkip ? '#4DD0E1' : '#555' }}>
+          {canSkip
+            ? t('construction.skipWithProtein', { cost: skipCost })
+            : t('construction.notEnoughProtein')}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 // MARK: - Storage Bonus Section (Holzlager / Steinlager / Nahrungslager)
 function StorageBonusSection({ building }: { building: Building }) {
