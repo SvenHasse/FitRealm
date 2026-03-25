@@ -23,6 +23,7 @@ import {
 } from '../models/types';
 import { WorldConstants } from '../config/GameConfig';
 import { canBuild } from '../engines/GameEngine';
+import { formatDuration } from '../utils/formatDuration';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
 import WorkerSheet from '../components/WorkerSheet';
@@ -262,16 +263,12 @@ export default function RealmScreen() {
   );
 }
 
-// MARK: - Construction countdown helper
+// MARK: - Construction countdown helper (uses shared formatDuration)
 function fmtConstructionTime(endsAt: number | null): string | null {
   if (!endsAt) return null;
   const rem = Math.max(0, (endsAt - Date.now()) / 1000);
   if (rem <= 0) return null;
-  const h = Math.floor(rem / 3600);
-  const m = Math.floor((rem % 3600) / 60);
-  if (h > 0) return `${h}h`;
-  if (m > 0) return `${m}m`;
-  return `<1m`;
+  return formatDuration(Math.floor(rem));
 }
 
 // MARK: - Building Cell

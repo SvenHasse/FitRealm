@@ -14,6 +14,7 @@ import {
 import { upgradeCost, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, constructionTime, skipConstructionCost } from '../config/GameConfig';
 import { costString, canAfford, hourlyProductionRate, buildingStorageCap, SellConsequences } from '../engines/GameEngine';
 import SellConfirmModal from './SellConfirmModal';
+import { formatDuration } from '../utils/formatDuration';
 
 interface Props {
   buildingID: string;
@@ -189,6 +190,12 @@ function UpgradeSection({ building }: { building: Building }) {
   const cost = building.level < 5 ? upgradeCost(building.type, building.level) : null;
   const canUpg = cost ? canAfford(store.gameState, cost) : false;
 
+  // Idle-worker check for upgrade time hint
+  const hasIdleWorker = store.gameState.workers.some(w => {
+    const st = workerStatus(w);
+    return st === WorkerStatus.idle || (st === WorkerStatus.active && !w.assignedBuildingID);
+  });
+
   return (
     <View style={styles.card}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -205,6 +212,26 @@ function UpgradeSection({ building }: { building: Building }) {
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>{t('buildingDetail.levelUpgrade', { from: building.level, to: building.level + 1 })}</Text>
             <Text style={{ fontSize: 11, color: canUpg ? 'rgba(255,255,255,0.5)' : 'rgba(244,67,54,0.7)', marginTop: 2 }}>{costString(cost)}</Text>
+            {/* Construction time preview */}
+            {(() => {
+              const secs = constructionTime(building.type, building.level + 1);
+              const timeStr = formatDuration(secs);
+              const halfSecs = Math.floor(secs / 2);
+              const halfStr = secs > 0 && hasIdleWorker ? formatDuration(halfSecs) : null;
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                  <Ionicons name={'time-outline' as any} size={11} color="rgba(255,255,255,0.5)" />
+                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                    {t('construction.buildTime', { time: timeStr })}
+                  </Text>
+                  {halfStr && (
+                    <Text style={{ fontSize: 11, color: '#00BCD4' }}>
+                      ({t('construction.buildTimeWithWorker', { time: halfStr })})
+                    </Text>
+                  )}
+                </View>
+              );
+            })()}
           </View>
           <TouchableOpacity
             style={[styles.upgradeBtn, { backgroundColor: canUpg ? AppColors.gold : 'rgba(255,255,255,0.1)' }]}
@@ -273,12 +300,7 @@ function fmtTimeLeft(endsAt: number | null): string | null {
   if (!endsAt) return null;
   const rem = Math.max(0, (endsAt - Date.now()) / 1000);
   if (rem <= 0) return null;
-  const h = Math.floor(rem / 3600);
-  const m = Math.floor((rem % 3600) / 60);
-  const s = Math.floor(rem % 60);
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
+  return formatDuration(Math.floor(rem));
 }
 
 function ConstructionCard({ building }: { building: Building }) {
