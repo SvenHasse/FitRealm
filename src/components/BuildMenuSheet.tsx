@@ -1,26 +1,23 @@
 // BuildMenuSheet.tsx
-// FitRealm - Building selection sheet with category tabs + i18n
+// FitRealm - Building selection sheet with category tabs + flip cards.
 
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import {
   AppColors, BuildingType,
-  buildingIconName, buildingAccentColor,
   gameStateRathausLevel, workerStatus, WorkerStatus,
 } from '../models/types';
-import { buildCost, rathausRequirement, allowedInstances, nextInstanceUnlockLevel, maxInstances, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, Production, constructionTime } from '../config/GameConfig';
-import { canAfford, costString, hourlyProductionRate } from '../engines/GameEngine';
-import { formatDuration } from '../utils/formatDuration';
+import { allowedInstances } from '../config/GameConfig';
+import BuildingCard from './game/BuildingCard';
 
 type TabKey = 'production' | 'infrastructure' | 'special';
 
 const categoryMap: Record<TabKey, BuildingType[]> = {
-  production: [BuildingType.kornkammer, BuildingType.proteinfarm, BuildingType.holzfaeller, BuildingType.steinbruch, BuildingType.feld],
+  production:     [BuildingType.kornkammer, BuildingType.proteinfarm, BuildingType.holzfaeller, BuildingType.steinbruch, BuildingType.feld],
   infrastructure: [BuildingType.holzlager, BuildingType.steinlager, BuildingType.nahrungslager, BuildingType.kaserne],
-  special: [BuildingType.tempel, BuildingType.bibliothek, BuildingType.marktplatz, BuildingType.stammeshaus],
+  special:        [BuildingType.tempel, BuildingType.bibliothek, BuildingType.marktplatz, BuildingType.stammeshaus],
 };
 
 interface Props {
@@ -28,47 +25,26 @@ interface Props {
   onClose: () => void;
 }
 
-// Production rate at L1 for a given building type
-function l1ProductionRate(type: BuildingType): { rate: number; resource: string } | null {
-  const mockBuilding = { type, level: 1, currentStorage: 0, assignedWorkerID: null, isDecayed: false, id: '', position: { row: 0, col: 0 } };
-  const rate = hourlyProductionRate(mockBuilding as any);
-  if (rate <= 0) return null;
-  const resourceMap: Partial<Record<BuildingType, string>> = {
-    [BuildingType.kornkammer]:  'g Muskel/h',
-    [BuildingType.proteinfarm]: ' Protein/h',
-    [BuildingType.holzfaeller]: ' Holz/h',
-    [BuildingType.steinbruch]:  ' Stein/h',
-    [BuildingType.feld]:        ' Nahrung/h',
-  };
-  const suffix = resourceMap[type];
-  if (!suffix) return null;
-  return { rate, resource: suffix };
-}
-
 export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
   const [selectedTab, setSelectedTab] = useState<TabKey>('production');
   const store = useGameStore();
   const { gameState } = store;
   const { t } = useTranslation();
-  const currentCap = getTotalStorageCap(gameState.buildings);
 
   const tabs: { key: TabKey; label: string }[] = [
-    { key: 'production', label: t('buildMenu.production') },
+    { key: 'production',     label: t('buildMenu.production') },
     { key: 'infrastructure', label: t('buildMenu.infrastructure') },
-    { key: 'special', label: t('buildMenu.special') },
+    { key: 'special',        label: t('buildMenu.special') },
   ];
 
-  const filteredTypes = categoryMap[selectedTab] || [];
+  const rathausLevel = gameStateRathausLevel(gameState);
 
-  // 3-state worker availability for construction time hint
+  // 3-state worker availability
   const hasIdleWorker = gameState.workers.some(w => {
     const st = workerStatus(w);
     return st === WorkerStatus.idle || (st === WorkerStatus.active && !w.assignedBuildingID);
   });
   const hasAnyWorker = gameState.workers.length > 0;
-  // Case A: hasIdleWorker  →  teal, "Mit Worker: X"
-  // Case B: hasAnyWorker && !hasIdleWorker  →  amber, "+ Alle Worker beschäftigt"
-  // Case C: !hasAnyWorker  →  gray, "+ Kaserne bauen für Worker"
 
   return (
     <View style={styles.sheet}>
@@ -89,154 +65,31 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
             style={[styles.tab, selectedTab === tab.key && styles.tabActive]}
             onPress={() => setSelectedTab(tab.key)}
           >
-            <Text style={[styles.tabText, selectedTab === tab.key && styles.tabTextActive]}>{tab.label}</Text>
+            <Text style={[styles.tabText, selectedTab === tab.key && styles.tabTextActive]}>
+              {tab.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
       {/* Building Grid */}
       <ScrollView contentContainerStyle={styles.grid}>
-        {filteredTypes.map(type => {
-          const cost         = buildCost(type);
-          const rathausLevel = gameStateRathausLevel(gameState);
-          const existing     = gameState.buildings.filter(b => b.type === type).length;
-          const allowed      = allowedInstances(type, rathausLevel);
-          const totalMax     = maxInstances(type);
-          const nextUnlock   = nextInstanceUnlockLevel(type, existing);
-          const nextAlloc    = nextInstanceUnlockLevel(type, allowed); // next slot level (for partial hint)
-
-          // Determine state
-          const notUnlocked  = allowed === 0;               // Case 1: not yet available at all
-          const atMax        = existing >= totalMax;         // Case 3: fully maxed
-          const slotLocked   = !notUnlocked && !atMax        // Case 2: has slots but next one locked
-                             && existing >= allowed && nextUnlock !== null;
-          const canPlace     = !notUnlocked && !atMax && existing < allowed
-                             && canAfford(gameState, cost);  // Case 4: can build
-
-          // Badge content
-          const showBadge    = totalMax > 1 && existing > 0;
-          const badgeLabel   = atMax
-            ? t('buildMenu.instanceCount', { current: existing, max: totalMax })
-            : t('buildMenu.instanceCount', { current: existing, max: totalMax });
-
-          // Primary lock label
-          const lockLabel = notUnlocked
-            ? t('buildMenu.unlocksAtRathaus', { level: rathausRequirement(type) })
-            : atMax
-              ? t('buildMenu.maxReached')
-              : !canAfford(gameState, cost) && existing < allowed
-                ? t('buildMenu.tooExpensive')
-                : null;
+        {categoryMap[selectedTab].map(type => {
+          const existing = gameState.buildings.filter(b => b.type === type).length;
+          const allowed  = allowedInstances(type, rathausLevel);
 
           return (
-            <TouchableOpacity
+            <BuildingCard
               key={type}
-              style={[styles.buildCard, canPlace && styles.buildCardActive]}
-              onPress={() => canPlace && onSelectBuilding(type)}
-              activeOpacity={canPlace ? 0.7 : 1}
-            >
-              <View style={{ position: 'relative' }}>
-                <Ionicons
-                  name={buildingIconName(type) as any}
-                  size={36}
-                  color={canPlace ? buildingAccentColor(type) : 'rgba(255,255,255,0.3)'}
-                />
-                {/* Badge: shows current/total when partially or fully used */}
-                {showBadge && (
-                  <View style={[styles.countBadge, atMax && styles.countBadgeMax]}>
-                    <Text style={styles.countBadgeText}>{badgeLabel}</Text>
-                  </View>
-                )}
-                {/* Lock icon for fully locked buildings */}
-                {notUnlocked && (
-                  <View style={styles.lockOverlay}>
-                    <Text style={{ fontSize: 14 }}>🔒</Text>
-                  </View>
-                )}
-              </View>
-
-              <Text style={[styles.buildName, (notUnlocked || atMax) && { opacity: 0.4 }]}>
-                {t(`buildings.${type}`)}
-              </Text>
-
-              {/* Primary status line */}
-              {lockLabel ? (
-                <Text style={styles.lockReason}>{lockLabel}</Text>
-              ) : (
-                <Text style={styles.costText}>{costString(cost)}</Text>
-              )}
-
-              {/* Construction time preview — shown whenever cost is visible */}
-              {!lockLabel && (() => {
-                const secs = constructionTime(type, 1);
-                if (secs <= 0) return null;
-                const timeStr = formatDuration(secs);
-                const halfStr = formatDuration(Math.floor(secs / 2));
-                return (
-                  <>
-                    {/* Base build time row */}
-                    <View style={styles.buildTimeRow}>
-                      <Ionicons name={'time-outline' as any} size={10} color="rgba(255,255,255,0.5)" />
-                      <Text style={styles.buildTimeText}>{t('construction.buildTime', { time: timeStr })}</Text>
-                    </View>
-                    {/* Worker hint — always shown, 3 visual states */}
-                    <View style={styles.buildTimeRow}>
-                      <Text style={[
-                        styles.buildTimeWorker,
-                        !hasIdleWorker && hasAnyWorker && styles.buildTimeWorkerBusy,
-                        !hasAnyWorker && styles.buildTimeWorkerNone,
-                      ]}>
-                        👷 {t('construction.withWorker', { time: halfStr })}
-                      </Text>
-                      {!hasIdleWorker && hasAnyWorker && (
-                        <Text style={styles.buildTimeWorkerBusy}> · {t('construction.allWorkersBusy')}</Text>
-                      )}
-                      {!hasAnyWorker && (
-                        <Text style={styles.buildTimeWorkerNone}> · {t('construction.noWorkers')}</Text>
-                      )}
-                    </View>
-                  </>
-                );
-              })()}
-
-              {/* Case 2: next slot hint — ordinal = existing+1 (e.g. "3. ab Rathaus L4") */}
-              {slotLocked && nextAlloc !== null && (
-                <Text style={styles.nextSlotHint}>
-                  {t('buildMenu.nextSlotAt', { ordinal: existing + 1, level: nextAlloc })}
-                </Text>
-              )}
-
-              {/* Storage capacity bonus preview */}
-              {storageBuildingResource(type) !== null && canPlace && (() => {
-                const bonusArr = getStorageBonusArray(type);
-                const res = storageBuildingResource(type)!;
-                if (!bonusArr) return null;
-                const l1Bonus = bonusArr[0];
-                const curCap = currentCap[res as keyof typeof currentCap] as number;
-                const newCap = curCap + l1Bonus;
-                const emoji = type === BuildingType.holzlager ? '🪵'
-                            : type === BuildingType.steinlager ? '🪨' : '🌾';
-                const resName = res === 'wood' ? 'Holz' : res === 'stone' ? 'Stein' : 'Nahrung';
-                return (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoRowText}>{emoji} +{l1Bonus} {resName} Kapazität</Text>
-                    <Text style={styles.infoRowSub}>{resName}: {Math.floor(curCap)} → {Math.floor(newCap)}</Text>
-                  </View>
-                );
-              })()}
-
-              {/* Production rate at L1 */}
-              {[BuildingType.holzfaeller, BuildingType.steinbruch, BuildingType.feld,
-                BuildingType.proteinfarm, BuildingType.kornkammer].includes(type) && canPlace && (() => {
-                const info = l1ProductionRate(type);
-                if (!info) return null;
-                return (
-                  <Text style={styles.infoRowText}>
-                    ⚡ {info.rate % 1 === 0 ? info.rate : info.rate.toFixed(1)}{info.resource}
-                  </Text>
-                );
-              })()}
-            </TouchableOpacity>
+              type={type}
+              gameState={gameState}
+              rathausLevel={rathausLevel}
+              existing={existing}
+              allowed={allowed}
+              onBuild={() => onSelectBuilding(type)}
+              hasIdleWorker={hasIdleWorker}
+              hasAnyWorker={hasAnyWorker}
+            />
           );
         })}
       </ScrollView>
@@ -245,46 +98,22 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: '#1E1E3A' },
+  sheet: { flex: 1, backgroundColor: '#1A1C2A' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: 16, paddingTop: 12,
   },
   title: { fontSize: 17, fontWeight: 'bold', color: '#fff' },
-  tabs: { flexDirection: 'row', paddingHorizontal: 16, gap: 6, marginBottom: 8 },
-  tab: { paddingHorizontal: 12, paddingVertical: 7, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10 },
+  tabs: { flexDirection: 'row', paddingHorizontal: 16, gap: 6, marginBottom: 10 },
+  tab: {
+    paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 10,
+  },
   tabActive: { backgroundColor: AppColors.gold },
-  tabText: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.6)' },
+  tabText: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
   tabTextActive: { color: '#000', fontWeight: 'bold' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 12 },
-  buildCard: {
-    width: '47%', backgroundColor: '#252547', borderRadius: 16, padding: 12,
-    alignItems: 'center', gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+  grid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    padding: 16, gap: 12,
   },
-  buildCardActive: { borderColor: `${AppColors.gold}80`, borderWidth: 1.5 },
-  buildName: { fontSize: 13, fontWeight: '600', color: '#fff' },
-  lockReason: { fontSize: 10, fontWeight: '500', color: 'rgba(244,67,54,0.8)' },
-  costText: { fontSize: 10, color: 'rgba(255,255,255,0.5)', textAlign: 'center' },
-  countBadge: {
-    position: 'absolute', top: -4, right: -10,
-    backgroundColor: AppColors.gold, borderRadius: 8,
-    paddingHorizontal: 4, paddingVertical: 1,
-  },
-  countBadgeMax: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  countBadgeText: { fontSize: 9, fontWeight: 'bold', color: '#000' },
-  lockOverlay: {
-    position: 'absolute', bottom: -2, right: -8,
-  },
-  nextSlotHint: {
-    fontSize: 9, fontWeight: '500', color: '#F5A623',
-    textAlign: 'center', marginTop: 2,
-  },
-  infoRow: { alignItems: 'center', gap: 2 },
-  infoRowText: { fontSize: 9, color: '#4DD0E1', textAlign: 'center' },
-  infoRowSub: { fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: 'center' },
-  buildTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 3, flexWrap: 'wrap', justifyContent: 'center' },
-  buildTimeText: { fontSize: 9, color: 'rgba(255,255,255,0.5)' },
-  buildTimeWorker: { fontSize: 9, color: '#00BCD4' },
-  buildTimeWorkerBusy: { fontSize: 9, color: 'rgba(245,166,35,0.7)' },
-  buildTimeWorkerNone: { fontSize: 9, color: 'rgba(255,255,255,0.35)' },
 });
