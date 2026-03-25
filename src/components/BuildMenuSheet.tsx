@@ -60,11 +60,15 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
 
   const filteredTypes = categoryMap[selectedTab] || [];
 
-  // Check whether an idle worker is available (halves construction time)
+  // 3-state worker availability for construction time hint
   const hasIdleWorker = gameState.workers.some(w => {
     const st = workerStatus(w);
     return st === WorkerStatus.idle || (st === WorkerStatus.active && !w.assignedBuildingID);
   });
+  const hasAnyWorker = gameState.workers.length > 0;
+  // Case A: hasIdleWorker  →  teal, "Mit Worker: X"
+  // Case B: hasAnyWorker && !hasIdleWorker  →  amber, "+ Alle Worker beschäftigt"
+  // Case C: !hasAnyWorker  →  gray, "+ Kaserne bauen für Worker"
 
   return (
     <View style={styles.sheet}>
@@ -165,19 +169,33 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
               {/* Construction time preview — shown whenever cost is visible */}
               {!lockLabel && (() => {
                 const secs = constructionTime(type, 1);
+                if (secs <= 0) return null;
                 const timeStr = formatDuration(secs);
-                const halfSecs = Math.floor(secs / 2);
-                const halfStr = secs > 0 && hasIdleWorker ? formatDuration(halfSecs) : null;
+                const halfStr = formatDuration(Math.floor(secs / 2));
                 return (
-                  <View style={styles.buildTimeRow}>
-                    <Ionicons name={'time-outline' as any} size={10} color="rgba(255,255,255,0.5)" />
-                    <Text style={styles.buildTimeText}>{t('construction.buildTime', { time: timeStr })}</Text>
-                    {halfStr && (
-                      <Text style={styles.buildTimeWorker}>
-                        ({t('construction.buildTimeWithWorker', { time: halfStr })})
+                  <>
+                    {/* Base build time row */}
+                    <View style={styles.buildTimeRow}>
+                      <Ionicons name={'time-outline' as any} size={10} color="rgba(255,255,255,0.5)" />
+                      <Text style={styles.buildTimeText}>{t('construction.buildTime', { time: timeStr })}</Text>
+                    </View>
+                    {/* Worker hint — always shown, 3 visual states */}
+                    <View style={styles.buildTimeRow}>
+                      <Text style={[
+                        styles.buildTimeWorker,
+                        !hasIdleWorker && hasAnyWorker && styles.buildTimeWorkerBusy,
+                        !hasAnyWorker && styles.buildTimeWorkerNone,
+                      ]}>
+                        👷 {t('construction.withWorker', { time: halfStr })}
                       </Text>
-                    )}
-                  </View>
+                      {!hasIdleWorker && hasAnyWorker && (
+                        <Text style={styles.buildTimeWorkerBusy}> · {t('construction.allWorkersBusy')}</Text>
+                      )}
+                      {!hasAnyWorker && (
+                        <Text style={styles.buildTimeWorkerNone}> · {t('construction.noWorkers')}</Text>
+                      )}
+                    </View>
+                  </>
                 );
               })()}
 
@@ -267,4 +285,6 @@ const styles = StyleSheet.create({
   buildTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 3, flexWrap: 'wrap', justifyContent: 'center' },
   buildTimeText: { fontSize: 9, color: 'rgba(255,255,255,0.5)' },
   buildTimeWorker: { fontSize: 9, color: '#00BCD4' },
+  buildTimeWorkerBusy: { fontSize: 9, color: 'rgba(245,166,35,0.7)' },
+  buildTimeWorkerNone: { fontSize: 9, color: 'rgba(255,255,255,0.35)' },
 });

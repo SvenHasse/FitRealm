@@ -190,11 +190,12 @@ function UpgradeSection({ building }: { building: Building }) {
   const cost = building.level < 5 ? upgradeCost(building.type, building.level) : null;
   const canUpg = cost ? canAfford(store.gameState, cost) : false;
 
-  // Idle-worker check for upgrade time hint
+  // 3-state worker availability for upgrade time hint
   const hasIdleWorker = store.gameState.workers.some(w => {
     const st = workerStatus(w);
     return st === WorkerStatus.idle || (st === WorkerStatus.active && !w.assignedBuildingID);
   });
+  const hasAnyWorker = store.gameState.workers.length > 0;
 
   return (
     <View style={styles.card}>
@@ -215,20 +216,41 @@ function UpgradeSection({ building }: { building: Building }) {
             {/* Construction time preview */}
             {(() => {
               const secs = constructionTime(building.type, building.level + 1);
+              if (secs <= 0) return null;
               const timeStr = formatDuration(secs);
-              const halfSecs = Math.floor(secs / 2);
-              const halfStr = secs > 0 && hasIdleWorker ? formatDuration(halfSecs) : null;
+              const halfStr = formatDuration(Math.floor(secs / 2));
               return (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-                  <Ionicons name={'time-outline' as any} size={11} color="rgba(255,255,255,0.5)" />
-                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-                    {t('construction.buildTime', { time: timeStr })}
-                  </Text>
-                  {halfStr && (
-                    <Text style={{ fontSize: 11, color: '#00BCD4' }}>
-                      ({t('construction.buildTimeWithWorker', { time: halfStr })})
+                <View style={{ marginTop: 4, gap: 2 }}>
+                  {/* Base build time */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name={'time-outline' as any} size={11} color="rgba(255,255,255,0.5)" />
+                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                      {t('construction.buildTime', { time: timeStr })}
                     </Text>
-                  )}
+                  </View>
+                  {/* Worker hint — always shown, 3 visual states */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                    <Text style={[
+                      { fontSize: 11 },
+                      hasIdleWorker
+                        ? { color: '#00BCD4' }
+                        : hasAnyWorker
+                          ? { color: 'rgba(245,166,35,0.7)' }
+                          : { color: 'rgba(255,255,255,0.35)' },
+                    ]}>
+                      👷 {t('construction.withWorker', { time: halfStr })}
+                    </Text>
+                    {!hasIdleWorker && hasAnyWorker && (
+                      <Text style={{ fontSize: 11, color: 'rgba(245,166,35,0.7)' }}>
+                        · {t('construction.allWorkersBusy')}
+                      </Text>
+                    )}
+                    {!hasAnyWorker && (
+                      <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
+                        · {t('construction.noWorkers')}
+                      </Text>
+                    )}
+                  </View>
                 </View>
               );
             })()}
@@ -327,6 +349,7 @@ function ConstructionCard({ building }: { building: Building }) {
     const st = workerStatus(w);
     return st === WorkerStatus.idle || (st === WorkerStatus.active && !w.assignedBuildingID);
   });
+  const hasAnyWorkerForConstruction = store.gameState.workers.length > 0;
 
   const skipCost = skipConstructionCost(building.type, building.targetLevel);
   const canSkip = store.gameState.protein >= skipCost;
@@ -351,14 +374,16 @@ function ConstructionCard({ building }: { building: Building }) {
         {timeLeft ? t('construction.finishedIn', { time: timeLeft }) : t('construction.complete')}
       </Text>
 
-      {/* Worker on site */}
+      {/* Worker section — 4 cases */}
       {conWorker ? (
+        /* Case B: worker already assigned to this building */
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12,
           padding: 10, backgroundColor: 'rgba(255,152,0,0.1)', borderRadius: 10 }}>
           <Ionicons name={'person' as any} size={16} color="#FF9800" />
           <Text style={{ fontSize: 13, color: '#FF9800' }}>{t('construction.workerOnSite', { name: conWorker.name })}</Text>
         </View>
       ) : idleWorkers.length > 0 ? (
+        /* Case A: idle worker available — assign button */
         <View style={{ marginBottom: 12 }}>
           {idleWorkers.slice(0, 1).map(w => (
             <TouchableOpacity
@@ -373,7 +398,26 @@ function ConstructionCard({ building }: { building: Building }) {
             </TouchableOpacity>
           ))}
         </View>
-      ) : null}
+      ) : hasAnyWorkerForConstruction ? (
+        /* Case C: workers exist but all busy */
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12,
+          padding: 10, backgroundColor: 'rgba(245,166,35,0.08)', borderRadius: 10,
+          borderWidth: 1, borderColor: 'rgba(245,166,35,0.2)' }}>
+          <Ionicons name={'person-outline' as any} size={16} color="rgba(245,166,35,0.6)" />
+          <Text style={{ fontSize: 12, color: 'rgba(245,166,35,0.7)', flex: 1 }}>
+            {t('construction.allBusyLong')}
+          </Text>
+        </View>
+      ) : (
+        /* Case D: no workers at all */
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12,
+          padding: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10 }}>
+          <Ionicons name={'construct-outline' as any} size={16} color="rgba(255,255,255,0.3)" />
+          <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', flex: 1 }}>
+            {t('construction.buildKaserne')}
+          </Text>
+        </View>
+      )}
 
       {/* Skip with Protein */}
       <TouchableOpacity
