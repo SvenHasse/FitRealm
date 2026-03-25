@@ -103,6 +103,14 @@ export function computeBenefitLines(type: BuildingType): BenefitLine[] {
     case BuildingType.marktplatz:    return [{ iconName: 'swap-horizontal',    iconColor: '#FF7043', text: 'Tauschen' }];
     case BuildingType.stammeshaus:   return [{ iconName: 'home-group',         iconColor: '#2196F3', text: 'Stammesbonus' }];
     case BuildingType.stall:         return [{ iconName: 'paw',                iconColor: '#C4934A', text: '1-5 Tier-Slots' }];
+    case BuildingType.wachturm:      return [
+      { iconName: 'shield',          iconColor: '#2196F3', text: '20 VP/Level' },
+      { iconName: 'clock-outline',   iconColor: '#FF9800', text: '+3h Vorwarnung/Level' },
+    ];
+    case BuildingType.mauer:         return [
+      { iconName: 'wall',            iconColor: '#9E8E70', text: '50-300 HP Schadensabsorption' },
+      { iconName: 'hammer',          iconColor: '#78909C', text: 'Absorbiert Gebäudeschaden' },
+    ];
     default:                         return [];
   }
 }

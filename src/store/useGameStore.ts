@@ -57,6 +57,9 @@ interface GameStore {
     nextWaveIn: number;
   } | null;
 
+  // Pending hatch result (for schlüpf-animation)
+  pendingHatchResult: { animalType: import('../models/types').AnimalType; rarity: import('../models/types').AnimalRarity } | null;
+
   // Storage capacity (recalculated whenever buildings change)
   storageCap: StorageCapacity;
 
@@ -130,8 +133,18 @@ interface GameStore {
   addDamageEffect: (effect: DamageEffect) => void;
   cleanupExpiredEffects: () => void;
 
+  // Actions - Mauer
+  updateWallHP: (current: number, max: number) => void;
+  repairWall: () => void;
+
   // Actions - Verteidigung
   calculateDefense: () => DefenseBreakdown;
+
+  // Actions - pendingHatchResult
+  clearPendingHatchResult: () => void;
+
+  // Actions - consecutiveEgg check
+  checkConsecutiveEggs: () => void;
 
   // Helpers
   canAfford: (cost: ResourceCost) => boolean;
@@ -155,6 +168,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   obstacles: [],
   lastCollectResult: null,
   pendingWaveResult: null,
+  pendingHatchResult: null,
   storageCap: getTotalStorageCap([]),
 
   // MARK: - Initialize
@@ -232,7 +246,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
         assignment: { type: 'idle' },
         obtainedAt: Date.now(),
       };
-      finalState = { ...result, animals: [...result.animals, erntehuhn] };
+      finalState = { ...finalState, animals: [...finalState.animals, erntehuhn] };
+    }
+
+    // Initialize wallHP when Mauer is built (level 1 after construction completes → targetLevel 1)
+    if (type === BuildingType.mauer) {
+      // The building starts at level 0 (under construction), wallHP will be set when construction completes.
+      // We initialize with the target level (1) so it's ready.
+      const initialHP = 1 * 50; // L1: 50 HP
+      finalState = { ...finalState, wallHP: { current: initialHP, max: initialHP } };
     }
 
     set({ gameState: finalState, storageCap: getTotalStorageCap(finalState.buildings) });
@@ -242,11 +264,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   upgradeBuilding(buildingID) {
-    const result = GE.upgradeBuilding(get().gameState, buildingID);
+    const prevGs = get().gameState;
+    const result = GE.upgradeBuilding(prevGs, buildingID);
     if (!result) return false;
-    set({ gameState: result, storageCap: getTotalStorageCap(result.buildings) });
-    GE.saveGameState(result);
-    _syncAllCurrencies(result);
+
+    // Update wallHP when Mauer is upgraded
+    let finalResult = result;
+    const upgradedBuilding = result.buildings.find(b => b.id === buildingID);
+    if (upgradedBuilding && upgradedBuilding.type === BuildingType.mauer && upgradedBuilding.level >= 1) {
+      const newMax = upgradedBuilding.level * 50;
+      finalResult = { ...result, wallHP: { current: newMax, max: newMax } };
+    }
+
+    set({ gameState: finalResult, storageCap: getTotalStorageCap(finalResult.buildings) });
+    GE.saveGameState(finalResult);
+    _syncAllCurrencies(finalResult);
     return true;
   },
 
@@ -452,6 +484,63 @@ export const useGameStore = create<GameStore>((set, get) => ({
     _syncAllCurrencies(newGs);
 
     console.log(`[Store] Manual workout injected: ${workout.durationMinutes}min, ${workout.averageHeartRate ?? '?'}bpm → +${Math.floor(newGs.muskelmasse - prevGs.muskelmasse)}g Muskelmasse`);
+
+    // Ei-Fortschritt prüfen
+    const gs = get().gameState;
+    const eggs = gs.eggs;
+    if (eggs.length > 0) {
+      const workoutDate = new Date(workout.date);
+      // Annäherung: averageHeartRate / 200 * 100 als % HRmax
+      const workoutHRmax = workout.averageHeartRate ? (workout.averageHeartRate / 200) * 100 : 0;
+
+      for (const egg of eggs) {
+        if (egg.workoutsCompleted >= egg.workoutsRequired) continue;
+
+        // HRmax-Bedingung prüfen
+        if (egg.requiresMinHRmax !== null && workoutHRmax < egg.requiresMinHRmax) continue;
+
+        // Consecutive-Bedingung prüfen
+        if (egg.requiresConsecutive) {
+          const yesterday = new Date(workoutDate);
+          yesterday.setDate(yesterday.getDate() - 1);
+          const currentGs = get().gameState;
+          const trainedYesterday = currentGs.lastWorkoutDate
+            ? new Date(currentGs.lastWorkoutDate).toDateString() === yesterday.toDateString()
+            : false;
+          if (!trainedYesterday && egg.workoutsCompleted > 0) {
+            // Reset consecutive egg
+            const resetGs = get().gameState;
+            const resetEggs = resetGs.eggs.map(e =>
+              e.id === egg.id ? { ...e, workoutsCompleted: 0 } : e,
+            );
+            const resetState = { ...resetGs, eggs: resetEggs };
+            set({ gameState: resetState });
+            GE.saveGameState(resetState);
+            continue;
+          }
+        }
+
+        // Fortschritt erhöhen
+        get().incrementEggProgress(egg.id);
+
+        // Prüfen ob reif
+        const updatedGs = get().gameState;
+        const updatedEgg = updatedGs.eggs.find(e => e.id === egg.id);
+        if (updatedEgg && updatedEgg.workoutsCompleted >= updatedEgg.workoutsRequired) {
+          const hatchedAnimal = get().hatchEgg(egg.id);
+          if (hatchedAnimal) {
+            // pendingHatchResult setzen für Animation
+            const finalGs = get().gameState;
+            const newFinalGs = {
+              ...finalGs,
+              pendingHatchResult: { animalType: hatchedAnimal.type, rarity: hatchedAnimal.rarity },
+            };
+            set({ gameState: newFinalGs, pendingHatchResult: { animalType: hatchedAnimal.type, rarity: hatchedAnimal.rarity } });
+            GE.saveGameState(newFinalGs);
+          }
+        }
+      }
+    }
   },
 
   // MARK: - Patch GameState Currencies (for dev tools sync)
@@ -667,7 +756,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const lastWorkoutTs = gs.lastWorkoutDate
           ? new Date(gs.lastWorkoutDate).getTime()
           : Date.now() - 72 * 60 * 60 * 1000;
-        const wave = waveService.generateWave(rathausLevel, lastWorkoutTs);
+        const watchtowerBuilding = gs.buildings.find(b => b.type === BuildingType.wachturm && b.level >= 1 && !b.isUnderConstruction);
+        const watchtowerLevel = watchtowerBuilding?.level ?? 0;
+        const hasScoutFalcon = gs.animals.some(a => a.type === 'spaehfalke' && a.assignment.type === 'defense');
+        const wave = waveService.generateWave(rathausLevel, lastWorkoutTs, watchtowerLevel, hasScoutFalcon);
         const startWaveGs: GameState = {
           ...gs,
           activeWave: { ...wave, status: 'active' },
@@ -686,11 +778,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!gs.activeWave) return;
 
     const defense = get().calculateDefense();
-    const { result, damages, loot, effectiveAK } = combatService.resolveCombat(
+    const { result, damages, loot, effectiveAK, wallHPUsed } = combatService.resolveCombat(
       defense,
       gs.activeWave,
       gs.animals,
       gs.buildings,
+      gs.wallHP,
     );
 
     const resolvedAt = Date.now();
@@ -719,12 +812,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Schedule next wave
     const nextWaveAt = waveService.scheduleNextWave(resolvedAt);
 
+    // Update wallHP if Mauer absorbed damage
+    let newWallHP = updatedGs.wallHP;
+    if (wallHPUsed > 0 && newWallHP) {
+      newWallHP = { ...newWallHP, current: Math.max(0, newWallHP.current - wallHPUsed) };
+    }
+
     const finalGs: GameState = {
       ...updatedGs,
       activeWave: null,
       waves: finalWaves,
       nextWaveAt,
       damageEffects: allDamages,
+      wallHP: newWallHP,
     };
     set({ gameState: finalGs });
     GE.saveGameState(finalGs);
@@ -806,6 +906,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ pendingWaveResult: null });
   },
 
+  // MARK: - Mauer HP Aktionen
+
+  updateWallHP(current, max) {
+    const gs = get().gameState;
+    const newGs = { ...gs, wallHP: { current, max } };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  repairWall() {
+    const gs = get().gameState;
+    if (!gs.wallHP) return;
+    const mauerBuilding = gs.buildings.find(b => b.type === BuildingType.mauer && b.level >= 1 && !b.isUnderConstruction);
+    if (!mauerBuilding) return;
+    const missingHP = gs.wallHP.max - gs.wallHP.current;
+    if (missingHP <= 0) return;
+    const repairCost = Math.ceil(missingHP * 20 / gs.wallHP.max * mauerBuilding.level);
+    if (gs.wood < repairCost) return;
+    const newGs = {
+      ...gs,
+      wood: gs.wood - repairCost,
+      wallHP: { current: gs.wallHP.max, max: gs.wallHP.max },
+    };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
   // MARK: - Entity System — Schadens-Effekte
 
   addDamageEffect(effect) {
@@ -823,6 +950,52 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const newGs = { ...gs, damageEffects: active };
       set({ gameState: newGs });
       GE.saveGameState(newGs);
+    }
+  },
+
+  // MARK: - pendingHatchResult
+
+  clearPendingHatchResult() {
+    set({ pendingHatchResult: null });
+    // Also clear in gameState
+    const gs = get().gameState;
+    if (gs.pendingHatchResult !== null) {
+      const newGs = { ...gs, pendingHatchResult: null };
+      set({ gameState: newGs });
+      GE.saveGameState(newGs);
+    }
+  },
+
+  // MARK: - Consecutive Egg Check
+
+  checkConsecutiveEggs() {
+    const gs = get().gameState;
+    const lastWorkout = gs.lastWorkoutDate ? new Date(gs.lastWorkoutDate) : null;
+    if (!lastWorkout) return;
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    const lastWorkoutDay = new Date(lastWorkout);
+    lastWorkoutDay.setHours(0, 0, 0, 0);
+    const todayDay = new Date();
+    todayDay.setHours(0, 0, 0, 0);
+
+    // Missed yesterday: lastWorkout is before yesterday
+    const missedYesterday = lastWorkoutDay < yesterday && lastWorkoutDay.toDateString() !== yesterday.toDateString();
+
+    if (missedYesterday) {
+      const consecutiveEggs = gs.eggs.filter(e => e.requiresConsecutive && e.workoutsCompleted > 0);
+      if (consecutiveEggs.length > 0) {
+        const resetEggs = gs.eggs.map(e =>
+          e.requiresConsecutive && e.workoutsCompleted > 0
+            ? { ...e, workoutsCompleted: 0 }
+            : e,
+        );
+        const newGs = { ...gs, eggs: resetEggs };
+        set({ gameState: newGs });
+        GE.saveGameState(newGs);
+      }
     }
   },
 

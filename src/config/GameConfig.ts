@@ -260,9 +260,24 @@ export function upgradeCost(type: BuildingType, currentLevel: number): ResourceC
       const stallWood = [30, 60, 100, 175];
       return createResourceCost({ muskelmasse: stallMM[s - 1] ?? 0, wood: stallWood[s - 1] ?? 0 });
     }
-    case BuildingType.wachturm:
-    case BuildingType.mauer:
-      return null; // Kosten werden in Phase 5 definiert
+    case BuildingType.wachturm: {
+      const costs = [
+        createResourceCost({ muskelmasse: 150, wood: 75 }),
+        createResourceCost({ muskelmasse: 250, wood: 125 }),
+        createResourceCost({ muskelmasse: 400, wood: 200 }),
+        createResourceCost({ muskelmasse: 600, wood: 300 }),
+      ];
+      return costs[s - 1] ?? null;
+    }
+    case BuildingType.mauer: {
+      const mauerCosts = [
+        createResourceCost({ muskelmasse: 200, wood: 120 }),
+        createResourceCost({ muskelmasse: 350, wood: 200 }),
+        createResourceCost({ muskelmasse: 550, wood: 300 }),
+        createResourceCost({ muskelmasse: 800, wood: 450 }),
+      ];
+      return mauerCosts[s - 1] ?? null;
+    }
     default:
       return null;
   }
@@ -317,9 +332,9 @@ export function rathausRequirement(type: BuildingType): number {
     case BuildingType.stammeshaus:   return 5;
     // Rathaus L2 — Stall
     case BuildingType.stall:         return 1;
-    // Noch nicht freigeschalten (Phase 5)
-    case BuildingType.wachturm:      return 99;
-    case BuildingType.mauer:         return 99;
+    // Phase 5: Wachturm und Mauer freigeschaltet
+    case BuildingType.wachturm:      return 2;
+    case BuildingType.mauer:         return 3;
     default:                         return 1;
   }
 }
@@ -391,9 +406,9 @@ export const CONSTRUCTION_TIME: Partial<Record<BuildingType, number[]>> = {
   bibliothek:    [300,  600, 1200, 2400, 4800],
   marktplatz:    [240,  480,  960, 1920, 3840],
   stammeshaus:   [600, 1200, 2400, 4800, 9600],
-  stall:         [600, 1800, 3600, 5400, 7200],   // 10min, 30min, 60min, 90min, 120min
-  wachturm:      [180,  360,  720, 1440, 2880],
-  mauer:         [300,  600, 1200, 2400, 4800],
+  stall:         [600, 1800, 3600, 5400, 7200],      // 10min, 30min, 60min, 90min, 120min
+  wachturm:      [1200, 2700, 5400, 10800, 14400],   // 20min, 45min, 1.5h, 3h, 4h
+  mauer:         [1800, 3600, 7200, 14400, 21600],   // 30min, 1h, 2h, 4h, 6h
 };
 
 /** Construction time in seconds for a building at a given target level */

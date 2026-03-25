@@ -32,7 +32,12 @@ export class WaveService {
     return 1.8;
   }
 
-  generateWave(rathausLevel: number, lastWorkoutTimestamp: number): MonsterWave {
+  generateWave(
+    rathausLevel: number,
+    lastWorkoutTimestamp: number,
+    watchtowerLevel?: number,
+    hasScoutFalcon?: boolean,
+  ): MonsterWave {
     const inactivityMult = this.getInactivityMultiplier(lastWorkoutTimestamp);
 
     // Determine which monster types are available based on rathaus level
@@ -96,7 +101,14 @@ export class WaveService {
     const totalAttackPower = Math.round(baseAK * inactivityMult * variation);
 
     const now = Date.now();
-    const warningMs = WAVE_CONFIG.baseWarningMs;
+
+    // Calculate warning time: base 12h + Wachturm-Bonus (+3h/Level) + Spähfalke (+6h)
+    const baseWarningHours = WAVE_CONFIG.baseWarningMs / (1000 * 60 * 60);
+    const watchtowerBonus = (watchtowerLevel ?? 0) * 3;
+    const falconBonus = hasScoutFalcon ? 6 : 0;
+    const totalWarningHours = baseWarningHours + watchtowerBonus + falconBonus;
+    const warningMs = totalWarningHours * 3600 * 1000;
+
     const arrivesAt = now + warningMs;
 
     return {

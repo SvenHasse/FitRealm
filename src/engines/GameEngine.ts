@@ -107,6 +107,29 @@ export function initializeState(state: GameState): GameState {
       biweeklyStart: Date.now(),
     };
   }
+  // Migrate: add wallHP if missing (Phase 5)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((s as any).wallHP === undefined) {
+    s.wallHP = null;
+  }
+  // Migrate: add pendingHatchResult if missing (Phase 5)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((s as any).pendingHatchResult === undefined) {
+    s.pendingHatchResult = null;
+  }
+  // Migrate entity system arrays if missing
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!(s as any).animals) s.animals = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!(s as any).eggs) s.eggs = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!(s as any).waves) s.waves = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((s as any).activeWave === undefined) s.activeWave = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((s as any).nextWaveAt === undefined) s.nextWaveAt = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!(s as any).damageEffects) s.damageEffects = [];
   return s;
 }
 
