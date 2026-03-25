@@ -196,10 +196,10 @@ export function upgradeCost(type: BuildingType, currentLevel: number): ResourceC
 
   if (type === BuildingType.rathaus) {
     switch (currentLevel) {
-      case 1: return createResourceCost({ muskelmasse: 500, protein: 5, streakTokens: 10 });
-      case 2: return createResourceCost({ muskelmasse: 1000, protein: 10, streakTokens: 20 });
-      case 3: return createResourceCost({ muskelmasse: 2000, protein: 20, streakTokens: 40 });
-      case 4: return createResourceCost({ muskelmasse: 4000, protein: 40, streakTokens: 80 });
+      case 1: return createResourceCost({ muskelmasse: 500, protein: 5 });
+      case 2: return createResourceCost({ muskelmasse: 1000, protein: 10 });
+      case 3: return createResourceCost({ muskelmasse: 2000, protein: 20 });
+      case 4: return createResourceCost({ muskelmasse: 4000, protein: 40 });
       default: return null;
     }
   }
