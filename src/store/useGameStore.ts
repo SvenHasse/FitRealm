@@ -8,7 +8,9 @@ import {
   WorkoutRecord, HealthSnapshot, emptyHealthSnapshot,
   createDefaultGameState, gameStateRathausLevel, findBuildingById, workerStatus, WorkerStatus,
   obstacleRemovalCost,
+  Animal, AnimalEgg, AnimalAssignment, MonsterWave, WaveResult, DamageEffect, DefenseBreakdown,
 } from '../models/types';
+import { ANIMAL_CONFIGS, STALL_CONFIG, WAVE_CONFIG, DEFENSE_CONFIG } from '../config/EntityConfig';
 import * as GE from '../engines/GameEngine';
 import type { CollectResult, SellConsequences } from '../engines/GameEngine';
 import * as VE from '../engines/VitacoinEngine';
@@ -89,6 +91,29 @@ interface GameStore {
   removeSmallObstacle: (id: string) => void;
   startClearingObstacle: (id: string) => void;
   checkObstacleCompletion: () => void;
+
+  // Actions - Entity System (Tiere)
+  addAnimal: (animal: Animal) => boolean;
+  removeAnimal: (animalId: string) => void;
+  assignAnimal: (animalId: string, assignment: AnimalAssignment) => boolean;
+
+  // Actions - Entity System (Eier)
+  addEgg: (egg: AnimalEgg) => void;
+  removeEgg: (eggId: string) => void;
+  incrementEggProgress: (eggId: string) => void;
+  hatchEgg: (eggId: string) => Animal | null;
+
+  // Actions - Entity System (Wellen)
+  scheduleNextWave: () => void;
+  startWave: (wave: MonsterWave) => void;
+  resolveWave: (waveId: string, result: WaveResult) => void;
+
+  // Actions - Entity System (Schaden)
+  addDamageEffect: (effect: DamageEffect) => void;
+  cleanupExpiredEffects: () => void;
+
+  // Actions - Verteidigung
+  calculateDefense: () => DefenseBreakdown;
 
   // Helpers
   canAfford: (cost: ResourceCost) => boolean;
@@ -432,6 +457,218 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ obstacles });
       OM.saveObstacles(obstacles);
     }
+  },
+
+  // MARK: - Entity System — Tiere
+
+  addAnimal(animal) {
+    const gs = get().gameState;
+    // Prüfe Stall-Kapazität
+    const stall = gs.buildings.find(b => b.type === BuildingType.stall && b.level >= 1);
+    const maxSlots = stall
+      ? STALL_CONFIG.slotsPerLevel[Math.min(stall.level, STALL_CONFIG.slotsPerLevel.length - 1)]
+      : 0;
+    if (gs.animals.length >= maxSlots) return false;
+
+    const newGs = { ...gs, animals: [...gs.animals, animal] };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+    return true;
+  },
+
+  removeAnimal(animalId) {
+    const gs = get().gameState;
+    const newGs = { ...gs, animals: gs.animals.filter(a => a.id !== animalId) };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  assignAnimal(animalId, assignment) {
+    const gs = get().gameState;
+    const animal = gs.animals.find(a => a.id === animalId);
+    if (!animal) return false;
+
+    // Prüfe ob Assignment gültig ist
+    if (assignment.type === 'building') {
+      const buildingExists = gs.buildings.some(b => b.id === assignment.buildingId && b.level >= 1);
+      if (!buildingExists) return false;
+      // Prüfe ob das Gebäude nicht schon von einem anderen Tier belegt ist
+      const alreadyOccupied = gs.animals.some(
+        a => a.id !== animalId &&
+             a.assignment.type === 'building' &&
+             (a.assignment as { type: 'building'; buildingId: string }).buildingId === assignment.buildingId,
+      );
+      if (alreadyOccupied) return false;
+    }
+
+    const newGs = {
+      ...gs,
+      animals: gs.animals.map(a => a.id === animalId ? { ...a, assignment } : a),
+    };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+    return true;
+  },
+
+  // MARK: - Entity System — Eier
+
+  addEgg(egg) {
+    const gs = get().gameState;
+    const newGs = { ...gs, eggs: [...gs.eggs, egg] };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  removeEgg(eggId) {
+    const gs = get().gameState;
+    const newGs = { ...gs, eggs: gs.eggs.filter(e => e.id !== eggId) };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  incrementEggProgress(eggId) {
+    const gs = get().gameState;
+    const newGs = {
+      ...gs,
+      eggs: gs.eggs.map(e =>
+        e.id === eggId
+          ? { ...e, workoutsCompleted: e.workoutsCompleted + 1 }
+          : e,
+      ),
+    };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  hatchEgg(eggId) {
+    const gs = get().gameState;
+    const egg = gs.eggs.find(e => e.id === eggId);
+    if (!egg) return null;
+    if (egg.workoutsCompleted < egg.workoutsRequired) return null;
+
+    // Prüfe Stall-Kapazität
+    const stall = gs.buildings.find(b => b.type === BuildingType.stall && b.level >= 1);
+    const maxSlots = stall
+      ? STALL_CONFIG.slotsPerLevel[Math.min(stall.level, STALL_CONFIG.slotsPerLevel.length - 1)]
+      : 0;
+    if (gs.animals.length >= maxSlots) return null;
+
+    const config = ANIMAL_CONFIGS[egg.hatchesInto];
+    const animal: Animal = {
+      id: `animal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
+      type: egg.hatchesInto,
+      name: config.name,
+      rarity: egg.rarity,
+      assignment: { type: 'idle' },
+      obtainedAt: Date.now(),
+    };
+
+    const newGs = {
+      ...gs,
+      eggs: gs.eggs.filter(e => e.id !== eggId),
+      animals: [...gs.animals, animal],
+    };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+    return animal;
+  },
+
+  // MARK: - Entity System — Wellen
+
+  scheduleNextWave() {
+    const { minIntervalMs, maxIntervalMs } = WAVE_CONFIG;
+    const interval = minIntervalMs + Math.random() * (maxIntervalMs - minIntervalMs);
+    const nextWaveAt = Date.now() + interval;
+    const newGs = { ...get().gameState, nextWaveAt };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  startWave(wave) {
+    const gs = get().gameState;
+    const newGs = {
+      ...gs,
+      activeWave: wave,
+      waves: [...gs.waves, wave],
+    };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  resolveWave(waveId, result) {
+    const gs = get().gameState;
+    const resolvedAt = Date.now();
+    const updatedWaves = gs.waves.map(w =>
+      w.id === waveId ? { ...w, status: 'resolved' as const, resolvedAt, result } : w,
+    );
+    const activeWave = gs.activeWave?.id === waveId ? null : gs.activeWave;
+    const newGs = { ...gs, waves: updatedWaves, activeWave };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  // MARK: - Entity System — Schadens-Effekte
+
+  addDamageEffect(effect) {
+    const gs = get().gameState;
+    const newGs = { ...gs, damageEffects: [...gs.damageEffects, effect] };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  cleanupExpiredEffects() {
+    const gs = get().gameState;
+    const now = Date.now();
+    const active = gs.damageEffects.filter(e => e.endsAt > now);
+    if (active.length !== gs.damageEffects.length) {
+      const newGs = { ...gs, damageEffects: active };
+      set({ gameState: newGs });
+      GE.saveGameState(newGs);
+    }
+  },
+
+  // MARK: - Verteidigungs-Berechnung
+
+  calculateDefense() {
+    const gs = get().gameState;
+    const workouts = get().recentWorkouts;
+
+    // basisVP: aus Gebäuden (Rathaus, Kaserne, Wachturm, Mauer)
+    let basisVP = 0;
+    for (const b of gs.buildings) {
+      if (b.level < 1 || b.isUnderConstruction) continue;
+      const vpPerLevel = DEFENSE_CONFIG.buildingVP[b.type];
+      if (vpPerLevel) basisVP += vpPerLevel * b.level;
+    }
+
+    // workoutVP: aus Workouts der letzten 24h
+    const cutoff24h = Date.now() - 24 * 60 * 60 * 1000;
+    let workoutVP = 0;
+    for (const w of workouts) {
+      if (new Date(w.date).getTime() < cutoff24h) continue;
+      // ~70% HRmax → ≥140bpm gilt als "intensiv"
+      const intense = (w.averageHeartRate ?? 0) >= 140;
+      const rate = intense ? DEFENSE_CONFIG.vpPerIntenseMinute : DEFENSE_CONFIG.vpPerWorkoutMinute;
+      workoutVP += w.durationMinutes * rate;
+    }
+
+    // workerVP: Worker in Verteidigung (zukünftiges Feature, aktuell 0)
+    const workerVP = 0;
+
+    // animalVP: Tiere die der Verteidigung zugewiesen sind
+    let animalVP = 0;
+    for (const a of gs.animals) {
+      if (a.assignment.type === 'defense') {
+        animalVP += ANIMAL_CONFIGS[a.type].defenseVP;
+      }
+    }
+
+    // streakBonus: 5% pro Streak-Tag (als Multiplikator)
+    const streakBonus = gs.currentStreak * DEFENSE_CONFIG.streakBonusPerDay;
+
+    const totalVP = Math.round((basisVP + workoutVP + workerVP + animalVP) * (1 + streakBonus));
+
+    return { basisVP, workoutVP, workerVP, animalVP, streakBonus, totalVP };
   },
 
   // MARK: - Helpers
