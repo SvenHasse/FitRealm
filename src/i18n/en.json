@@ -256,7 +256,12 @@
     "workerOnSite": "{{name}} is working",
     "buildTime": "Build time: {{time}}",
     "buildTimeWithWorker": "with Worker: {{time}}",
-    "instant": "Instantly"
+    "instant": "Instantly",
+    "withWorker": "With Worker: {{time}}",
+    "allWorkersBusy": "All workers busy",
+    "noWorkers": "Build Kaserne for workers",
+    "buildKaserne": "Build a Kaserne to train workers",
+    "allBusyLong": "All workers are currently busy"
   },
   "resources": {
     "muskelmasse": "Muskelmasse",
