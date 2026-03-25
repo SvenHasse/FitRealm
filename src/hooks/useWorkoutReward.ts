@@ -8,6 +8,7 @@ import { calculateReward, RewardResult } from '../utils/currencyCalculator';
 import { markWorkoutProcessed } from '../utils/workoutProcessor';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
 import { useGameStore } from '../store/gameStore';
+import { useWorkoutStore } from '../store/workoutStore';
 
 export type RewardPhase =
   | 'header'       // header animates in
@@ -23,12 +24,19 @@ interface UseWorkoutRewardReturn {
   phase: RewardPhase;
   reward: RewardResult;
   collect: () => Promise<void>;
+  /** Returns the next unprocessed workout data if more remain, else null */
+  getNextWorkout: () => { workout: WorkoutRewardData; queueLength: number; queueIndex: number } | null;
 }
 
-export function useWorkoutReward(workout: WorkoutRewardData): UseWorkoutRewardReturn {
+export function useWorkoutReward(
+  workout: WorkoutRewardData,
+  queueIndex?: number,
+  queueLength?: number,
+): UseWorkoutRewardReturn {
   const [phase, setPhase] = useState<RewardPhase>('header');
   const { gameState, collectAll } = useEngineStore();
-  const { addMuskelmasse, addProtein, addStreakTokens, setLastWorkoutDate } = useGameStore();
+  const { addMuskelmasse, addProtein, addStreakTokens, setLastWorkoutDate, currentStreak } = useGameStore();
+  const { patchGameStateCurrencies } = useEngineStore();
 
   const reward = calculateReward({
     durationMinutes: workout.durationMinutes,
@@ -41,11 +49,11 @@ export function useWorkoutReward(workout: WorkoutRewardData): UseWorkoutRewardRe
   // Advance through phases automatically
   useEffect(() => {
     const timings: [RewardPhase, number][] = [
-      ['summary',      400],   // after header
-      ['divider',      1200],  // after 4 summary rows (4×150ms + buffer)
-      ['calculations', 1800],  // after divider fade
-      ['total',        5000],  // after 4 calc rows animate (~3200ms total)
-      ['ready',        6000],
+      ['summary',      400],
+      ['divider',      1200],
+      ['calculations', 1800],
+      ['total',        3200],  // nach 4 Calc-Rows (je ~600ms + buffer)
+      ['ready',        3700],
     ];
 
     const timers = timings.map(([p, delay]) =>
@@ -58,14 +66,51 @@ export function useWorkoutReward(workout: WorkoutRewardData): UseWorkoutRewardRe
   const collect = useCallback(async () => {
     setPhase('collecting');
     await markWorkoutProcessed(workout.id);
-    // Credit currencies to the global store → CurrencyBar animates automatically
+    // Mark as processed in workoutStore so recognition card hides
+    useWorkoutStore.getState().markAsProcessed(workout.id);
+    // Credit currencies to the currency store → CurrencyBar animates automatically
     addMuskelmasse(reward.totalMuskelmasse);
     if (reward.protein > 0) addProtein(reward.protein);
     if (reward.streakToken) addStreakTokens(1);
     setLastWorkoutDate(new Date());
+
+    // Sync to engine store so RealmScreen / TopResourceBar also updates
+    const cs = useGameStore.getState();
+    patchGameStateCurrencies({
+      muskelmasse: cs.muskelmasse + reward.totalMuskelmasse,
+      protein: cs.protein + (reward.protein > 0 ? reward.protein : 0),
+      streakTokens: cs.streakTokens + (reward.streakToken ? 1 : 0),
+      currentStreak: cs.currentStreak,
+    });
+
     // Give animation time to play before signalling done
     setTimeout(() => setPhase('done'), 900);
-  }, [workout.id, reward, addMuskelmasse, addProtein, addStreakTokens, setLastWorkoutDate]);
+  }, [workout.id, reward, addMuskelmasse, addProtein, addStreakTokens, setLastWorkoutDate, patchGameStateCurrencies]);
 
-  return { phase, reward, collect };
+  const getNextWorkout = useCallback(() => {
+    const allWorkouts = useWorkoutStore.getState().workouts;
+    const remaining = allWorkouts.filter((w) => !w.isProcessed);
+    if (remaining.length === 0) return null;
+
+    const next = remaining[0];
+    const currentIdx = (queueIndex ?? 0) + 1;
+    const totalLen = queueLength ?? 1;
+
+    return {
+      workout: {
+        id: next.id,
+        type: next.type,
+        dateISO: next.date,
+        durationMinutes: next.durationMinutes,
+        activeCalories: next.activeCalories,
+        steps: next.steps,
+        avgHeartRate: next.avgHeartRate,
+        minutesAbove70HRmax: next.minutesAbove70HRmax,
+      } as WorkoutRewardData,
+      queueLength: totalLen,
+      queueIndex: currentIdx,
+    };
+  }, [queueIndex, queueLength]);
+
+  return { phase, reward, collect, getNextWorkout };
 }

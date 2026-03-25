@@ -13,10 +13,14 @@ export interface WorkoutRewardData {
 
 export type RootStackParamList = {
   Main: undefined;
-  WorkoutReward: { workout: WorkoutRewardData };
+  WorkoutReward: {
+    workout: WorkoutRewardData;
+    queueLength?: number;
+    queueIndex?: number;
+  };
 };
 
-// Mock workout used when tapping "Auswerten →" on Dashboard
+// Mock workout used when tapping "Auswerten" on Dashboard
 export const MOCK_WORKOUT: WorkoutRewardData = {
   id: 'mock-workout-001',
   type: 'Laufen',

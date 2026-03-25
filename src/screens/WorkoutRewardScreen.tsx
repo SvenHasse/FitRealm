@@ -1,5 +1,6 @@
 // WorkoutRewardScreen.tsx
 // Full-screen modal: workout stats → reward calculation → "Einsammeln" collect flow.
+// Supports queue mode: shows indicator pill + "Weiter →" to advance through multiple workouts.
 
 import React, { useEffect } from 'react';
 import {
@@ -47,7 +48,6 @@ function hrColor(bpm: number): string {
 }
 
 export default function WorkoutRewardScreen({ route, navigation }: Props) {
-  // Safe fallback if params are somehow undefined
   const workout: WorkoutRewardData = route?.params?.workout ?? {
     id: 'fallback',
     type: 'Workout',
@@ -59,18 +59,23 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
     minutesAbove70HRmax: 0,
   };
 
-  const { phase, reward, collect } = useWorkoutReward(workout);
+  const queueLength = route?.params?.queueLength ?? 1;
+  const queueIndex  = route?.params?.queueIndex  ?? 0;
+  const isQueue     = queueLength > 1;
+  const isLastInQueue = queueIndex >= queueLength - 1;
+
+  const { phase, reward, collect, getNextWorkout } = useWorkoutReward(workout, queueIndex, queueLength);
   const iconInfo = getWorkoutIcon(workout.type);
 
   // ── Animations ────────────────────────────────────────────────────────────
-  const headerY = useSharedValue(-60);
+  const headerY       = useSharedValue(-60);
   const headerOpacity = useSharedValue(0);
   useEffect(() => {
     headerOpacity.value = withTiming(1, { duration: 400 });
-    headerY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) });
+    headerY.value       = withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) });
   }, []);
   const headerStyle = useAnimatedStyle(() => ({
-    opacity: headerOpacity.value,
+    opacity:   headerOpacity.value,
     transform: [{ translateY: headerY.value }],
   }));
 
@@ -82,19 +87,17 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
   }, [phase]);
   const dividerStyle = useAnimatedStyle(() => ({ opacity: dividerOpacity.value }));
 
-  const btnScale = useSharedValue(1);
+  const btnScale   = useSharedValue(1);
   const btnOpacity = useSharedValue(1);
   useEffect(() => {
     if (phase === 'ready') {
       btnOpacity.value = 1;
-      // withRepeat+withSequence is worklet-safe — no JS closures in callbacks
       btnScale.value = withRepeat(
         withSequence(
           withTiming(1.03, { duration: 600 }),
           withTiming(1.0,  { duration: 600 }),
         ),
-        -1,   // infinite
-        false,
+        -1, false,
       );
     }
     if (phase === 'collecting' || phase === 'done') {
@@ -103,7 +106,7 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
   }, [phase]);
   const btnStyle = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
-    opacity: btnOpacity.value,
+    opacity:   btnOpacity.value,
   }));
 
   // ── Phase flags ───────────────────────────────────────────────────────────
@@ -114,8 +117,8 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
   const collecting  = phase === 'collecting' || phase === 'done';
 
   const workoutDate = new Date(workout.dateISO);
-  const isToday = new Date().toDateString() === workoutDate.toDateString();
-  const dateStr = isToday
+  const isToday     = new Date().toDateString() === workoutDate.toDateString();
+  const dateStr     = isToday
     ? `Heute, ${workoutDate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`
     : workoutDate.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -123,13 +126,34 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
 
   const handleCollect = async () => {
     if (phase !== 'ready') return;
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    } catch {
-      // Haptics not available in Simulator — ignore
-    }
+    try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); } catch {}
     await collect();
-    setTimeout(() => navigation.goBack(), 950);
+    setTimeout(() => {
+      const next = getNextWorkout();
+      if (next) {
+        navigation.replace('WorkoutReward', {
+          workout:     next.workout,
+          queueLength: next.queueLength,
+          queueIndex:  next.queueIndex,
+        });
+      } else {
+        navigation.goBack();
+      }
+    }, 950);
+  };
+
+  const getButtonText = () => {
+    if (phase === 'collecting') return '...';
+    if (phase !== 'ready') return 'Berechne...';
+    if (isQueue && !isLastInQueue) return 'Einsammeln & Weiter';
+    return 'Einsammeln';
+  };
+
+  const getButtonIcon = () => {
+    if (phase !== 'ready') return null;
+    if (isQueue && !isLastInQueue)
+      return <Ionicons name="arrow-forward" size={20} color="#000" style={{ marginLeft: 8 }} />;
+    return <MaterialCommunityIcons name="arm-flex" size={20} color="#000" style={{ marginLeft: 8 }} />;
   };
 
   return (
@@ -139,6 +163,16 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Queue Indicator Pill ─────────────────────────────────── */}
+        {isQueue && (
+          <View style={styles.queuePillRow}>
+            <View style={styles.queuePill}>
+              <Ionicons name="layers" size={14} color={GOLD} />
+              <Text style={styles.queuePillText}>{queueIndex + 1} / {queueLength} Workouts</Text>
+            </View>
+          </View>
+        )}
+
         {/* ── 1. Header ──────────────────────────────────────────────── */}
         <Animated.View style={[styles.header, headerStyle]}>
           <View style={[styles.headerIconWrap, { backgroundColor: `${iconInfo.color}20` }]}>
@@ -252,16 +286,8 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
             disabled={phase !== 'ready'}
             activeOpacity={0.85}
           >
-            <Text style={styles.collectText}>
-              {phase === 'ready'
-                ? 'Einsammeln'
-                : phase === 'collecting'
-                ? '...'
-                : 'Berechne...'}
-            </Text>
-            {phase === 'ready' && (
-              <MaterialCommunityIcons name="arm-flex" size={20} color="#000" style={{ marginLeft: 8 }} />
-            )}
+            <Text style={styles.collectText}>{getButtonText()}</Text>
+            {getButtonIcon()}
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -273,15 +299,23 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: AppColors.background },
-  scroll: { flex: 1 },
+  safe:    { flex: 1, backgroundColor: AppColors.background },
+  scroll:  { flex: 1 },
   content: { padding: 20, paddingTop: 12 },
+
+  queuePillRow: { alignItems: 'center', marginBottom: 8 },
+  queuePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: `${GOLD}20`, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 6,
+    borderWidth: 1, borderColor: `${GOLD}40`,
+  },
+  queuePillText: { fontSize: 13, fontWeight: '700', color: GOLD },
 
   header: { alignItems: 'center', paddingVertical: 28, marginBottom: 20 },
   headerIconWrap: {
     width: 96, height: 96, borderRadius: 24,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 16,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
   headerType: { fontSize: 30, fontWeight: 'bold', color: AppColors.textPrimary },
   headerDate: { fontSize: 14, color: AppColors.textSecondary, marginTop: 6 },

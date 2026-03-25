@@ -37,13 +37,15 @@ import {
   restingHRTrend,
   vo2MaxTrend,
 } from '../models/types';
-import { RootStackParamList, MOCK_WORKOUT } from '../navigation/types';
+import { RootStackParamList, WorkoutRewardData } from '../navigation/types';
+import { useWorkoutStore, Workout } from '../store/workoutStore';
+import { calculateReward } from '../utils/currencyCalculator';
 
 import DailyMetricCard         from '../components/DailyMetricCard';
 import StreakCounter            from '../components/StreakCounter';
 import StreakDetailModal        from '../components/StreakDetailModal';
 import ProgressProjectionWidget from '../components/ProgressProjectionWidget';
-import WorkoutRecognitionCard   from '../components/WorkoutRecognitionCard';
+import WorkoutQueueCard          from '../components/WorkoutQueueCard';
 import WorkoutBreakdownSheet    from '../components/WorkoutBreakdownSheet';
 import CurrencyBar              from '../components/CurrencyBar';
 import StatsHistoryModal        from '../components/StatsHistoryModal';
@@ -169,7 +171,29 @@ export default function DashboardScreen() {
   const streakMilestone   = STREAK_MILESTONES.find(m => m.days > currentStreak)?.days
     ?? STREAK_MILESTONES[STREAK_MILESTONES.length - 1].days;
 
-  const openReward = () => navigation.navigate('WorkoutReward', { workout: MOCK_WORKOUT });
+  // Workout store: unprocessed workouts for queue card, all workouts for recent list
+  const allWorkouts = useWorkoutStore((s) => s.workouts);
+  const unprocessed = allWorkouts.filter((w) => !w.isProcessed);
+
+  const openQueue = () => {
+    if (unprocessed.length === 0) return;
+    const first = unprocessed[0];
+    const data: WorkoutRewardData = {
+      id: first.id,
+      type: first.type,
+      dateISO: first.date,
+      durationMinutes: first.durationMinutes,
+      activeCalories: first.activeCalories,
+      steps: first.steps,
+      avgHeartRate: first.avgHeartRate,
+      minutesAbove70HRmax: first.minutesAbove70HRmax,
+    };
+    navigation.navigate('WorkoutReward', {
+      workout: data,
+      queueLength: unprocessed.length,
+      queueIndex: 0,
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -228,14 +252,37 @@ export default function DashboardScreen() {
           onPress={() => setStreakModalOpen(true)}
         />
 
-        {/* ── 3. Workout Recognition Card ────────────────────────────── */}
-        <WorkoutRecognitionCard onPress={openReward} />
+        {/* ── 3. Workout Queue Card ──────────────────────────────────── */}
+        <WorkoutQueueCard workouts={unprocessed} onPress={openQueue} />
 
         {/* ── 4. Progress Projection ─────────────────────────────────── */}
         <ProgressProjectionWidget stepsToday={health.stepsToday} stepsGoal={health.stepsGoal} />
 
         {/* ── 5. Recent Workouts ─────────────────────────────────────── */}
-        <RecentWorkoutsCard workouts={recentWorkouts.slice(0, 7)} onSelectWorkout={setSelectedWorkout} />
+        <RecentWorkoutsCard
+          workouts={allWorkouts.length > 0
+            ? allWorkouts.slice(0, 7).map((w) => {
+                const reward = calculateReward({
+                  durationMinutes: w.durationMinutes,
+                  activeCalories: w.activeCalories,
+                  steps: w.steps,
+                  avgHeartRate: w.avgHeartRate,
+                  minutesAbove70HRmax: w.minutesAbove70HRmax,
+                });
+                return {
+                  id: w.id,
+                  workoutType: w.type,
+                  date: w.date,
+                  durationMinutes: w.durationMinutes,
+                  caloriesBurned: w.activeCalories,
+                  averageHeartRate: w.avgHeartRate,
+                  vitacoinsEarned: reward.totalMuskelmasse,
+                } as WorkoutRecord;
+              })
+            : recentWorkouts.slice(0, 7)
+          }
+          onSelectWorkout={setSelectedWorkout}
+        />
 
         {/* ── 6. Health Trends ───────────────────────────────────────── */}
         <HealthTrendsCard snapshot={healthSnapshot} />

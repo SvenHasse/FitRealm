@@ -339,27 +339,26 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
     collectMilestone,
     addStreakTokens,
   } = useGameStore();
-  const { recentWorkouts, useMockData } = useEngineStore();
+  const { recentWorkouts } = useEngineStore();
 
   const [countdown,      setCountdown]      = useState<CountdownInfo>({ msRemaining: 0, level: 'safe', text: '' });
   const [confettiActive, setConfettiActive] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  // ── Data ──────────────────────────────────────────────────────────────────
-  const effectiveStreak = useMockData ? MOCK.currentStreak : currentStreak;
+  // ── Data (always use store values — no mock override) ───────────────────
+  const effectiveStreak = currentStreak;
 
   // Last workout date: prefer store value, fall back to recentWorkouts
-  const lastWorkoutDate: Date | null = useMockData
-    ? MOCK.lastWorkoutDate
-    : lastWorkoutDateStr
-      ? new Date(lastWorkoutDateStr)
-      : recentWorkouts.length > 0 ? new Date(recentWorkouts[0].date) : null;
+  // Use the raw string as a stable reference to avoid re-creating Date objects every render
+  const lastWorkoutDateRaw = lastWorkoutDateStr
+    ?? (recentWorkouts.length > 0 ? recentWorkouts[0].date : null);
+  const lastWorkoutDate: Date | null = lastWorkoutDateRaw ? new Date(lastWorkoutDateRaw) : null;
 
-  const lastWorkoutType    = useMockData ? MOCK.lastWorkoutType    : recentWorkouts[0]?.workoutType ?? '';
-  const lastWorkoutMinutes = useMockData ? MOCK.lastWorkoutDuration : recentWorkouts[0] ? Math.floor(recentWorkouts[0].durationMinutes) : 0;
+  const lastWorkoutType    = recentWorkouts[0]?.workoutType ?? '';
+  const lastWorkoutMinutes = recentWorkouts[0] ? Math.floor(recentWorkouts[0].durationMinutes) : 0;
 
   // collectedMilestones comes from the store (persisted, no local state needed)
-  const effectiveCollected = useMockData ? MOCK.collectedMilestones : collectedMilestones;
+  const effectiveCollected = collectedMilestones;
 
   const displayStreak = useCountUp(visible ? effectiveStreak : 0, 600);
 
@@ -369,11 +368,12 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
   // ── Live countdown ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!visible) return;
-    const tick = () => setCountdown(getCountdownInfo(lastWorkoutDate));
+    const date = lastWorkoutDateRaw ? new Date(lastWorkoutDateRaw) : null;
+    const tick = () => setCountdown(getCountdownInfo(date));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [visible, lastWorkoutDate]);
+  }, [visible, lastWorkoutDateRaw]);
 
   // ── Auto-scroll to next milestone ─────────────────────────────────────────
   useEffect(() => {

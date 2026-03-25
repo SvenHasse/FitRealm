@@ -13,6 +13,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
+import { useGameStore as useCurrencyStore } from '../store/gameStore';
 import {
   AppColors, Building, BuildingType, Obstacle,
   buildingIconName, buildingAccentColor,
@@ -323,6 +324,7 @@ function fmtNum(n: number, lang: string): string {
 function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey) => void }) {
   const gs = useGameStore(s => s.gameState);
   const cap = useGameStore(s => s.storageCap);
+  const { currentStreak } = useCurrencyStore();
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   return (
@@ -361,11 +363,11 @@ function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey)
           value={`${fmtNum(gs.food, lang)}`}
           max={cap.food === Infinity ? undefined : cap.food} current={gs.food}
           label={t('hud.nahrung')} onPress={() => onResourcePress('food')} lang={lang} />
-        {gs.currentStreak > 0 && (
+        {currentStreak > 0 && (
           <>
             <View style={styles.divider} />
             <ResourcePill icon="flash" iconColor="#FFEB3B"
-              value={`${gs.currentStreak}d`}
+              value={`${currentStreak}d`}
               label={t('hud.streak')} onPress={() => onResourcePress('streakTokens')} lang={lang} />
           </>
         )}
