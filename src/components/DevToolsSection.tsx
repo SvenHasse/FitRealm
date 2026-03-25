@@ -10,11 +10,18 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import * as Crypto from 'expo-crypto';
-import { AppColors, WorkoutRecord } from '../models/types';
+import { AppColors, WorkoutRecord, Animal, AnimalType } from '../models/types';
 import { useGameStore } from '../store/gameStore';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
 import { useWorkoutStore } from '../store/workoutStore';
 import { resetAllData, resetWithMockData } from '../utils/resetUtils';
+import { ANIMAL_CONFIGS } from '../config/EntityConfig';
+import { saveGameState } from '../engines/GameEngine';
+
+const ALL_ANIMAL_TYPES: AnimalType[] = [
+  'erntehuhn', 'lastesel', 'holzbaer', 'spaehfalke', 'steinbock',
+  'mystischerHirsch', 'kriegswolf', 'gluecksphoenixt', 'uralterDrache',
+];
 
 // ─── Small reusable button ───────────────────────────────────────────────────
 
@@ -98,6 +105,36 @@ export default function DevToolsSection() {
       vitacoinsEarned: 0,
     };
     injectManualWorkout(engineWorkout);
+  };
+
+  const handleDevUnlockAllAnimals = () => {
+    Alert.alert(
+      '🐾 Alle Tiere freischalten',
+      'Alle 9 Tiere werden sofort freigeschaltet (Stall-Kapazität wird ignoriert).',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Freischalten',
+          onPress: () => {
+            const gs = useEngineStore.getState().gameState;
+            const existingTypes = new Set(gs.animals.map((a: Animal) => a.type));
+            const newAnimals: Animal[] = ALL_ANIMAL_TYPES
+              .filter(type => !existingTypes.has(type))
+              .map(type => ({
+                id: `dev_${type}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
+                type,
+                name: ANIMAL_CONFIGS[type].name,
+                rarity: ANIMAL_CONFIGS[type].rarity,
+                assignment: { type: 'idle' as const },
+                obtainedAt: Date.now(),
+              }));
+            const newGs = { ...gs, animals: [...gs.animals, ...newAnimals] };
+            useEngineStore.setState({ gameState: newGs });
+            saveGameState(newGs);
+          },
+        },
+      ]
+    );
   };
 
   const handleFullReset = () => {
@@ -218,6 +255,16 @@ export default function DevToolsSection() {
         </Text>
       </View>
 
+      {/* ── TIERE ─────────────────────────────────────────────── */}
+      <SectionLabel text="TIERE" />
+      <TouchableOpacity style={s.animalBtn} onPress={handleDevUnlockAllAnimals} activeOpacity={0.75}>
+        <MaterialCommunityIcons name="paw" size={16} color="#C4934A" />
+        <View style={{ flex: 1 }}>
+          <Text style={s.animalBtnTitle}>Alle 9 Tiere freischalten</Text>
+          <Text style={s.animalBtnSub}>Stall-Kapazität wird ignoriert — nur für Tests</Text>
+        </View>
+      </TouchableOpacity>
+
       {/* ── RESET ─────────────────────────────────────────────── */}
       <SectionLabel text="RESET" />
 
@@ -294,6 +341,13 @@ const s = StyleSheet.create({
     fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 18,
     fontVariant: ['tabular-nums'],
   },
+  animalBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12,
+    backgroundColor: 'rgba(196,147,74,0.15)', borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(196,147,74,0.4)',
+  },
+  animalBtnTitle: { fontSize: 13, fontWeight: '600', color: '#C4934A' },
+  animalBtnSub: { fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
   mockBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12,
     backgroundColor: 'rgba(76,175,80,0.15)', borderRadius: 12,
