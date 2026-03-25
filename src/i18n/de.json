@@ -253,7 +253,10 @@
     "workerActive": "Arbeiter auf Baustelle",
     "skipWithProtein": "Sofort fertigstellen ({{cost}} Protein)",
     "notEnoughProtein": "Nicht genug Protein",
-    "workerOnSite": "{{name}} arbeitet"
+    "workerOnSite": "{{name}} arbeitet",
+    "buildTime": "Bauzeit: {{time}}",
+    "buildTimeWithWorker": "mit Worker: {{time}}",
+    "instant": "Sofort"
   },
   "resources": {
     "muskelmasse": "Muskelmasse",

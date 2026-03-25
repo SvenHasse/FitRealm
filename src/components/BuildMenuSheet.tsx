@@ -9,10 +9,11 @@ import { useGameStore } from '../store/useGameStore';
 import {
   AppColors, BuildingType,
   buildingIconName, buildingAccentColor,
-  gameStateRathausLevel,
+  gameStateRathausLevel, workerStatus, WorkerStatus,
 } from '../models/types';
-import { buildCost, rathausRequirement, allowedInstances, nextInstanceUnlockLevel, maxInstances, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, Production } from '../config/GameConfig';
+import { buildCost, rathausRequirement, allowedInstances, nextInstanceUnlockLevel, maxInstances, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, Production, constructionTime } from '../config/GameConfig';
 import { canAfford, costString, hourlyProductionRate } from '../engines/GameEngine';
+import { formatDuration } from '../utils/formatDuration';
 
 type TabKey = 'production' | 'infrastructure' | 'special';
 
@@ -58,6 +59,12 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
   ];
 
   const filteredTypes = categoryMap[selectedTab] || [];
+
+  // Check whether an idle worker is available (halves construction time)
+  const hasIdleWorker = gameState.workers.some(w => {
+    const st = workerStatus(w);
+    return st === WorkerStatus.idle || (st === WorkerStatus.active && !w.assignedBuildingID);
+  });
 
   return (
     <View style={styles.sheet}>
@@ -155,6 +162,25 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
                 <Text style={styles.costText}>{costString(cost)}</Text>
               )}
 
+              {/* Construction time preview — shown whenever cost is visible */}
+              {!lockLabel && (() => {
+                const secs = constructionTime(type, 1);
+                const timeStr = formatDuration(secs);
+                const halfSecs = Math.floor(secs / 2);
+                const halfStr = secs > 0 && hasIdleWorker ? formatDuration(halfSecs) : null;
+                return (
+                  <View style={styles.buildTimeRow}>
+                    <Ionicons name={'time-outline' as any} size={10} color="rgba(255,255,255,0.5)" />
+                    <Text style={styles.buildTimeText}>{t('construction.buildTime', { time: timeStr })}</Text>
+                    {halfStr && (
+                      <Text style={styles.buildTimeWorker}>
+                        ({t('construction.buildTimeWithWorker', { time: halfStr })})
+                      </Text>
+                    )}
+                  </View>
+                );
+              })()}
+
               {/* Case 2: next slot hint — ordinal = existing+1 (e.g. "3. ab Rathaus L4") */}
               {slotLocked && nextAlloc !== null && (
                 <Text style={styles.nextSlotHint}>
@@ -238,4 +264,7 @@ const styles = StyleSheet.create({
   infoRow: { alignItems: 'center', gap: 2 },
   infoRowText: { fontSize: 9, color: '#4DD0E1', textAlign: 'center' },
   infoRowSub: { fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: 'center' },
+  buildTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 3, flexWrap: 'wrap', justifyContent: 'center' },
+  buildTimeText: { fontSize: 9, color: 'rgba(255,255,255,0.5)' },
+  buildTimeWorker: { fontSize: 9, color: '#00BCD4' },
 });
