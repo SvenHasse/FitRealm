@@ -117,6 +117,15 @@ export function initializeState(state: GameState): GameState {
   if ((s as any).pendingHatchResult === undefined) {
     s.pendingHatchResult = null;
   }
+  // Migrate: Phase 6 fields
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!(s as any).trophies) s.trophies = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((s as any).lastBloodWaveAt === undefined) s.lastBloodWaveAt = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((s as any).lastBossEventAt === undefined) s.lastBossEventAt = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if ((s as any).pendingDragonUnlock === undefined) s.pendingDragonUnlock = false;
   // Migrate entity system arrays if missing
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (!(s as any).animals) s.animals = [];

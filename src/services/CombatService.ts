@@ -3,7 +3,7 @@
 
 import {
   DefenseBreakdown, MonsterWave, WaveResult, DamageEffect,
-  Animal, Building, LootDrop, EggRarity,
+  Animal, Building, LootDrop, EggRarity, BossPhaseResult,
 } from '../models/types';
 import { ANIMAL_CONFIGS, MONSTER_CONFIGS } from '../config/EntityConfig';
 
@@ -135,9 +135,149 @@ export class CombatService {
       loot,
       playerVP: adjustedTotalVP,
       monsterAP: effectiveAK,
+      isBossWave: false,
+      isBloodWave: false,
+      wallHPUsed,
     };
 
     return { result, damages, loot, effectiveAK, wallHPUsed };
+  }
+
+  resolveBossGolem(
+    defense: DefenseBreakdown,
+    wave: MonsterWave,
+    wallHP: { current: number; max: number } | null,
+  ): {
+    phases: BossPhaseResult[];
+    result: WaveResult;
+    damages: DamageEffect[];
+    loot: LootDrop[];
+    wallHPUsed: number;
+  } {
+    // Phase 1: Vorhut vs Mauer-HP
+    const phase1AK = wave.totalAttackPower * 0.3;
+    const phase1VP = (wallHP?.current ?? 0) * 2 + defense.workerVP;
+    const phase1passed = phase1VP >= phase1AK;
+
+    // Phase 2: Golem-Körper vs Worker + Tiere
+    const phase2AK = wave.totalAttackPower * 0.4 * (phase1passed ? 1.0 : 1.2);
+    const phase2VP = defense.workerVP + defense.animalVP;
+    const phase2passed = phase2VP >= phase2AK;
+
+    // Phase 3: Finaler Angriff vs Workout-VP
+    const phase3AK = wave.totalAttackPower * 0.3 * (phase2passed ? 1.0 : 1.2);
+    const phase3VP = defense.workoutVP + defense.streakBonus * defense.workoutVP;
+    const phase3passed = phase3VP >= phase3AK;
+
+    const phases: BossPhaseResult[] = [
+      { phase: 1, passed: phase1passed, vpUsed: Math.round(phase1VP), akFaced: Math.round(phase1AK) },
+      { phase: 2, passed: phase2passed, vpUsed: Math.round(phase2VP), akFaced: Math.round(phase2AK) },
+      { phase: 3, passed: phase3passed, vpUsed: Math.round(phase3VP), akFaced: Math.round(phase3AK) },
+    ];
+
+    const allPassed = phase1passed && phase2passed && phase3passed;
+    const nonePassed = !phase1passed && !phase2passed;
+    const outcome: WaveResult['outcome'] = allPassed ? 'perfect' : nonePassed ? 'overrun' : 'partial';
+
+    // Schaden
+    const damages: DamageEffect[] = allPassed ? [] : this._calculateDamages(wave, [], (outcome === 'overrun' ? 'overrun' : 'partial') as 'partial' | 'overrun');
+
+    // Loot — Boss-Loot immer vorhanden
+    const loot: LootDrop[] = [];
+    const bossConfig = MONSTER_CONFIGS['uralterGolem'];
+    const lootMultiplier = allPassed ? 3 : 1;
+    const lootAmount = Math.round(
+      (bossConfig.lootTable.resources.min + Math.random() * (bossConfig.lootTable.resources.max - bossConfig.lootTable.resources.min)) * lootMultiplier,
+    );
+    loot.push({ type: 'holz', amount: lootAmount });
+    if (allPassed) {
+      loot.push({ type: 'trophy', amount: 1 });
+      loot.push({ type: 'egg', amount: 1, eggRarity: 'epic' as EggRarity });
+    }
+
+    const wallHPUsed = !phase1passed && wallHP
+      ? Math.min(wallHP.current, Math.round(phase1AK - phase1VP))
+      : 0;
+
+    const result: WaveResult = {
+      outcome,
+      damageDealt: damages,
+      loot,
+      playerVP: Math.round(phase1VP + phase2VP + phase3VP),
+      monsterAP: wave.totalAttackPower,
+      isBossWave: true,
+      isBloodWave: false,
+      bossPhases: phases,
+      wallHPUsed,
+    };
+
+    return { phases, result, damages, loot, wallHPUsed };
+  }
+
+  resolveBossHydra(
+    defense: DefenseBreakdown,
+    wave: MonsterWave,
+    _animals: Animal[],
+  ): {
+    phases: BossPhaseResult[];
+    result: WaveResult;
+    damages: DamageEffect[];
+    loot: LootDrop[];
+    wallHPUsed: number;
+  } {
+    // 3 Köpfe: Holz-Kopf, Gier-Kopf, Schatten-Kopf
+    const headAK = wave.totalAttackPower / 3;
+
+    // Holz-Kopf: Baut-VP dagegen
+    const woodVP = defense.basisVP * 0.5;
+    const head1passed = woodVP >= headAK;
+
+    // Gier-Kopf: Ressourcen-VP (Worker + Nahrung)
+    const greedVP = defense.workerVP + defense.animalVP;
+    const head2passed = greedVP >= headAK;
+
+    // Schatten-Kopf: Workout + Streak VP
+    const shadowVP = defense.workoutVP * (1 + defense.streakBonus);
+    const head3passed = shadowVP >= headAK;
+
+    const phases: BossPhaseResult[] = [
+      { phase: 1, passed: head1passed, vpUsed: Math.round(woodVP), akFaced: Math.round(headAK) },
+      { phase: 2, passed: head2passed, vpUsed: Math.round(greedVP), akFaced: Math.round(headAK) },
+      { phase: 3, passed: head3passed, vpUsed: Math.round(shadowVP), akFaced: Math.round(headAK) },
+    ];
+
+    const passedCount = [head1passed, head2passed, head3passed].filter(Boolean).length;
+    const outcome: WaveResult['outcome'] =
+      passedCount === 3 ? 'perfect' :
+      passedCount >= 1 ? 'partial' : 'overrun';
+
+    const damages: DamageEffect[] = outcome !== 'perfect' ? this._calculateDamages(wave, [], (outcome === 'overrun' ? 'overrun' : 'partial') as 'partial' | 'overrun') : [];
+
+    const loot: LootDrop[] = [];
+    const bossConfig = MONSTER_CONFIGS['verderbnisHydra'];
+    const lootMultiplier = passedCount === 3 ? 3 : passedCount >= 1 ? 1.5 : 0.5;
+    const lootAmount = Math.round(
+      (bossConfig.lootTable.resources.min + Math.random() * (bossConfig.lootTable.resources.max - bossConfig.lootTable.resources.min)) * lootMultiplier,
+    );
+    loot.push({ type: 'holz', amount: lootAmount });
+    if (passedCount === 3) {
+      loot.push({ type: 'trophy', amount: 1 });
+      loot.push({ type: 'egg', amount: 1, eggRarity: 'legendary' as EggRarity });
+    }
+
+    const result: WaveResult = {
+      outcome,
+      damageDealt: damages,
+      loot,
+      playerVP: Math.round(woodVP + greedVP + shadowVP),
+      monsterAP: wave.totalAttackPower,
+      isBossWave: true,
+      isBloodWave: false,
+      bossPhases: phases,
+      wallHPUsed: 0,
+    };
+
+    return { phases, result, damages, loot, wallHPUsed: 0 };
   }
 
   private _calculateDamages(

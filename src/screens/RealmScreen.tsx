@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal,
-  Dimensions, LayoutAnimation, UIManager, Platform,
+  Dimensions, LayoutAnimation, UIManager, Platform, Alert,
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle,
@@ -40,6 +40,10 @@ import WaveBanner from '../components/WaveBanner';
 import WaveResultSheet from '../components/WaveResultSheet';
 import WaveDetailSheet from '../components/WaveDetailSheet';
 import EggHatchModal from '../components/EggHatchModal';
+import DragonUnlockModal from '../components/DragonUnlockModal';
+import { MONSTER_CONFIGS } from '../config/EntityConfig';
+import { waveService } from '../services/WaveService';
+import { Trophy } from '../models/types';
 
 const CELL_SIZE = 70;
 const GRID_SIZE = WorldConstants.gridSize;
@@ -100,7 +104,10 @@ export default function RealmScreen() {
   const clearPendingWaveResult = useGameStore(s => s.clearPendingWaveResult);
   const pendingHatchResult = useGameStore(s => s.pendingHatchResult);
   const clearPendingHatchResult = useGameStore(s => s.clearPendingHatchResult);
+  const pendingDragonUnlock = useGameStore(s => s.pendingDragonUnlock);
+  const clearPendingDragonUnlock = useGameStore(s => s.clearPendingDragonUnlock);
   const activeWave = gameState.activeWave;
+  const [placingTrophy, setPlacingTrophy] = useState<Trophy | null>(null);
 
   // Scroll refs for map navigation
   const hScrollRef = useRef<ScrollView>(null);
@@ -146,6 +153,19 @@ export default function RealmScreen() {
 
     const obstacle = obstacles.find(o => o.row === row && o.col === col && !o.isCleared);
     if (obstacle) { setSelectedObstacle(obstacle); return; }
+
+    // Trophäen-Platzierungs-Modus
+    if (placingTrophy) {
+      // Prüfe ob Zelle frei
+      const hasTrophy = gameState.trophies.some(
+        t => t.gridPosition?.x === col && t.gridPosition?.y === row,
+      );
+      if (!hasTrophy) {
+        store.placeTrophy(placingTrophy.id, { x: col, y: row });
+        setPlacingTrophy(null);
+      }
+      return;
+    }
 
     if (buildPlacementMode) {
       if (obstacles.some(o => o.row === row && o.col === col && !o.isCleared)) return;
@@ -208,7 +228,10 @@ export default function RealmScreen() {
               Array.from({ length: GRID_SIZE }, (_, col) => {
                 const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
                 const obstacle = obstacles.find(o => o.row === row && o.col === col && !o.isCleared);
-                const isPlacementTarget = buildPlacementMode != null && !building && !obstacle;
+                const isPlacementTarget = (buildPlacementMode != null || placingTrophy != null) && !building && !obstacle;
+                const trophyHere = !building && gameState.trophies.find(
+                  t => t.gridPosition?.x === col && t.gridPosition?.y === row,
+                );
                 return (
                   <TouchableOpacity
                     key={`${row}-${col}`}
@@ -216,7 +239,7 @@ export default function RealmScreen() {
                     onPress={() => handleCellPress(row, col)}
                     activeOpacity={0.7}
                   >
-                    {building ? <BuildingCell building={building} isHighlighted={highlightedBuildingId === building.id} idx={row * GRID_SIZE + col} assignedAnimal={gameState.animals.find(a => a.assignment.type === 'building' && (a.assignment as any).buildingId === building.id)} /> : obstacle ? <ObstacleCell obstacle={obstacle} /> : isPlacementTarget ? <Ionicons name="add" size={20} color="rgba(76,175,80,0.6)" /> : null}
+                    {building ? <BuildingCell building={building} isHighlighted={highlightedBuildingId === building.id} idx={row * GRID_SIZE + col} assignedAnimal={gameState.animals.find(a => a.assignment.type === 'building' && (a.assignment as { type: 'building'; buildingId: string }).buildingId === building.id)} /> : obstacle ? <ObstacleCell obstacle={obstacle} /> : trophyHere ? <Text style={styles.trophyCell}>{trophyHere.emoji}</Text> : isPlacementTarget ? <Ionicons name="add" size={20} color="rgba(76,175,80,0.6)" /> : null}
                   </TouchableOpacity>
                 );
               })
@@ -228,6 +251,29 @@ export default function RealmScreen() {
       {/* Danger overlay — red border when wave approaching */}
       {isWaveApproaching && (
         <View style={styles.dangerOverlay} pointerEvents="none" />
+      )}
+
+      {/* Monster-Silhouetten beim approaching */}
+      {isWaveApproaching && activeWave && (
+        <View style={styles.monsterRing} pointerEvents="none">
+          {activeWave.monsters.slice(0, 3).map((m, i) => (
+            <Text key={i} style={[styles.monsterEmojiOverlay, { left: `${20 + i * 30}%` as unknown as number }]}>
+              {MONSTER_CONFIGS[m.type].emoji}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {/* Trophäen-Platzierungs-Banner */}
+      {placingTrophy && (
+        <View style={styles.placementBanner}>
+          <Text style={styles.placementText}>
+            {placingTrophy.emoji} Trophäe platzieren — tippe auf ein leeres Feld
+          </Text>
+          <TouchableOpacity onPress={() => setPlacingTrophy(null)}>
+            <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* HUD Top */}
@@ -281,6 +327,7 @@ export default function RealmScreen() {
           <WaveBanner
             wave={activeWave}
             defenseVP={currentDefenseVP}
+            isBloodWave={waveService.isBloodWaveDue(gameState.lastBloodWaveAt)}
             onDetails={() => setWaveDetailVisible(true)}
             onPrepare={() => { if (stallBuilding) setSelectedStall(stallBuilding); }}
           />
@@ -433,6 +480,12 @@ export default function RealmScreen() {
           onClose={clearPendingHatchResult}
         />
       )}
+
+      {/* Dragon Unlock Modal */}
+      <DragonUnlockModal
+        visible={pendingDragonUnlock}
+        onClose={clearPendingDragonUnlock}
+      />
 
       {/* Nothing-to-collect toast */}
       {toastMessage && (
@@ -1126,4 +1179,21 @@ const styles = StyleSheet.create({
   },
   wallHPFill: { height: '100%', borderRadius: 4 },
   wallHPText: { fontSize: 11, color: 'rgba(255,255,255,0.6)', minWidth: 44, textAlign: 'right' },
+  // Monster-Ring (Silhouetten beim approaching)
+  monsterRing: {
+    position: 'absolute',
+    bottom: 90,
+    left: 0,
+    right: 0,
+    height: 40,
+    pointerEvents: 'none',
+  },
+  monsterEmojiOverlay: {
+    position: 'absolute',
+    fontSize: 28,
+    bottom: 0,
+  },
+  trophyCell: {
+    fontSize: 28,
+  },
 });

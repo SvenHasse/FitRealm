@@ -352,6 +352,29 @@ export interface Obstacle {
   isCleared: boolean;
 }
 
+// ============================================
+// TROPHIES
+// ============================================
+
+export type TrophyType = 'golemHerz' | 'hydraSchuppe';
+
+export interface Trophy {
+  id: string;
+  type: TrophyType;
+  name: string;
+  emoji: string;
+  obtainedAt: number;
+  gridPosition: { x: number; y: number } | null;
+}
+
+// Boss-Phase-Ergebnis für 3-Phasen-Kämpfe
+export interface BossPhaseResult {
+  phase: 1 | 2 | 3;
+  passed: boolean;
+  vpUsed: number;
+  akFaced: number;
+}
+
 // MARK: - GameState
 export interface GameState {
   // Resources
@@ -404,6 +427,12 @@ export interface GameState {
     animalType: AnimalType;
     rarity: AnimalRarity;
   } | null;
+
+  // Phase 6: Trophies & Boss-Events
+  trophies: Trophy[];
+  lastBloodWaveAt: number | null;
+  lastBossEventAt: number | null;
+  pendingDragonUnlock: boolean;
 }
 
 export function gameStateRathausLevel(state: GameState): number {
@@ -464,6 +493,10 @@ export function createDefaultGameState(): GameState {
     },
     wallHP: null,
     pendingHatchResult: null,
+    trophies: [],
+    lastBloodWaveAt: null,
+    lastBossEventAt: null,
+    pendingDragonUnlock: false,
   };
 }
 
@@ -569,6 +602,11 @@ export type WaveResult = {
   loot: LootDrop[];
   playerVP: number;
   monsterAP: number;
+  // Phase 6: Boss & Blutwellen-Felder
+  isBossWave: boolean;
+  isBloodWave: boolean;
+  bossPhases?: BossPhaseResult[];
+  wallHPUsed: number;
 };
 
 export interface DamageEffect {

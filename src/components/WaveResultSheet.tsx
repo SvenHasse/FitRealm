@@ -8,7 +8,7 @@ import {
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withDelay,
 } from 'react-native-reanimated';
-import { MonsterWave, WaveResult, DamageEffect, LootDrop, AppColors } from '../models/types';
+import { MonsterWave, WaveResult, DamageEffect, LootDrop, AppColors, BossPhaseResult } from '../models/types';
 import { MONSTER_CONFIGS } from '../config/EntityConfig';
 
 interface Props {
@@ -110,24 +110,49 @@ export default function WaveResultSheet({
 }: Props) {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const cfg = OUTCOME_CONFIG[result.outcome];
+  const isBoss = result.isBossWave;
+  const isBlood = result.isBloodWave;
 
   const nextWaveHours = Math.floor(nextWaveIn / (1000 * 60 * 60));
+
+  // Boss-Header-Konfiguration
+  const bossWon = isBoss && (result.outcome === 'perfect' || result.outcome === 'defended');
+  const bossHeaderText = bossWon ? '🗿 BOSS BESIEGT! 🗿' : '💀 BOSS ÜBERWÄLTIGT!';
+  const bossHeaderColor = bossWon ? '#FFD700' : '#EF5350';
+  const bossName = isBoss && wave.monsters.length > 0 ? MONSTER_CONFIGS[wave.monsters[0].type].name : '';
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, isBoss && { borderWidth: 2, borderColor: '#FFD700' }]}>
           <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+
+            {/* Blutwellen-Banner */}
+            {isBlood && (
+              <View style={styles.bloodBanner}>
+                <Text style={styles.bloodBannerText}>🩸 BLUTWELLE</Text>
+              </View>
+            )}
+
             {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.headerEmoji}>{cfg.emoji}</Text>
-              <Text style={[styles.headerLabel, { color: cfg.color }]}>{cfg.label}</Text>
-            </View>
+            {isBoss ? (
+              <View style={styles.header}>
+                <Text style={[styles.headerLabel, { color: bossHeaderColor, fontSize: 24 }]}>
+                  {bossHeaderText}
+                </Text>
+                <Text style={styles.bossName}>{bossName}</Text>
+              </View>
+            ) : (
+              <View style={styles.header}>
+                <Text style={styles.headerEmoji}>{cfg.emoji}</Text>
+                <Text style={[styles.headerLabel, { color: cfg.color }]}>{cfg.label}</Text>
+              </View>
+            )}
 
             {/* Stats */}
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
-                <Text style={[styles.statValue, { color: cfg.color }]}>{defenseVP}</Text>
+                <Text style={[styles.statValue, { color: isBoss ? '#FFD700' : cfg.color }]}>{defenseVP}</Text>
                 <Text style={styles.statLabel}>Deine VP</Text>
               </View>
               <Text style={styles.statSeparator}>vs</Text>
@@ -137,31 +162,53 @@ export default function WaveResultSheet({
               </View>
             </View>
 
-            {/* VP Breakdown toggle */}
-            <TouchableOpacity
-              style={styles.breakdownToggle}
-              onPress={() => setShowBreakdown(s => !s)}
-            >
-              <Text style={styles.breakdownToggleText}>
-                {showBreakdown ? 'VP-Aufschlüsselung verbergen ▲' : 'VP-Aufschlüsselung anzeigen ▼'}
-              </Text>
-            </TouchableOpacity>
-
-            {showBreakdown && (
-              <View style={styles.breakdownBox}>
-                <BreakdownRow label="Gebäude-VP" value={result.playerVP} />
-                <BreakdownRow label="Workout-VP" value={0} />
-                <BreakdownRow label="Worker-VP" value={0} />
-                <BreakdownRow label="Tier-VP" value={0} />
-                <View style={styles.breakdownDivider} />
-                <BreakdownRow label="Gesamt" value={defenseVP} bold />
+            {/* Boss-Phasen */}
+            {isBoss && result.bossPhases && result.bossPhases.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: '#FFD700' }]}>Kampfphasen</Text>
+                {result.bossPhases.map((phase: BossPhaseResult) => (
+                  <View key={phase.phase} style={styles.phaseRow}>
+                    <Text style={styles.phaseIcon}>{phase.passed ? '✅' : '❌'}</Text>
+                    <Text style={styles.phaseLabel}>Phase {phase.phase}</Text>
+                    <Text style={styles.phaseStats}>
+                      {phase.vpUsed} VP vs {Math.round(phase.akFaced)} AK
+                    </Text>
+                  </View>
+                ))}
               </View>
+            )}
+
+            {/* VP Breakdown toggle (nur für normale Wellen) */}
+            {!isBoss && (
+              <>
+                <TouchableOpacity
+                  style={styles.breakdownToggle}
+                  onPress={() => setShowBreakdown(s => !s)}
+                >
+                  <Text style={styles.breakdownToggleText}>
+                    {showBreakdown ? 'VP-Aufschlüsselung verbergen ▲' : 'VP-Aufschlüsselung anzeigen ▼'}
+                  </Text>
+                </TouchableOpacity>
+
+                {showBreakdown && (
+                  <View style={styles.breakdownBox}>
+                    <BreakdownRow label="Gebäude-VP" value={result.playerVP} />
+                    <BreakdownRow label="Workout-VP" value={0} />
+                    <BreakdownRow label="Worker-VP" value={0} />
+                    <BreakdownRow label="Tier-VP" value={0} />
+                    <View style={styles.breakdownDivider} />
+                    <BreakdownRow label="Gesamt" value={defenseVP} bold />
+                  </View>
+                )}
+              </>
             )}
 
             {/* Loot section */}
             {loot.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Beute</Text>
+                <Text style={[styles.sectionTitle, isBoss && { color: '#FFD700' }]}>
+                  {isBoss && bossWon ? 'LEGENDÄRE BEUTE' : isBlood ? 'Bonus-Loot' : 'Beute'}
+                </Text>
                 {loot.map((drop, i) => (
                   <LootItem key={i} drop={drop} index={i} />
                 ))}
@@ -195,7 +242,7 @@ export default function WaveResultSheet({
             </View>
 
             {/* Tip for loss */}
-            {cfg.tip && (
+            {cfg.tip && !isBoss && (
               <View style={styles.tipBox}>
                 <Text style={styles.tipText}>{cfg.tip}</Text>
               </View>
@@ -207,7 +254,10 @@ export default function WaveResultSheet({
             </Text>
 
             {/* Close button */}
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+            <TouchableOpacity
+              style={[styles.closeBtn, isBoss && { backgroundColor: '#FFD700' }]}
+              onPress={onClose}
+            >
               <Text style={styles.closeBtnText}>Weiter</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -334,6 +384,41 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
     marginBottom: 16,
   },
+  bloodBanner: {
+    backgroundColor: 'rgba(183,28,28,0.4)',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(183,28,28,0.8)',
+  },
+  bloodBannerText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#EF9A9A',
+    letterSpacing: 2,
+  },
+  bossName: {
+    fontSize: 14,
+    color: 'rgba(255,215,0,0.8)',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  phaseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(255,215,0,0.07)',
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  phaseIcon: { fontSize: 16 },
+  phaseLabel: { fontSize: 13, color: 'rgba(255,255,255,0.8)', flex: 1 },
+  phaseStats: { fontSize: 12, color: 'rgba(255,215,0,0.8)' },
   closeBtn: {
     backgroundColor: AppColors.gold,
     borderRadius: 12,
