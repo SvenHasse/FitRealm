@@ -16,6 +16,7 @@ import {
   Production, Storage, Earn, Workers,
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
   getTotalStorageCap, storageBuildingResource, getStorageBonusArray,
+  constructionTime, skipConstructionCost,
 } from '../config/GameConfig';
 
 const STATE_KEY = 'fitrealmGameState';
@@ -55,7 +56,7 @@ export async function saveGameState(state: GameState): Promise<void> {
   }
 }
 
-// MARK: - Init (ensure rathaus + zones)
+// MARK: - Init (ensure rathaus + zones + migrate construction fields)
 export function initializeState(state: GameState): GameState {
   const s = { ...state };
   if (s.zones.length === 0) {
@@ -70,8 +71,30 @@ export function initializeState(state: GameState): GameState {
       assignedWorkerID: null,
       isDecayed: false,
       position: { row: 7, col: 7 },
+      isUnderConstruction: false,
+      constructionEndsAt: null,
+      constructionWorkerID: null,
+      targetLevel: 1,
     }];
   }
+  // Migrate existing buildings loaded from storage (add missing construction fields)
+  s.buildings = s.buildings.map(b => ({
+    ...b,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    isUnderConstruction: (b as any).isUnderConstruction ?? false,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructionEndsAt: (b as any).constructionEndsAt ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructionWorkerID: (b as any).constructionWorkerID ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    targetLevel: (b as any).targetLevel ?? (b.level || 1),
+  }));
+  // Migrate existing workers (add missing isConstructing field)
+  s.workers = s.workers.map(w => ({
+    ...w,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    isConstructing: (w as any).isConstructing ?? false,
+  }));
   return s;
 }
 
@@ -123,9 +146,10 @@ export function processTick(state: GameState): GameState {
   const decayMult = gameStateDecayMultiplier(s);
   const isDecayed = decayMult < 1.0;
 
-  // Passive building production
+  // Passive building production (skip buildings under construction)
   for (let i = 0; i < s.buildings.length; i++) {
     const b = { ...s.buildings[i] };
+    if (b.isUnderConstruction) { s.buildings[i] = b; continue; }
     b.isDecayed = isDecayed;
     const rate = hourlyProductionRate(b);
     if (rate > 0) {
@@ -136,11 +160,32 @@ export function processTick(state: GameState): GameState {
     s.buildings[i] = b;
   }
 
-  // Worker auto-collection & hunger checks
+  // Construction completion
+  for (let i = 0; i < s.buildings.length; i++) {
+    const b = s.buildings[i];
+    if (b.isUnderConstruction && b.constructionEndsAt && now.getTime() >= b.constructionEndsAt) {
+      s.buildings[i] = {
+        ...b,
+        level: b.targetLevel,
+        isUnderConstruction: false,
+        constructionEndsAt: null,
+        constructionWorkerID: null,
+      };
+      // Free the construction worker
+      if (b.constructionWorkerID) {
+        const wIdx = s.workers.findIndex(w => w.id === b.constructionWorkerID);
+        if (wIdx >= 0) {
+          s.workers[wIdx] = { ...s.workers[wIdx], isConstructing: false };
+        }
+      }
+    }
+  }
+
+  // Worker auto-collection & hunger checks (skip training and constructing workers)
   const foodAvailable = s.food > 0;
   for (let i = 0; i < s.workers.length; i++) {
     const w = { ...s.workers[i] };
-    if (w.isTraining) { s.workers[i] = w; continue; }
+    if (w.isTraining || w.isConstructing) { s.workers[i] = w; continue; }
     w.isActive = foodAvailable;
     if (w.isActive && w.assignedBuildingID) {
       const interval = Workers.collectionInterval(w.level);
@@ -573,14 +618,19 @@ export function buildBuilding(state: GameState, type: BuildingType, position: Gr
   if (!ok) return null;
 
   const s = deductCost({ ...state, buildings: [...state.buildings] }, buildCost(type));
+  const duration = constructionTime(type, 1);
   s.buildings.push({
     id: Crypto.randomUUID(),
     type,
-    level: 1,
+    level: 0, // will become 1 when construction completes
     currentStorage: 0,
     assignedWorkerID: null,
     isDecayed: false,
     position,
+    isUnderConstruction: true,
+    constructionEndsAt: duration > 0 ? Date.now() + duration * 1000 : null,
+    constructionWorkerID: null,
+    targetLevel: 1,
   });
   return s;
 }
@@ -588,6 +638,7 @@ export function buildBuilding(state: GameState, type: BuildingType, position: Gr
 export function canUpgrade(state: GameState, buildingID: string): [boolean, string] {
   const b = findBuildingById(state, buildingID);
   if (!b) return [false, 'Building not found.'];
+  if (b.isUnderConstruction) return [false, 'Already under construction.'];
   if (b.level >= 5) return [false, 'Already max level.'];
   const cost = upgradeCost(b.type, b.level);
   if (!cost) return [false, 'No upgrade path.'];
@@ -603,11 +654,20 @@ export function upgradeBuilding(state: GameState, buildingID: string): GameState
   const idx = s.buildings.findIndex(b => b.id === buildingID);
   if (idx < 0) return null;
 
-  const cost = upgradeCost(s.buildings[idx].type, s.buildings[idx].level);
+  const b = s.buildings[idx];
+  const cost = upgradeCost(b.type, b.level);
   if (!cost) return null;
 
   const deducted = deductCost(s, cost);
-  deducted.buildings[idx] = { ...deducted.buildings[idx], level: deducted.buildings[idx].level + 1 };
+  const targetLv = b.level + 1;
+  const duration = constructionTime(b.type, targetLv);
+  deducted.buildings[idx] = {
+    ...deducted.buildings[idx],
+    isUnderConstruction: true,
+    constructionEndsAt: duration > 0 ? Date.now() + duration * 1000 : null,
+    constructionWorkerID: null,
+    targetLevel: targetLv,
+  };
   return deducted;
 }
 
@@ -628,6 +688,7 @@ export function trainWorker(state: GameState): GameState | null {
     isTraining: true,
     trainingEndDate: new Date(Date.now() + Workers.trainingTime * 1000).toISOString(),
     lastCollectionDate: new Date().toISOString(),
+    isConstructing: false,
   });
   return s;
 }
@@ -668,6 +729,59 @@ export function unassignWorker(state: GameState, workerID: string): GameState {
   if (wIdx >= 0) {
     s.workers[wIdx] = { ...s.workers[wIdx], assignedBuildingID: null };
   }
+  return s;
+}
+
+// MARK: - Construction Management
+export function assignWorkerToConstruction(state: GameState, buildingID: string, workerID: string): GameState | null {
+  const building = state.buildings.find(b => b.id === buildingID);
+  if (!building || !building.isUnderConstruction) return null;
+  if (building.constructionWorkerID) return null; // already has a worker
+
+  const worker = state.workers.find(w => w.id === workerID);
+  if (!worker || worker.isTraining || worker.isConstructing) return null;
+
+  const s = { ...state, buildings: [...state.buildings], workers: [...state.workers] };
+  const bIdx = s.buildings.findIndex(b => b.id === buildingID);
+  const wIdx = s.workers.findIndex(w => w.id === workerID);
+
+  // Halve the remaining construction time
+  const now = Date.now();
+  const remaining = building.constructionEndsAt ? Math.max(0, building.constructionEndsAt - now) : 0;
+  const newEndAt = now + Math.floor(remaining / 2);
+
+  s.buildings[bIdx] = { ...s.buildings[bIdx], constructionWorkerID: workerID, constructionEndsAt: newEndAt };
+  s.workers[wIdx] = { ...s.workers[wIdx], isConstructing: true };
+  return s;
+}
+
+export function skipConstructionWithProtein(state: GameState, buildingID: string): GameState | null {
+  const building = state.buildings.find(b => b.id === buildingID);
+  if (!building || !building.isUnderConstruction) return null;
+
+  const cost = skipConstructionCost(building.type, building.targetLevel);
+  if (state.protein < cost) return null;
+
+  const s = { ...state, buildings: [...state.buildings], workers: [...state.workers], protein: state.protein - cost };
+  const bIdx = s.buildings.findIndex(b => b.id === buildingID);
+
+  // Complete construction immediately
+  s.buildings[bIdx] = {
+    ...s.buildings[bIdx],
+    level: building.targetLevel,
+    isUnderConstruction: false,
+    constructionEndsAt: null,
+    constructionWorkerID: null,
+  };
+
+  // Free the construction worker
+  if (building.constructionWorkerID) {
+    const wIdx = s.workers.findIndex(w => w.id === building.constructionWorkerID);
+    if (wIdx >= 0) {
+      s.workers[wIdx] = { ...s.workers[wIdx], isConstructing: false };
+    }
+  }
+
   return s;
 }
 
@@ -751,13 +865,18 @@ export function loadMockGameState(): GameState {
   const kkId = Crypto.randomUUID();
   const workerId = Crypto.randomUUID();
 
+  const mkBuilding = (id: string, type: BuildingType, level: number, currentStorage: number, assignedWorkerID: string | null, position: { row: number; col: number }) => ({
+    id, type, level, currentStorage, assignedWorkerID, isDecayed: false, position,
+    isUnderConstruction: false, constructionEndsAt: null, constructionWorkerID: null, targetLevel: level,
+  });
+
   mock.buildings = [
-    { id: rhId, type: BuildingType.rathaus, level: 2, currentStorage: 0, assignedWorkerID: null, isDecayed: false, position: { row: 7, col: 7 } },
-    { id: kkId, type: BuildingType.kornkammer, level: 2, currentStorage: 45, assignedWorkerID: workerId, isDecayed: false, position: { row: 6, col: 6 } },
-    { id: Crypto.randomUUID(), type: BuildingType.holzfaeller, level: 1, currentStorage: 120, assignedWorkerID: null, isDecayed: false, position: { row: 6, col: 7 } },
-    { id: Crypto.randomUUID(), type: BuildingType.feld, level: 1, currentStorage: 60, assignedWorkerID: null, isDecayed: false, position: { row: 7, col: 6 } },
-    { id: Crypto.randomUUID(), type: BuildingType.holzlager, level: 1, currentStorage: 0, assignedWorkerID: null, isDecayed: false, position: { row: 7, col: 8 } },
-    { id: Crypto.randomUUID(), type: BuildingType.kaserne, level: 1, currentStorage: 0, assignedWorkerID: null, isDecayed: false, position: { row: 8, col: 7 } },
+    mkBuilding(rhId,             BuildingType.rathaus,    2, 0,   null,     { row: 7, col: 7 }),
+    mkBuilding(kkId,             BuildingType.kornkammer, 2, 45,  workerId, { row: 6, col: 6 }),
+    mkBuilding(Crypto.randomUUID(), BuildingType.holzfaeller, 1, 120, null, { row: 6, col: 7 }),
+    mkBuilding(Crypto.randomUUID(), BuildingType.feld,    1, 60,  null,     { row: 7, col: 6 }),
+    mkBuilding(Crypto.randomUUID(), BuildingType.holzlager, 1, 0,  null,    { row: 7, col: 8 }),
+    mkBuilding(Crypto.randomUUID(), BuildingType.kaserne, 1, 0,   null,     { row: 8, col: 7 }),
   ];
 
   mock.workers = [{
@@ -769,6 +888,7 @@ export function loadMockGameState(): GameState {
     isTraining: false,
     trainingEndDate: null,
     lastCollectionDate: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+    isConstructing: false,
   }];
 
   mock.zones = makeDefaultZones();

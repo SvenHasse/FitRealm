@@ -127,6 +127,7 @@ function WorkerRow({ worker }: { worker: Worker }) {
     [WorkerStatus.idle]: '#FFEB3B',
     [WorkerStatus.training]: '#42A5F5',
     [WorkerStatus.hungry]: '#F44336',
+    [WorkerStatus.constructing]: '#FF9800',
   };
   const statusColor = statusColorMap[status];
 
@@ -151,6 +152,7 @@ function WorkerRow({ worker }: { worker: Worker }) {
         statusLabel = t('workerSheet.statusTraining');
       }
       break;
+    case WorkerStatus.constructing: statusLabel = t('workerSheet.statusConstructing'); break;
     case WorkerStatus.hungry: statusLabel = t('workerSheet.statusHungry'); break;
   }
 
@@ -170,6 +172,9 @@ function WorkerRow({ worker }: { worker: Worker }) {
         <TouchableOpacity onPress={() => store.unassignWorker(worker.id)}>
           <Ionicons name="close-circle-outline" size={18} color="rgba(244,67,54,0.6)" />
         </TouchableOpacity>
+      )}
+      {status === WorkerStatus.constructing && (
+        <Ionicons name={"construct-outline" as any} size={18} color="#FF9800" />
       )}
     </View>
   );

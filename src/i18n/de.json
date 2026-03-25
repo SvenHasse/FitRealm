@@ -167,6 +167,7 @@
     "statusIdle": "Untätig",
     "statusTraining": "Ausbildung",
     "statusTrainingTime": "Ausbildung: {{time}}",
+    "statusConstructing": "🏗️ Auf Baustelle",
     "statusHungry": "Hungrig",
     "levelLabel": "Stufe {{level}}"
   },
@@ -242,6 +243,17 @@
       "worker_unassigned": "Zugewiesener Arbeiter kehrt zum Leerlauf zurück.",
       "pending_collected": "Ausstehende Ressourcen werden vor dem Verkauf gesammelt."
     }
+  },
+  "construction": {
+    "inProgress": "Im Bau",
+    "upgrading": "Wird aufgerüstet",
+    "finishedIn": "Fertig in {{time}}",
+    "complete": "Fertig!",
+    "assignWorker": "Beschleunigen (÷2)",
+    "workerActive": "Arbeiter auf Baustelle",
+    "skipWithProtein": "Sofort fertigstellen ({{cost}} Protein)",
+    "notEnoughProtein": "Nicht genug Protein",
+    "workerOnSite": "{{name}} arbeitet"
   },
   "resources": {
     "muskelmasse": "Muskelmasse",
