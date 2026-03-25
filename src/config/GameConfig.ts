@@ -316,7 +316,7 @@ export function rathausRequirement(type: BuildingType): number {
     // Rathaus L5 — endgame
     case BuildingType.stammeshaus:   return 5;
     // Rathaus L2 — Stall
-    case BuildingType.stall:         return 2;
+    case BuildingType.stall:         return 1;
     // Noch nicht freigeschalten (Phase 5)
     case BuildingType.wachturm:      return 99;
     case BuildingType.mauer:         return 99;

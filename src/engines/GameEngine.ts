@@ -18,6 +18,7 @@ import {
   getTotalStorageCap, storageBuildingResource, getStorageBonusArray,
   constructionTime, skipConstructionCost,
 } from '../config/GameConfig';
+import { ANIMAL_CONFIGS } from '../config/EntityConfig';
 
 const STATE_KEY = 'fitrealmGameState';
 
@@ -153,7 +154,19 @@ export function processTick(state: GameState): GameState {
     b.isDecayed = isDecayed;
     const rate = hourlyProductionRate(b);
     if (rate > 0) {
-      const produced = rate * (elapsed / 3600.0) * decayMult;
+      // Animal production bonus
+      let animalMult = 1.0;
+      const assignedAnimal = s.animals.find(a => {
+        if (a.assignment.type !== 'building') return false;
+        return (a.assignment as { type: 'building'; buildingId: string }).buildingId === b.id;
+      });
+      if (assignedAnimal) {
+        const animalCfg = ANIMAL_CONFIGS[assignedAnimal.type];
+        if (animalCfg.buildingBonus.bonusType === 'production' || animalCfg.buildingBonus.bonusType === 'global') {
+          animalMult = 1.0 + animalCfg.buildingBonus.bonusPercent / 100;
+        }
+      }
+      const produced = rate * (elapsed / 3600.0) * decayMult * animalMult;
       const cap = buildingStorageCap(b, s.buildings);
       b.currentStorage = Math.min(b.currentStorage + produced, cap);
     }

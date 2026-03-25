@@ -195,11 +195,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   buildBuilding(type, position) {
-    const result = GE.buildBuilding(get().gameState, type, position);
+    const prevState = get().gameState;
+    const isFirstStall = type === BuildingType.stall &&
+      !prevState.buildings.some(b => b.type === BuildingType.stall);
+
+    const result = GE.buildBuilding(prevState, type, position);
     if (!result) return false;
-    set({ gameState: result, storageCap: getTotalStorageCap(result.buildings) });
-    GE.saveGameState(result);
-    _syncAllCurrencies(result);
+
+    // Gift Erntehuhn when the first stall is placed
+    let finalState = result;
+    if (isFirstStall) {
+      const erntehuhn: Animal = {
+        id: `animal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
+        type: 'erntehuhn',
+        name: ANIMAL_CONFIGS['erntehuhn'].name,
+        rarity: 'common',
+        assignment: { type: 'idle' },
+        obtainedAt: Date.now(),
+      };
+      finalState = { ...result, animals: [...result.animals, erntehuhn] };
+    }
+
+    set({ gameState: finalState, storageCap: getTotalStorageCap(finalState.buildings) });
+    GE.saveGameState(finalState);
+    _syncAllCurrencies(finalState);
     return true;
   },
 

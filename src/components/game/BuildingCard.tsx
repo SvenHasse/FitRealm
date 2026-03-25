@@ -102,6 +102,7 @@ export function computeBenefitLines(type: BuildingType): BenefitLine[] {
     case BuildingType.bibliothek:    return [{ iconName: 'school',             iconColor: '#5C8A6A', text: 'Forschung' }];
     case BuildingType.marktplatz:    return [{ iconName: 'swap-horizontal',    iconColor: '#FF7043', text: 'Tauschen' }];
     case BuildingType.stammeshaus:   return [{ iconName: 'home-group',         iconColor: '#2196F3', text: 'Stammesbonus' }];
+    case BuildingType.stall:         return [{ iconName: 'paw',                iconColor: '#C4934A', text: '1-5 Tier-Slots' }];
     default:                         return [];
   }
 }
