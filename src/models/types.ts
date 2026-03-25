@@ -227,11 +227,16 @@ export interface GridPosition {
 export interface Building {
   id: string;
   type: BuildingType;
-  level: number; // 1–5
+  level: number; // 0 while under initial construction, 1–5 when active
   currentStorage: number;
   assignedWorkerID: string | null;
   isDecayed: boolean;
   position: GridPosition;
+  // Construction state
+  isUnderConstruction: boolean;
+  constructionEndsAt: number | null; // Unix timestamp ms
+  constructionWorkerID: string | null; // Worker ID speeding up construction
+  targetLevel: number; // level when done (1 for new, currentLevel+1 for upgrade)
 }
 
 export function buildingStorageFraction(building: Building, maxStorage: number): number {
@@ -245,6 +250,7 @@ export enum WorkerStatus {
   idle = 'idle',
   training = 'training',
   hungry = 'hungry',
+  constructing = 'constructing', // Worker is assigned to a building site
 }
 
 export interface Worker {
@@ -256,12 +262,14 @@ export interface Worker {
   isTraining: boolean;
   trainingEndDate: string | null; // ISO date string
   lastCollectionDate: string; // ISO date string
+  isConstructing: boolean; // Worker is on a construction site
 }
 
 export function workerStatus(worker: Worker): WorkerStatus {
   if (worker.isTraining) return WorkerStatus.training;
-  if (!worker.isActive && !worker.isTraining) return WorkerStatus.hungry;
-  if (worker.isActive && worker.assignedBuildingID != null) return WorkerStatus.active;
+  if (worker.isConstructing) return WorkerStatus.constructing;
+  if (!worker.isActive) return WorkerStatus.hungry;
+  if (worker.assignedBuildingID != null) return WorkerStatus.active;
   return WorkerStatus.idle;
 }
 

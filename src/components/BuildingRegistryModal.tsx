@@ -146,13 +146,19 @@ function BuildingRow({
       <View style={styles.rowInfo}>
         <View style={styles.nameRow}>
           <Text style={styles.buildingName}>{t(`buildings.${building.type}`)}</Text>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>
-              {t('common.levelShort', { level: building.level })}
-            </Text>
-          </View>
+          {building.isUnderConstruction ? (
+            <View style={[styles.levelBadge, { backgroundColor: 'rgba(245,166,35,0.25)', borderWidth: 1, borderColor: 'rgba(245,166,35,0.5)' }]}>
+              <Text style={[styles.levelText, { color: '#F5A623' }]}>🏗️ L{building.targetLevel}</Text>
+            </View>
+          ) : (
+            <View style={styles.levelBadge}>
+              <Text style={styles.levelText}>
+                {t('common.levelShort', { level: building.level })}
+              </Text>
+            </View>
+          )}
         </View>
-        {produces && (
+        {!building.isUnderConstruction && produces && (
           <View style={styles.storageWrap}>
             <View style={styles.progressBg}>
               <View

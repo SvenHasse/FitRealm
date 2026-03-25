@@ -167,6 +167,7 @@
     "statusIdle": "Idle",
     "statusTraining": "Training",
     "statusTrainingTime": "Training: {{time}}",
+    "statusConstructing": "🏗️ On Site",
     "statusHungry": "Hungry",
     "levelLabel": "Level {{level}}"
   },
@@ -242,6 +243,17 @@
       "worker_unassigned": "Assigned worker will return to idle.",
       "pending_collected": "Pending resources will be collected before sale."
     }
+  },
+  "construction": {
+    "inProgress": "Under Construction",
+    "upgrading": "Upgrading",
+    "finishedIn": "Done in {{time}}",
+    "complete": "Ready!",
+    "assignWorker": "Speed Up (÷2)",
+    "workerActive": "Worker on site",
+    "skipWithProtein": "Finish instantly ({{cost}} Protein)",
+    "notEnoughProtein": "Not enough Protein",
+    "workerOnSite": "{{name}} is working"
   },
   "resources": {
     "muskelmasse": "Muskelmasse",
