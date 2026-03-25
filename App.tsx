@@ -76,6 +76,7 @@ function TabNavigator() {
 
 export default function App() {
   const initialize = useGameStore(s => s.initialize);
+  const initializeWaveSystem = useGameStore(s => s.initializeWaveSystem);
 
   // Pre-load ALL icon fonts before rendering anything.
   // Without this, icons on the first screen can render as "?" on cold start.
@@ -85,7 +86,9 @@ export default function App() {
   });
 
   useEffect(() => {
-    initialize();
+    initialize().then(() => {
+      initializeWaveSystem();
+    });
   }, []);
 
   if (!fontsLoaded) {
