@@ -74,12 +74,12 @@ export function useWorkoutReward(
     if (reward.streakToken) addStreakTokens(1);
     setLastWorkoutDate(new Date());
 
-    // Sync to engine store so RealmScreen / TopResourceBar also updates
+    // Sync to engine store — currency store already updated above, just mirror it
     const cs = useGameStore.getState();
     patchGameStateCurrencies({
-      muskelmasse: cs.muskelmasse + reward.totalMuskelmasse,
-      protein: cs.protein + (reward.protein > 0 ? reward.protein : 0),
-      streakTokens: cs.streakTokens + (reward.streakToken ? 1 : 0),
+      muskelmasse:  cs.muskelmasse,
+      protein:      cs.protein,
+      streakTokens: cs.streakTokens,
       currentStreak: cs.currentStreak,
     });
 

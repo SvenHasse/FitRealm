@@ -174,6 +174,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!result) return false;
     set({ gameState: result, storageCap: getTotalStorageCap(result.buildings) });
     GE.saveGameState(result);
+    _syncAllCurrencies(result);
     return true;
   },
 
@@ -182,6 +183,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!result) return false;
     set({ gameState: result, storageCap: getTotalStorageCap(result.buildings) });
     GE.saveGameState(result);
+    _syncAllCurrencies(result);
     return true;
   },
 
@@ -211,6 +213,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!result) return null;
     set({ gameState: result.newState, storageCap: getTotalStorageCap(result.newState.buildings) });
     GE.saveGameState(result.newState);
+    _syncAllCurrencies(result.newState);
     return result.refund;
   },
 
@@ -413,6 +416,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const updatedGs = { ...gs, muskelmasse: Math.max(0, gs.muskelmasse - cost) };
       set({ gameState: updatedGs });
       GE.saveGameState(updatedGs);
+      _syncAllCurrencies(updatedGs);
     }
   },
 
