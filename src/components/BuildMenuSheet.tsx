@@ -155,10 +155,10 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
                 <Text style={styles.costText}>{costString(cost)}</Text>
               )}
 
-              {/* Case 2: next slot hint */}
+              {/* Case 2: next slot hint — ordinal = existing+1 (e.g. "3. ab Rathaus L4") */}
               {slotLocked && nextAlloc !== null && (
                 <Text style={styles.nextSlotHint}>
-                  {t('buildMenu.nextSlotAt', { level: nextAlloc })}
+                  {t('buildMenu.nextSlotAt', { ordinal: existing + 1, level: nextAlloc })}
                 </Text>
               )}
 

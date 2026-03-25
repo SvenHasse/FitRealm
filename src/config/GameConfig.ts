@@ -280,20 +280,26 @@ export function sellValue(type: BuildingType, currentLevel: number): ResourceCos
 // MARK: - Rathaus Requirements
 export function rathausRequirement(type: BuildingType): number {
   switch (type) {
-    case BuildingType.rathaus: return 1;
-    case BuildingType.kornkammer: return 1;
-    case BuildingType.holzfaeller: return 1;
-    case BuildingType.feld: return 1;
-    case BuildingType.holzlager: return 1;
+    // Available from start (Rathaus L1)
+    case BuildingType.rathaus:       return 1;
+    case BuildingType.holzfaeller:   return 1;
+    case BuildingType.feld:          return 1;
+    case BuildingType.kornkammer:    return 1;
+    case BuildingType.holzlager:     return 1;
     case BuildingType.nahrungslager: return 1;
-    case BuildingType.steinbruch: return 2;
-    case BuildingType.steinlager: return 2;
-    case BuildingType.proteinfarm: return 2;
-    case BuildingType.kaserne: return 2;
-    case BuildingType.tempel: return 3;
-    case BuildingType.bibliothek: return 3;
-    case BuildingType.marktplatz: return 3;
-    case BuildingType.stammeshaus: return 5;
+    // Rathaus L2
+    case BuildingType.kaserne:       return 2;
+    case BuildingType.steinbruch:    return 2;
+    case BuildingType.steinlager:    return 2;
+    // Rathaus L3 — mid-game
+    case BuildingType.tempel:        return 3;
+    case BuildingType.bibliothek:    return 3;
+    case BuildingType.marktplatz:    return 3;
+    // Rathaus L4
+    case BuildingType.proteinfarm:   return 4;
+    // Rathaus L5 — endgame
+    case BuildingType.stammeshaus:   return 5;
+    default:                         return 1;
   }
 }
 
