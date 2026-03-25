@@ -1,5 +1,5 @@
 // BuildingCardFront.tsx
-// Front face of the flip building card.
+// Front face of the flip building card — single-column, clean layout.
 
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
@@ -18,14 +18,13 @@ interface Props {
   iconColor: string;
   buildTimeSecs: number;
   hasIdleWorker: boolean;
-  hasAnyWorker: boolean;
   onFlip: () => void;
   onBuild: () => void;
 }
 
 function BuildingCardFront({
   type, status, costLines, benefitLines, rathausReq, iconName, iconColor,
-  buildTimeSecs, hasIdleWorker, hasAnyWorker, onFlip, onBuild,
+  buildTimeSecs, hasIdleWorker, onFlip, onBuild,
 }: Props) {
   const canBuild      = status === 'canBuild';
   const rathausLocked = status === 'rathausLocked';
@@ -34,107 +33,102 @@ function BuildingCardFront({
   const slotLocked    = status === 'slotLocked';
   const dimmed        = rathausLocked || atMax || slotLocked;
 
-  const cardBorderColor =
+  const cardBorder =
     canBuild     ? `${iconColor}66` :
-    tooExpensive ? 'rgba(239,83,80,0.35)' :
+    tooExpensive ? 'rgba(239,83,80,0.4)' :
                    'rgba(255,255,255,0.07)';
 
-  // Build button
-  let btnLabel    = '🔨 Bauen';
+  // Button
+  let btnLabel    = 'Bauen';
   let btnDisabled = false;
   let btnOpacity  = 1.0;
-  if (tooExpensive)  { btnLabel = '❌ Zu teuer';       btnDisabled = true; btnOpacity = 0.4; }
-  if (rathausLocked) { btnLabel = '🔒 Gesperrt';       btnDisabled = true; btnOpacity = 0.3; }
-  if (atMax)         { btnLabel = '✓ Max erreicht';    btnDisabled = true; btnOpacity = 0.4; }
-  if (slotLocked)    { btnLabel = '🔒 Slot gesperrt';  btnDisabled = true; btnOpacity = 0.4; }
+  let btnIcon: string = 'hammer';
+  if (tooExpensive)  { btnLabel = 'Zu teuer';      btnIcon = 'close-circle-outline'; btnDisabled = true; btnOpacity = 0.4; }
+  if (rathausLocked) { btnLabel = 'Gesperrt';      btnIcon = 'lock-outline';         btnDisabled = true; btnOpacity = 0.35; }
+  if (atMax)         { btnLabel = 'Max erreicht';  btnIcon = 'check-circle-outline'; btnDisabled = true; btnOpacity = 0.4; }
+  if (slotLocked)    { btnLabel = 'Slot gesperrt'; btnIcon = 'lock-outline';         btnDisabled = true; btnOpacity = 0.4; }
 
   return (
-    <View style={[styles.card, { borderColor: cardBorderColor }]}>
+    <View style={[styles.card, { borderColor: cardBorder }]}>
 
-      {/* Row 1: info button (ℹ) + icon */}
-      <View style={styles.topRow}>
-        <TouchableOpacity style={styles.infoBtn} onPress={onFlip} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-          <Text style={styles.infoBtnText}>ℹ</Text>
+      {/* Header: info button (left) + building icon (right) */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.infoBtn}
+          onPress={onFlip}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MaterialCommunityIcons name="information-outline" size={15} color="rgba(255,255,255,0.55)" />
         </TouchableOpacity>
-        <View style={[styles.iconWrap, { backgroundColor: `${iconColor}20` }]}>
+        <View style={[styles.iconWrap, { backgroundColor: `${iconColor}22` }]}>
           <MaterialCommunityIcons
             name={iconName as any}
-            size={26}
-            color={dimmed ? 'rgba(255,255,255,0.25)' : iconColor}
+            size={28}
+            color={dimmed ? 'rgba(255,255,255,0.2)' : iconColor}
           />
         </View>
       </View>
 
       {/* Building name */}
-      <Text style={[styles.name, dimmed && { opacity: 0.4 }]} numberOfLines={1}>
+      <Text style={[styles.name, dimmed && styles.dimmedText]} numberOfLines={1}>
         {buildingDisplayName(type)}
       </Text>
 
-      {/* Costs box + Benefits box side by side */}
-      <View style={styles.boxRow}>
+      <View style={styles.divider} />
 
-        {/* Costs */}
-        <View style={[
-          styles.box, styles.costsBox,
-          tooExpensive && { borderColor: 'rgba(239,83,80,0.4)' },
-          dimmed && { opacity: 0.45 },
-        ]}>
-          {rathausLocked ? (
-            <Text style={styles.rathausHint}>🏛️ L{rathausReq}</Text>
-          ) : costLines.length === 0 ? (
-            <Text style={styles.mutedText}>—</Text>
-          ) : (
-            costLines.map((line, i) => (
-              <View key={i} style={styles.costLineRow}>
-                <Text style={styles.lineEmoji}>{line.emoji}</Text>
-                <Text
-                  style={[styles.costValue, !line.ok && styles.costRed]}
-                  numberOfLines={1}
-                >
-                  {line.text}
-                </Text>
-                {!line.ok && (
-                  <Text style={styles.costHave} numberOfLines={1}> /{line.have}</Text>
-                )}
-              </View>
-            ))
-          )}
+      {/* Costs / locked state */}
+      {rathausLocked ? (
+        <View style={styles.lockedRow}>
+          <MaterialCommunityIcons name="lock-outline" size={13} color="#F5A623" />
+          <Text style={styles.lockedText}> Rathaus L{rathausReq}</Text>
         </View>
-
-        {/* Benefits */}
-        <View style={[styles.box, styles.benefitsBox, dimmed && { opacity: 0.4 }]}>
-          {benefitLines.map((line, i) => (
-            <View key={i} style={styles.benefitLineRow}>
-              <Text style={styles.lineEmoji}>{line.emoji}</Text>
-              <Text style={styles.benefitValue} numberOfLines={1}>{line.text}</Text>
-            </View>
-          ))}
-          {buildTimeSecs > 0 && (
-            <View style={styles.benefitLineRow}>
-              <Text style={styles.lineEmoji}>⏱</Text>
-              <Text style={[styles.benefitValue, { color: '#808898' }]} numberOfLines={1}>
-                {formatDuration(buildTimeSecs)}
-                {hasIdleWorker ? ` → ${formatDuration(Math.floor(buildTimeSecs / 2))}` : ''}
+      ) : atMax ? (
+        <View style={styles.lockedRow}>
+          <MaterialCommunityIcons name="check-all" size={13} color="rgba(255,255,255,0.35)" />
+          <Text style={[styles.lockedText, { color: 'rgba(255,255,255,0.35)' }]}> Max erreicht</Text>
+        </View>
+      ) : slotLocked ? (
+        <View style={styles.lockedRow}>
+          <MaterialCommunityIcons name="lock-outline" size={13} color="#F5A623" />
+          <Text style={styles.lockedText}> Slot gesperrt</Text>
+        </View>
+      ) : costLines.length === 0 ? (
+        <Text style={styles.mutedText}>Kostenlos</Text>
+      ) : (
+        <View style={styles.costsWrap}>
+          {costLines.map((line, i) => (
+            <View key={i} style={styles.costChip}>
+              <MaterialCommunityIcons
+                name={line.iconName as any}
+                size={12}
+                color={line.ok ? line.iconColor : '#ef5350'}
+              />
+              <Text style={[styles.chipText, !line.ok && styles.chipTextRed]}>
+                {line.text}
+                {!line.ok ? `(${line.have})` : ''}
               </Text>
             </View>
-          )}
-          {buildTimeSecs > 0 && !hasAnyWorker && (
-            <Text style={styles.noWorkerHint} numberOfLines={1}>Keine Worker</Text>
-          )}
-          {buildTimeSecs > 0 && hasAnyWorker && !hasIdleWorker && (
-            <Text style={styles.busyWorkerHint} numberOfLines={1}>Worker beschäftigt</Text>
-          )}
+          ))}
         </View>
-      </View>
+      )}
+
+      {/* Main benefit */}
+      {!atMax && !slotLocked && !rathausLocked && benefitLines.length > 0 && (
+        <View style={styles.benefitRow}>
+          <MaterialCommunityIcons name={benefitLines[0].iconName as any} size={13} color={benefitLines[0].iconColor} />
+          <Text style={styles.benefitText} numberOfLines={1}> {benefitLines[0].text}</Text>
+        </View>
+      )}
 
       {/* Build button */}
       <TouchableOpacity
-        style={[styles.buildBtn, { opacity: btnOpacity }]}
+        style={[styles.btn, { opacity: btnOpacity }]}
         onPress={onBuild}
         disabled={btnDisabled}
         activeOpacity={0.75}
       >
-        <Text style={styles.buildBtnText}>{btnLabel}</Text>
+        <MaterialCommunityIcons name={btnIcon as any} size={13} color="#F5A623" />
+        <Text style={styles.btnText}> {btnLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -143,70 +137,79 @@ function BuildingCardFront({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: '#1C1F2E',
+    backgroundColor: '#1A1D2C',
     borderRadius: 14,
     borderWidth: 1.5,
-    padding: 10,
-    gap: 7,
+    padding: 11,
+    gap: 8,
   },
-  topRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   infoBtn: {
-    width: 24, height: 24,
-    backgroundColor: 'rgba(255,255,255,0.09)',
-    borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
+    width: 26, height: 26,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 13,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
-  infoBtnText: { fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   iconWrap: {
-    width: 40, height: 40,
-    borderRadius: 10,
+    width: 44, height: 44,
+    borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
   },
   name: {
-    fontSize: 13, fontWeight: '700', color: '#d0d4e0',
+    fontSize: 14, fontWeight: '700', color: '#d0d4e0',
   },
-  boxRow: {
+  dimmedText: { opacity: 0.38 },
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.07)' },
+
+  // Locked / max state
+  lockedRow: { flexDirection: 'row', alignItems: 'center' },
+  lockedText: { fontSize: 12, color: '#F5A623', fontWeight: '600' },
+  mutedText:  { fontSize: 12, color: '#505870' },
+
+  // Cost chips
+  costsWrap: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
-    flex: 1,
   },
-  box: {
-    flex: 1,
-    borderRadius: 8, borderWidth: 1,
-    padding: 6,
+  costChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 6,
+    paddingHorizontal: 5, paddingVertical: 3,
     gap: 3,
   },
-  costsBox: {
-    backgroundColor: 'rgba(239,83,80,0.06)',
-    borderColor: 'rgba(239,83,80,0.18)',
-  },
-  benefitsBox: {
-    backgroundColor: 'rgba(76,175,80,0.06)',
-    borderColor: 'rgba(76,175,80,0.18)',
-  },
-  costLineRow:    { flexDirection: 'row', alignItems: 'center' },
-  benefitLineRow: { flexDirection: 'row', alignItems: 'center' },
-  lineEmoji:    { fontSize: 10, marginRight: 2 },
-  costValue:    { fontSize: 10, color: '#d0d4e0', flex: 1 },
-  costRed:      { color: '#ef5350' },
-  costHave:     { fontSize: 9, color: '#606880' },
-  benefitValue: { fontSize: 10, color: '#b0c4b0', flex: 1 },
-  rathausHint:  { fontSize: 11, color: '#F5A623', fontWeight: '600' },
-  mutedText:    { fontSize: 10, color: '#606880' },
-  noWorkerHint:   { fontSize: 8, color: 'rgba(255,255,255,0.3)', marginTop: 2 },
-  busyWorkerHint: { fontSize: 8, color: 'rgba(245,166,35,0.6)', marginTop: 2 },
-  buildBtn: {
-    backgroundColor: '#3D2C1E',
-    borderRadius: 10, borderWidth: 1.5, borderColor: '#F5A623',
-    paddingVertical: 8,
+  chipText:    { fontSize: 11, color: '#c0c4d4', fontWeight: '600' },
+  chipTextRed: { color: '#ef5350' },
+
+  // Benefit
+  benefitRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(76,175,80,0.07)',
+    borderRadius: 7,
+    paddingHorizontal: 7, paddingVertical: 4,
   },
-  buildBtnText: { fontSize: 11, fontWeight: '700', color: '#F5A623' },
+  benefitText: { fontSize: 12, color: '#a0c8a0', fontWeight: '600', flex: 1 },
+
+  // Button
+  btn: {
+    flexDirection: 'row',
+    backgroundColor: '#2C1F0E',
+    borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#F5A623',
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  btnText: { fontSize: 12, fontWeight: '700', color: '#F5A623' },
 });
 
 export default memo(BuildingCardFront);
