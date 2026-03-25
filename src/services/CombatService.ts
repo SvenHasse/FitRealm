@@ -14,11 +14,13 @@ export class CombatService {
     wave: MonsterWave,
     animals: Animal[],
     buildings: Building[],
+    wallHP: { current: number; max: number } | null = null,
   ): {
     result: WaveResult;
     damages: DamageEffect[];
     loot: LootDrop[];
     effectiveAK: number;
+    wallHPUsed: number;
   } {
     // Step 1: Start with base AK
     let effectiveAK = wave.totalAttackPower;
@@ -56,6 +58,20 @@ export class CombatService {
       outcome = 'partial';
     } else {
       outcome = 'overrun';
+    }
+
+    // Step 3b: Mauer-Absorption bei Schaden
+    let wallHPUsed = 0;
+    if (outcome === 'partial' || outcome === 'overrun') {
+      if (wallHP && wallHP.current > 0) {
+        const excess = effectiveAK - adjustedTotalVP;
+        wallHPUsed = Math.min(wallHP.current, excess);
+        const remainingDamage = excess - wallHPUsed;
+        // Neu berechnen ob Schaden nach Mauer-Absorption noch relevant ist
+        if (remainingDamage <= 0) {
+          outcome = 'defended'; // Mauer hat alles abgefangen!
+        }
+      }
     }
 
     // Step 4: Calculate damages
@@ -121,7 +137,7 @@ export class CombatService {
       monsterAP: effectiveAK,
     };
 
-    return { result, damages, loot, effectiveAK };
+    return { result, damages, loot, effectiveAK, wallHPUsed };
   }
 
   private _calculateDamages(

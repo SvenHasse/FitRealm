@@ -39,6 +39,7 @@ import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
 import WaveBanner from '../components/WaveBanner';
 import WaveResultSheet from '../components/WaveResultSheet';
 import WaveDetailSheet from '../components/WaveDetailSheet';
+import EggHatchModal from '../components/EggHatchModal';
 
 const CELL_SIZE = 70;
 const GRID_SIZE = WorldConstants.gridSize;
@@ -97,6 +98,8 @@ export default function RealmScreen() {
   const clearCollectResult = useGameStore(s => s.clearCollectResult);
   const pendingWaveResult = useGameStore(s => s.pendingWaveResult);
   const clearPendingWaveResult = useGameStore(s => s.clearPendingWaveResult);
+  const pendingHatchResult = useGameStore(s => s.pendingHatchResult);
+  const clearPendingHatchResult = useGameStore(s => s.clearPendingHatchResult);
   const activeWave = gameState.activeWave;
 
   // Scroll refs for map navigation
@@ -230,6 +233,50 @@ export default function RealmScreen() {
       {/* HUD Top */}
       <View style={styles.hudTop}>
         <TopResourceBar onResourcePress={setSelectedResource} />
+
+        {/* Mauer-HP-Leiste */}
+        {gameState.wallHP && gameState.wallHP.max > 0 && (() => {
+          const pct = gameState.wallHP.current / gameState.wallHP.max;
+          const hpColor = pct > 0.5 ? '#4CAF50' : pct > 0.25 ? '#FF9800' : '#F44336';
+          return (
+            <TouchableOpacity
+              style={styles.wallHPBar}
+              onPress={() => {
+                if (!gameState.wallHP) return;
+                const missingHP = gameState.wallHP.max - gameState.wallHP.current;
+                if (missingHP <= 0) return;
+                const mauerBuilding = gameState.buildings.find(b => b.type === 'mauer' && b.level >= 1 && !b.isUnderConstruction);
+                if (!mauerBuilding) return;
+                const repairCost = Math.ceil(missingHP * 20 / gameState.wallHP.max * mauerBuilding.level);
+                const { Alert: RNAlert } = require('react-native');
+                RNAlert.alert(
+                  'Mauer reparieren',
+                  `Reparaturkosten: ${repairCost} Holz\nAktuell: ${Math.floor(gameState.wood)} Holz`,
+                  [
+                    { text: 'Abbrechen', style: 'cancel' },
+                    {
+                      text: `Reparieren (${repairCost} Holz)`,
+                      onPress: () => {
+                        if (gameState.wood >= repairCost) {
+                          store.repairWall();
+                        } else {
+                          RNAlert.alert('Nicht genug Holz', `Du brauchst ${repairCost} Holz.`);
+                        }
+                      },
+                    },
+                  ],
+                );
+              }}
+            >
+              <Text style={styles.wallHPLabel}>🧱</Text>
+              <View style={styles.wallHPTrack}>
+                <View style={[styles.wallHPFill, { width: `${pct * 100}%` as any, backgroundColor: hpColor }]} />
+              </View>
+              <Text style={styles.wallHPText}>{gameState.wallHP.current}/{gameState.wallHP.max}</Text>
+            </TouchableOpacity>
+          );
+        })()}
+
         {activeWave && (activeWave.status === 'approaching' || activeWave.status === 'active') && (
           <WaveBanner
             wave={activeWave}
@@ -374,6 +421,16 @@ export default function RealmScreen() {
           wave={activeWave}
           defense={store.calculateDefense()}
           onClose={() => setWaveDetailVisible(false)}
+        />
+      )}
+
+      {/* Egg Hatch Modal */}
+      {pendingHatchResult && (
+        <EggHatchModal
+          visible={!!pendingHatchResult}
+          animalType={pendingHatchResult.animalType}
+          rarity={pendingHatchResult.rarity}
+          onClose={clearPendingHatchResult}
         />
       )}
 
@@ -1056,4 +1113,17 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   toastText: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.8)' },
+  wallHPBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(26,26,46,0.88)', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 5,
+    marginTop: 4, marginHorizontal: 8,
+  },
+  wallHPLabel: { fontSize: 14 },
+  wallHPTrack: {
+    flex: 1, height: 7, backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 4, overflow: 'hidden',
+  },
+  wallHPFill: { height: '100%', borderRadius: 4 },
+  wallHPText: { fontSize: 11, color: 'rgba(255,255,255,0.6)', minWidth: 44, textAlign: 'right' },
 });

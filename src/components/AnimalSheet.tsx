@@ -8,7 +8,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGameStore } from '../store/useGameStore';
 import {
-  AppColors, Building, Animal, BuildingType,
+  AppColors, Building, Animal, BuildingType, AnimalEgg,
   buildingDisplayName,
 } from '../models/types';
 import { ANIMAL_CONFIGS, STALL_CONFIG } from '../config/EntityConfig';
@@ -41,10 +41,12 @@ export default function AnimalSheet({ stall, onClose }: Props) {
   const store = useGameStore();
   const { gameState } = store;
   const [collectionVisible, setCollectionVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<'animals' | 'eggs'>('animals');
 
   const stallLevel = stall.isUnderConstruction ? 0 : stall.level;
   const maxSlots = STALL_CONFIG.slotsPerLevel[Math.min(stallLevel, STALL_CONFIG.slotsPerLevel.length - 1)];
   const animals = gameState.animals;
+  const eggs = gameState.eggs;
 
   return (
     <ScrollView style={styles.sheet} contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: 32 }}>
@@ -69,50 +71,92 @@ export default function AnimalSheet({ stall, onClose }: Props) {
         </TouchableOpacity>
       </View>
 
+      {/* Tab-Switcher */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          onPress={() => setActiveTab('animals')}
+          style={[styles.tab, activeTab === 'animals' && styles.tabActive]}
+        >
+          <Text style={[styles.tabText, activeTab === 'animals' && styles.tabTextActive]}>
+            Tiere ({animals.length}/{maxSlots})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab('eggs')}
+          style={[styles.tab, activeTab === 'eggs' && styles.tabActive]}
+        >
+          <Text style={[styles.tabText, activeTab === 'eggs' && styles.tabTextActive]}>
+            Eier ({eggs.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Tier-Sammlung Sheet */}
       <AnimalCollectionSheet
         visible={collectionVisible}
         onClose={() => setCollectionVisible(false)}
       />
 
-      {/* Stall building visual */}
-      <View style={styles.stallVisual}>
-        <BuildingRenderer type="stall" level={Math.max(1, stallLevel) as any} size={60} />
-        {stall.isUnderConstruction && (
-          <View style={styles.constructionBadge}>
-            <MaterialCommunityIcons name="hammer-wrench" size={14} color={AppColors.gold} />
-            <Text style={styles.constructionText}>Im Bau</Text>
+      {activeTab === 'animals' && (
+        <>
+          {/* Stall building visual */}
+          <View style={styles.stallVisual}>
+            <BuildingRenderer type="stall" level={Math.max(1, stallLevel) as any} size={60} />
+            {stall.isUnderConstruction && (
+              <View style={styles.constructionBadge}>
+                <MaterialCommunityIcons name="hammer-wrench" size={14} color={AppColors.gold} />
+                <Text style={styles.constructionText}>Im Bau</Text>
+              </View>
+            )}
           </View>
-        )}
-      </View>
 
-      {/* Animals */}
-      {animals.length === 0 ? (
-        <EmptyStallHint />
-      ) : (
-        animals.map(animal => (
-          <AnimalCard
-            key={animal.id}
-            animal={animal}
-            stall={stall}
-            stallLevel={stallLevel}
-            gameState={gameState}
-          />
-        ))
+          {/* Animals */}
+          {animals.length === 0 ? (
+            <EmptyStallHint />
+          ) : (
+            animals.map(animal => (
+              <AnimalCard
+                key={animal.id}
+                animal={animal}
+                stall={stall}
+                stallLevel={stallLevel}
+                gameState={gameState}
+              />
+            ))
+          )}
+
+          {/* Empty slot hints */}
+          {Array.from({ length: Math.max(0, maxSlots - animals.length) }).map((_, i) => (
+            <EmptySlotCard key={`empty-${i}`} />
+          ))}
+
+          {stallLevel === 0 && (
+            <View style={styles.infoCard}>
+              <MaterialCommunityIcons name="information-outline" size={16} color="#607D8B" />
+              <Text style={styles.infoText}>
+                Dein Stall muss zuerst fertiggebaut werden, bevor du Tiere zuweisen kannst.
+              </Text>
+            </View>
+          )}
+        </>
       )}
 
-      {/* Empty slot hints */}
-      {Array.from({ length: Math.max(0, maxSlots - animals.length) }).map((_, i) => (
-        <EmptySlotCard key={`empty-${i}`} />
-      ))}
-
-      {stallLevel === 0 && (
-        <View style={styles.infoCard}>
-          <MaterialCommunityIcons name="information-outline" size={16} color="#607D8B" />
-          <Text style={styles.infoText}>
-            Dein Stall muss zuerst fertiggebaut werden, bevor du Tiere zuweisen kannst.
-          </Text>
-        </View>
+      {activeTab === 'eggs' && (
+        <>
+          {eggs.length === 0 ? (
+            <View style={styles.emptyHint}>
+              <Text style={{ fontSize: 32 }}>🥚</Text>
+              <Text style={styles.emptyHintTitle}>Noch keine Eier</Text>
+              <Text style={styles.emptyHintText}>
+                Erhalte Eier als Loot aus Monsterkämpfen oder durch Streaks.
+              </Text>
+            </View>
+          ) : (
+            eggs.map(egg => (
+              <EggCard key={egg.id} egg={egg} />
+            ))
+          )}
+        </>
       )}
     </ScrollView>
   );
@@ -305,6 +349,52 @@ function EmptySlotCard() {
   );
 }
 
+function EggCard({ egg }: { egg: AnimalEgg }) {
+  const rarityColor = RARITY_COLORS[egg.rarity] ?? '#9E9E9E';
+  const progress = egg.workoutsRequired > 0 ? egg.workoutsCompleted / egg.workoutsRequired : 0;
+  const isEpicOrLegendary = egg.rarity === 'epic' || egg.rarity === 'legendary';
+  const animalName = isEpicOrLegendary
+    ? '???'
+    : (ANIMAL_CONFIGS[egg.hatchesInto]?.name ?? egg.hatchesInto);
+
+  const rarityLabel = RARITY_LABELS[egg.rarity] ?? egg.rarity;
+
+  return (
+    <View style={[styles.eggCard, { borderColor: rarityColor }]}>
+      <View style={styles.eggHeader}>
+        <Text style={styles.eggEmoji}>🥚</Text>
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.eggTitle}>{rarityLabel}-Ei</Text>
+            <View style={[styles.rarityBadge, { backgroundColor: rarityColor + '30', borderColor: rarityColor }]}>
+              <Text style={[styles.rarityText, { color: rarityColor }]}>{rarityLabel}</Text>
+            </View>
+          </View>
+          <Text style={styles.eggAnimalName}>{animalName}</Text>
+        </View>
+      </View>
+
+      {/* Fortschrittsbalken */}
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${Math.min(progress * 100, 100)}%`, backgroundColor: rarityColor }]} />
+      </View>
+      <Text style={styles.progressText}>{egg.workoutsCompleted}/{egg.workoutsRequired} Workouts</Text>
+
+      {/* Hinweise */}
+      {egg.requiresMinHRmax !== null && (
+        <Text style={styles.eggHint}>
+          Nur Workouts mit mindestens {egg.requiresMinHRmax}% HRmax zählen!
+        </Text>
+      )}
+      {egg.requiresConsecutive && (
+        <Text style={styles.eggHintConsecutive}>
+          Aufeinanderfolgende Workouts nötig! Pausieren setzt den Fortschritt zurück.
+        </Text>
+      )}
+    </View>
+  );
+}
+
 function EmptyStallHint() {
   return (
     <View style={styles.emptyHint}>
@@ -400,4 +490,33 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(96,125,139,0.1)', borderRadius: 8, padding: 10, marginTop: 4,
   },
   infoText: { fontSize: 12, color: '#607D8B', flex: 1, lineHeight: 17 },
+  tabBar: {
+    flexDirection: 'row', borderRadius: 10, overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.05)', marginBottom: 12,
+  },
+  tab: {
+    flex: 1, paddingVertical: 9, alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: 'rgba(0,180,216,0.15)',
+    borderBottomWidth: 2, borderBottomColor: AppColors.teal,
+  },
+  tabText: { fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: '600' },
+  tabTextActive: { color: AppColors.teal },
+  eggCard: {
+    backgroundColor: '#252547', borderRadius: 12, borderWidth: 1.5,
+    padding: 12, marginBottom: 10, gap: 8,
+  },
+  eggHeader: { flexDirection: 'row', alignItems: 'center' },
+  eggEmoji: { fontSize: 28 },
+  eggTitle: { fontSize: 15, fontWeight: 'bold', color: '#fff' },
+  eggAnimalName: { fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  progressTrack: {
+    height: 6, backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3, overflow: 'hidden',
+  },
+  progressFill: { height: '100%', borderRadius: 3 },
+  progressText: { fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'right' },
+  eggHint: { fontSize: 11, color: '#FF9800', fontStyle: 'italic' },
+  eggHintConsecutive: { fontSize: 11, color: '#9C27B0', fontStyle: 'italic' },
 });

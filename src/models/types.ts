@@ -392,6 +392,18 @@ export interface GameState {
     biweeklyCount: number;
     biweeklyStart: number;
   };
+
+  // Mauer HP
+  wallHP: {
+    current: number;
+    max: number;
+  } | null;
+
+  // Pending hatch result (for animation)
+  pendingHatchResult: {
+    animalType: AnimalType;
+    rarity: AnimalRarity;
+  } | null;
 }
 
 export function gameStateRathausLevel(state: GameState): number {
@@ -450,6 +462,8 @@ export function createDefaultGameState(): GameState {
       biweeklyCount: 0,
       biweeklyStart: Date.now(),
     },
+    wallHP: null,
+    pendingHatchResult: null,
   };
 }
 
