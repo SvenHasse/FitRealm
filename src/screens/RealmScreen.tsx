@@ -328,35 +328,38 @@ function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey)
   return (
     <View style={styles.resourceBar}>
       <View style={styles.resourceRow}>
+        {/* Muskelmasse — uncapped */}
         <ResourcePill icon="barbell" iconColor={AppColors.gold}
           value={`${fmtNum(gs.muskelmasse, lang)}g`}
-          max={cap.muskelmasse} current={gs.muskelmasse} suffix="g"
           label={t('hud.muskel')} onPress={() => onResourcePress('muskelmasse')} lang={lang} />
         <View style={styles.divider} />
+        {/* Protein — uncapped */}
         <ResourcePill icon="medkit" iconColor="#00BCD4"
           value={`${fmtNum(gs.protein, lang)}`}
-          max={cap.protein} current={gs.protein}
           label={t('hud.protein')} onPress={() => onResourcePress('protein')} lang={lang} />
         <View style={styles.divider} />
+        {/* Streak tokens — uncapped */}
         <ResourcePill icon="flame" iconColor="#FF9800"
           value={`${fmtNum(gs.streakTokens, lang)}`}
-          max={cap.streakTokens} current={gs.streakTokens}
           label={t('hud.token')} onPress={() => onResourcePress('streakTokens')} lang={lang} />
       </View>
       <View style={[styles.resourceRow, { opacity: 0.9 }]}>
+        {/* Wood — capped */}
         <ResourcePill icon="hammer" iconColor="#8B7355"
           value={`${fmtNum(gs.wood, lang)}`}
-          max={cap.wood} current={gs.wood}
+          max={cap.wood === Infinity ? undefined : cap.wood} current={gs.wood}
           label={t('hud.holz')} onPress={() => onResourcePress('wood')} lang={lang} />
         <View style={styles.divider} />
+        {/* Stone — capped */}
         <ResourcePill icon="cube" iconColor="#9E9E9E"
           value={`${fmtNum(gs.stone, lang)}`}
-          max={cap.stone} current={gs.stone}
+          max={cap.stone === Infinity ? undefined : cap.stone} current={gs.stone}
           label={t('hud.stein')} onPress={() => onResourcePress('stone')} lang={lang} />
         <View style={styles.divider} />
+        {/* Food — capped */}
         <ResourcePill icon="leaf" iconColor="#4CAF50"
           value={`${fmtNum(gs.food, lang)}`}
-          max={cap.food} current={gs.food}
+          max={cap.food === Infinity ? undefined : cap.food} current={gs.food}
           label={t('hud.nahrung')} onPress={() => onResourcePress('food')} lang={lang} />
         {gs.currentStreak > 0 && (
           <>

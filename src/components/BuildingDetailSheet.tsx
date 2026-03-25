@@ -11,7 +11,7 @@ import {
   buildingProducesResource, ResourceType,
   findBuildingById, workerStatus, WorkerStatus,
 } from '../models/types';
-import { upgradeCost, getTotalStorageCap, LAGER_BONUS_PER_LEVEL } from '../config/GameConfig';
+import { upgradeCost, getTotalStorageCap, getStorageBonusArray, storageBuildingResource } from '../config/GameConfig';
 import { costString, canAfford, hourlyProductionRate, buildingStorageCap, SellConsequences } from '../engines/GameEngine';
 import SellConfirmModal from './SellConfirmModal';
 
@@ -78,9 +78,9 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
         )}
       </View>
 
-      {/* Lager bonus section */}
-      {building.type === BuildingType.lager && (
-        <LagerBonusSection building={building} />
+      {/* Storage bonus section for dedicated storage buildings */}
+      {storageBuildingResource(building.type) !== null && (
+        <StorageBonusSection building={building} />
       )}
 
       {/* Collect */}
@@ -138,7 +138,7 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
       )}
 
       {/* Total storage capacity footer */}
-      <TotalCapFooter buildings={store.gameState.buildings} />
+      <TotalCapFooter buildings={store.gameState.buildings} gameState={store.gameState} />
 
       <View style={{ height: 20 }} />
 
@@ -255,46 +255,61 @@ function WorkerSection({ building }: { building: Building }) {
 }
 
 
-// MARK: - Lager Bonus Section
-function LagerBonusSection({ building }: { building: Building }) {
+// MARK: - Storage Bonus Section (Holzlager / Steinlager / Nahrungslager)
+function StorageBonusSection({ building }: { building: Building }) {
   const store = useGameStore();
   const { t } = useTranslation();
-  const lvIdx = Math.min(building.level - 1, LAGER_BONUS_PER_LEVEL.length - 1);
-  const bonus = LAGER_BONUS_PER_LEVEL[lvIdx];
-  const totalCap = getTotalStorageCap(store.gameState.buildings);
 
-  // Next level bonus (if not max)
-  const nextIdx = building.level < LAGER_BONUS_PER_LEVEL.length ? building.level : null;
-  const nextBonus = nextIdx !== null ? LAGER_BONUS_PER_LEVEL[nextIdx] : null;
+  const bonusArr    = getStorageBonusArray(building.type);
+  const resource    = storageBuildingResource(building.type);
+  if (!bonusArr || !resource) return null;
 
-  const rows: { label: string; bonusVal: number; total: number }[] = [
-    { label: t('resources.muskelmasse'), bonusVal: bonus.muskelmasse, total: totalCap.muskelmasse },
-    { label: t('resources.wood'),        bonusVal: bonus.wood,        total: totalCap.wood },
-    { label: t('resources.food'),        bonusVal: bonus.food,        total: totalCap.food },
-    { label: t('resources.stone'),       bonusVal: bonus.stone,       total: totalCap.stone },
-    { label: t('resources.protein'),     bonusVal: bonus.protein,     total: totalCap.protein },
-  ];
+  const thisBonus   = bonusArr[Math.min(building.level - 1, bonusArr.length - 1)];
+  const totalCap    = getTotalStorageCap(store.gameState.buildings);
+  const totalForRes = totalCap[resource as keyof typeof totalCap] as number;
+  const currentAmt  = store.gameState[resource as keyof typeof store.gameState] as number;
+  const fillRatio   = totalForRes > 0 ? Math.min(currentAmt / totalForRes, 1) : 0;
+
+  const nextBonus = building.level < bonusArr.length ? bonusArr[building.level] : null;
+
+  const emoji     = building.type === 'holzlager' ? '🪵'
+                  : building.type === 'steinlager' ? '🪨' : '🌾';
+  const resLabel  = resource === 'wood'  ? t('resources.wood')
+                  : resource === 'stone' ? t('resources.stone')
+                  : t('resources.food');
 
   return (
     <View style={[styles.card, { borderWidth: 1, borderColor: 'rgba(77,208,225,0.25)' }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <Text style={{ fontSize: 16 }}>📦</Text>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: '#4DD0E1' }}>{t('storage.lagerbonusTitle')}</Text>
+        <Text style={{ fontSize: 16 }}>{emoji}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#4DD0E1' }}>{t('storage.thisStorage')}</Text>
       </View>
-      {rows.map(row => (
-        <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-          <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', flex: 1 }}>{row.label}</Text>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: '#4DD0E1' }}>
-            +{Math.floor(row.bonusVal)}{row.label === t('resources.muskelmasse') ? 'g' : ''}
-          </Text>
-          <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginLeft: 6 }}>
-            {t('storage.total', { value: Math.floor(row.total) + (row.label === t('resources.muskelmasse') ? 'g' : '') })}
-          </Text>
-        </View>
-      ))}
-      {nextBonus && (
-        <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 6 }}>
-          {t('storage.nextLevel')}: +{Math.floor(nextBonus.muskelmasse)}g · +{Math.floor(nextBonus.wood)} {t('resources.wood')}
+
+      {/* Bonus amount */}
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 8 }}>
+        +{Math.floor(thisBonus)} {resLabel} {t('storage.capacity')}
+      </Text>
+
+      {/* Total cap with progress bar */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+        <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', flex: 1 }}>
+          {t('storage.totalCap')}
+        </Text>
+        <Text style={{ fontSize: 12, fontWeight: '600', color: '#fff' }}>
+          {Math.floor(currentAmt)} / {Math.floor(totalForRes)}
+        </Text>
+      </View>
+      <View style={{ height: 6, backgroundColor: '#1E1E3A', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
+        <View style={{
+          height: 6, borderRadius: 3, width: `${Math.round(fillRatio * 100)}%`,
+          backgroundColor: fillRatio >= 1 ? '#EF5350' : fillRatio >= 0.8 ? '#F5A623' : '#4DD0E1',
+        }} />
+      </View>
+
+      {/* Next level hint */}
+      {nextBonus !== null && (
+        <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
+          {t('storage.nextLevel', { level: building.level + 1 })}: +{Math.floor(nextBonus)} {resLabel}
         </Text>
       )}
     </View>
@@ -302,15 +317,28 @@ function LagerBonusSection({ building }: { building: Building }) {
 }
 
 // MARK: - Total Cap Footer
-function TotalCapFooter({ buildings }: { buildings: Building[] }) {
+function TotalCapFooter({ buildings, gameState }: { buildings: Building[]; gameState: any }) {
   const { t } = useTranslation();
   const cap = getTotalStorageCap(buildings);
+  const parts: string[] = [];
+  if (cap.wood  !== Infinity) parts.push(`${t('resources.wood')}: ${Math.floor(gameState.wood)}/${Math.floor(cap.wood)}`);
+  if (cap.stone !== Infinity) parts.push(`${t('resources.stone')}: ${Math.floor(gameState.stone)}/${Math.floor(cap.stone)}`);
+  if (cap.food  !== Infinity) parts.push(`${t('resources.food')}: ${Math.floor(gameState.food)}/${Math.floor(cap.food)}`);
+
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingVertical: 8, opacity: 0.6 }}>
-      <Text style={{ fontSize: 11 }}>💾</Text>
-      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
-        {t('storage.totalCap')}: {Math.floor(cap.muskelmasse)}g · {Math.floor(cap.wood)} {t('resources.wood')} · {Math.floor(cap.food)} {t('resources.food')}
-      </Text>
+    <View style={{ paddingHorizontal: 4, paddingVertical: 8, opacity: 0.6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <Text style={{ fontSize: 11 }}>💾</Text>
+        <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+          {t('storage.totalCap')}: {parts.length > 0 ? parts.join(' · ') : t('storage.unlimited')}
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+        <Text style={{ fontSize: 11 }}>💪</Text>
+        <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+          {Math.floor(gameState.muskelmasse)}g · 💎 {Math.floor(gameState.protein)} {t('resources.protein')} ({t('storage.unlimited')})
+        </Text>
+      </View>
     </View>
   );
 }

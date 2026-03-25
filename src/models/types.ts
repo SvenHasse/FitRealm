@@ -110,7 +110,9 @@ export enum BuildingType {
   holzfaeller = 'holzfaeller',
   steinbruch = 'steinbruch',
   feld = 'feld',
-  lager = 'lager',
+  holzlager = 'holzlager',
+  steinlager = 'steinlager',
+  nahrungslager = 'nahrungslager',
   kaserne = 'kaserne',
   tempel = 'tempel',
   bibliothek = 'bibliothek',
@@ -128,7 +130,9 @@ export function buildingDisplayName(type: BuildingType): string {
     [BuildingType.holzfaeller]: 'Holzfäller',
     [BuildingType.steinbruch]: 'Steinbruch',
     [BuildingType.feld]: 'Feld',
-    [BuildingType.lager]: 'Lager',
+    [BuildingType.holzlager]: 'Holzlager',
+    [BuildingType.steinlager]: 'Steinlager',
+    [BuildingType.nahrungslager]: 'Nahrungslager',
     [BuildingType.kaserne]: 'Kaserne',
     [BuildingType.tempel]: 'Tempel',
     [BuildingType.bibliothek]: 'Bibliothek',
@@ -147,7 +151,9 @@ export function buildingIconName(type: BuildingType): string {
     [BuildingType.holzfaeller]: 'hammer',
     [BuildingType.steinbruch]: 'cube',
     [BuildingType.feld]: 'leaf',
-    [BuildingType.lager]: 'cube-outline',
+    [BuildingType.holzlager]: 'cube-outline',
+    [BuildingType.steinlager]: 'layers-outline',
+    [BuildingType.nahrungslager]: 'basket-outline',
     [BuildingType.kaserne]: 'shield',
     [BuildingType.tempel]: 'sparkles',
     [BuildingType.bibliothek]: 'book',
@@ -165,7 +171,9 @@ export function buildingDescription(type: BuildingType): string {
     [BuildingType.holzfaeller]: 'Chops timber continuously to keep your construction projects supplied.',
     [BuildingType.steinbruch]: 'Extracts stone from the earth for advanced building projects.',
     [BuildingType.feld]: 'Grows food to keep your workers fed and productive.',
-    [BuildingType.lager]: 'Expands the maximum storage capacity for all resources.',
+    [BuildingType.holzlager]: 'Increases your maximum Wood storage capacity.',
+    [BuildingType.steinlager]: 'Increases your maximum Stone storage capacity.',
+    [BuildingType.nahrungslager]: 'Increases your maximum Food storage capacity.',
     [BuildingType.kaserne]: 'Trains new workers and houses your workforce.',
     [BuildingType.tempel]: 'Channels your workout streak into powerful production bonuses.',
     [BuildingType.bibliothek]: 'Unlocks research that improves every aspect of your realm.',
@@ -196,7 +204,9 @@ export function buildingAccentColor(type: BuildingType): string {
     case BuildingType.steinbruch:
     case BuildingType.feld:
       return '#00B4D8'; // teal — production
-    case BuildingType.lager:
+    case BuildingType.holzlager:
+    case BuildingType.steinlager:
+    case BuildingType.nahrungslager:
     case BuildingType.kaserne:
       return '#8B5CF6'; // purple — infrastructure
     case BuildingType.tempel:

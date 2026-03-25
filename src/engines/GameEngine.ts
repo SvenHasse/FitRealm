@@ -15,7 +15,7 @@ import {
   UNIQUE_BUILDINGS, maxInstances, sellValue,
   Production, Storage, Earn, Workers,
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
-  getTotalStorageCap,
+  getTotalStorageCap, storageBuildingResource, getStorageBonusArray,
 } from '../config/GameConfig';
 
 const STATE_KEY = 'fitrealmGameState';
@@ -88,17 +88,13 @@ export function hourlyProductionRate(building: Building): number {
   }
 }
 
-export function buildingStorageCap(building: Building, allBuildings: Building[]): number {
+export function buildingStorageCap(building: Building, _allBuildings: Building[]): number {
   const lv = building.level;
-  const lagerBonus = allBuildings
-    .filter(b => b.type === BuildingType.lager)
-    .reduce((sum, b) => sum + Storage.lagerBonusPerLevel * b.level, 0);
-
   switch (building.type) {
-    case BuildingType.kornkammer: return Storage.cap(Storage.kornkammer, lv) + lagerBonus;
-    case BuildingType.holzfaeller: return Storage.cap(Storage.holzfaeller, lv) + lagerBonus;
-    case BuildingType.steinbruch: return Storage.cap(Storage.steinbruch, lv) + lagerBonus;
-    case BuildingType.feld: return Storage.cap(Storage.feld, lv) + lagerBonus;
+    case BuildingType.kornkammer:  return Storage.cap(Storage.kornkammer, lv);
+    case BuildingType.holzfaeller: return Storage.cap(Storage.holzfaeller, lv);
+    case BuildingType.steinbruch:  return Storage.cap(Storage.steinbruch, lv);
+    case BuildingType.feld:        return Storage.cap(Storage.feld, lv);
     case BuildingType.proteinfarm: return Storage.cap(Storage.proteinfarm, lv);
     default: return 0;
   }
@@ -109,11 +105,10 @@ function capResourcesToStorage(state: GameState): GameState {
   const cap = getTotalStorageCap(state.buildings);
   return {
     ...state,
-    muskelmasse:  Math.min(state.muskelmasse, cap.muskelmasse),
-    protein:      Math.min(state.protein,     cap.protein),
-    wood:         Math.min(state.wood,        cap.wood),
-    stone:        Math.min(state.stone,       cap.stone),
-    food:         Math.min(state.food,        cap.food),
+    // muskelmasse and protein: Infinity cap — never capped
+    wood:  cap.wood  === Infinity ? state.wood  : Math.min(state.wood,  cap.wood),
+    stone: cap.stone === Infinity ? state.stone : Math.min(state.stone, cap.stone),
+    food:  cap.food  === Infinity ? state.food  : Math.min(state.food,  cap.food),
   };
 }
 
@@ -286,30 +281,24 @@ export function calculateSellConsequences(
     }
   }
 
-  // --- Lager: storage cap reduction → overflow lost ---
-  if (building.type === BuildingType.lager) {
-    const remainingBuildings = state.buildings.filter(b => b.id !== buildingID);
-    for (const b of state.buildings) {
-      if (b.id === buildingID || b.currentStorage <= 0) continue;
-      const newCap = buildingStorageCap(b, remainingBuildings);
-      if (newCap <= 0) continue;
-      const overflow = Math.max(0, b.currentStorage - newCap);
-      if (overflow <= 0) continue;
-      switch (b.type) {
-        case BuildingType.kornkammer:  resourcesLost.muskelmasse += Math.floor(overflow); break;
-        case BuildingType.holzfaeller: resourcesLost.wood        += Math.floor(overflow); break;
-        case BuildingType.steinbruch:  resourcesLost.stone       += Math.floor(overflow); break;
-        case BuildingType.feld:        resourcesLost.food        += Math.floor(overflow); break;
-        case BuildingType.proteinfarm: resourcesLost.protein     += Math.floor(overflow); break;
-      }
+  // --- Storage buildings: specific resource cap reduced ---
+  // --- Storage buildings: specific resource cap reduced ---
+  const storedResource = storageBuildingResource(building.type);
+  if (storedResource !== null) {
+    const bonusArr = getStorageBonusArray(building.type);
+    const bonusLost = bonusArr ? bonusArr[Math.min(building.level - 1, bonusArr.length - 1)] : 0;
+    // Calculate how much of the current resource exceeds the new cap
+    const newCap = getTotalStorageCap(state.buildings.filter(b => b.id !== buildingID));
+    const currentAmt = state[storedResource as keyof typeof state] as number;
+    const overflow = Math.max(0, currentAmt - (newCap[storedResource as keyof typeof newCap] as number));
+    if (overflow > 0) {
+      resourcesLost[storedResource] = Math.floor(overflow);
     }
-    const totalLost = resourcesLost.muskelmasse + resourcesLost.protein +
-                      resourcesLost.wood + resourcesLost.stone + resourcesLost.food;
-    if (totalLost > 0) {
+    if (bonusLost > 0) {
       warnings.push({
-        type: 'storage_cap_reduced', severity: 'danger',
+        type: 'storage_cap_reduced', severity: overflow > 0 ? 'danger' : 'warning',
         messageKey: 'sell.warning.storage_cap_reduced',
-        values: { amount: totalLost },
+        values: { amount: bonusLost },
       });
     }
   }
@@ -409,15 +398,13 @@ export function sellBuilding(
   // 4. Remove building from grid
   s.buildings = s.buildings.filter(b => b.id !== buildingID);
 
-  // 5. Lager: cap remaining buildings' resources to their new (reduced) storage cap
-  if (building.type === BuildingType.lager) {
-    for (let i = 0; i < s.buildings.length; i++) {
-      const b = s.buildings[i];
-      if (b.currentStorage <= 0) continue;
-      const newCap = buildingStorageCap(b, s.buildings);
-      if (b.currentStorage > newCap) {
-        s.buildings[i] = { ...b, currentStorage: newCap };
-      }
+  // 5. Storage buildings: cap the affected resource wallet to the new (lower) cap
+  const soldStoredResource = storageBuildingResource(building.type);
+  if (soldStoredResource !== null) {
+    const newCap = getTotalStorageCap(s.buildings);
+    const capVal = newCap[soldStoredResource as keyof typeof newCap] as number;
+    if (capVal !== Infinity) {
+      (s as any)[soldStoredResource] = Math.min((s as any)[soldStoredResource], capVal);
     }
   }
 
@@ -767,7 +754,7 @@ export function loadMockGameState(): GameState {
     { id: kkId, type: BuildingType.kornkammer, level: 2, currentStorage: 45, assignedWorkerID: workerId, isDecayed: false, position: { row: 6, col: 6 } },
     { id: Crypto.randomUUID(), type: BuildingType.holzfaeller, level: 1, currentStorage: 120, assignedWorkerID: null, isDecayed: false, position: { row: 6, col: 7 } },
     { id: Crypto.randomUUID(), type: BuildingType.feld, level: 1, currentStorage: 60, assignedWorkerID: null, isDecayed: false, position: { row: 7, col: 6 } },
-    { id: Crypto.randomUUID(), type: BuildingType.lager, level: 1, currentStorage: 0, assignedWorkerID: null, isDecayed: false, position: { row: 7, col: 8 } },
+    { id: Crypto.randomUUID(), type: BuildingType.holzlager, level: 1, currentStorage: 0, assignedWorkerID: null, isDecayed: false, position: { row: 7, col: 8 } },
     { id: Crypto.randomUUID(), type: BuildingType.kaserne, level: 1, currentStorage: 0, assignedWorkerID: null, isDecayed: false, position: { row: 8, col: 7 } },
   ];
 
