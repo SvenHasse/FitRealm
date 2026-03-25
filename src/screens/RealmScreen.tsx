@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle,
-  withSequence, withTiming, withRepeat, Easing,
+  withSequence, withTiming, withRepeat, withDelay, Easing,
 } from 'react-native-reanimated';
 
 // Enable LayoutAnimation on Android
@@ -38,6 +38,38 @@ import CollectRewardPopup from '../components/CollectRewardPopup';
 const CELL_SIZE = 70;
 const GRID_SIZE = WorldConstants.gridSize;
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+const PLAYFIELD_SIZE = GRID_SIZE * CELL_SIZE;
+
+// ── Seeded LCG for deterministic grass texture (doesn't change on re-render) ──
+function makeLCG(seed: number) {
+  let s = seed >>> 0;
+  return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0x100000000; };
+}
+interface GrassPatch { x: number; y: number; w: number; h: number; dark: boolean; rotation: number }
+const _gr = makeLCG(0xBEEFCAFE);
+const GRASS_PATCHES: GrassPatch[] = Array.from({ length: 36 }, () => ({
+  x: _gr() * PLAYFIELD_SIZE, y: _gr() * PLAYFIELD_SIZE,
+  w: 20 + _gr() * 40,        h: 10 + _gr() * 25,
+  dark: _gr() > 0.5,         rotation: _gr() * 360,
+}));
+
+// ── Per-building visual config for the map cells ──────────────────────────────
+const CELL_CFG: Record<string, { icon: string; color: string }> = {
+  rathaus:      { icon: 'home-city',      color: '#7B68EE' },
+  kornkammer:   { icon: 'grain',          color: '#F5A623' },
+  proteinfarm:  { icon: 'lightning-bolt', color: '#9B59B6' },
+  holzfaeller:  { icon: 'axe',           color: '#A0784A' },
+  steinbruch:   { icon: 'pickaxe',       color: '#9E9E9E' },
+  feld:         { icon: 'sprout',        color: '#4CAF50' },
+  holzlager:    { icon: 'warehouse',     color: '#607D8B' },
+  steinlager:   { icon: 'layers-triple', color: '#78909C' },
+  nahrungslager:{ icon: 'basket',        color: '#FF8C00' },
+  kaserne:      { icon: 'shield-sword',  color: '#3E8A40' },
+  tempel:       { icon: 'flare',         color: '#E8C948' },
+  bibliothek:   { icon: 'bookshelf',     color: '#5C8A6A' },
+  marktplatz:   { icon: 'store',         color: '#FF7043' },
+  stammeshaus:  { icon: 'account-group', color: '#2196F3' },
+};
 
 export default function RealmScreen() {
   const store = useGameStore();
@@ -130,7 +162,18 @@ export default function RealmScreen() {
           contentContainerStyle={{ width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE }}
         >
           <View style={[styles.gridContainer, { width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE }]}>
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#2D5A27' }]} />
+            {/* Grass base */}
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1A4A0A' }]} />
+            {/* Organic grass texture patches */}
+            {GRASS_PATCHES.map((p, i) => (
+              <View key={`gp${i}`} style={{
+                position: 'absolute', left: p.x, top: p.y,
+                width: p.w, height: p.h,
+                backgroundColor: p.dark ? '#163808' : '#1E5210',
+                borderRadius: p.w / 2, opacity: 0.48,
+                transform: [{ rotate: `${p.rotation}deg` }],
+              }} />
+            ))}
             {Array.from({ length: GRID_SIZE }, (_, row) =>
               Array.from({ length: GRID_SIZE }, (_, col) => {
                 const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
@@ -143,7 +186,7 @@ export default function RealmScreen() {
                     onPress={() => handleCellPress(row, col)}
                     activeOpacity={0.7}
                   >
-                    {building ? <BuildingCell building={building} isHighlighted={highlightedBuildingId === building.id} /> : obstacle ? <ObstacleCell obstacle={obstacle} /> : isPlacementTarget ? <Ionicons name="add" size={20} color="rgba(76,175,80,0.6)" /> : null}
+                    {building ? <BuildingCell building={building} isHighlighted={highlightedBuildingId === building.id} idx={row * GRID_SIZE + col} /> : obstacle ? <ObstacleCell obstacle={obstacle} /> : isPlacementTarget ? <Ionicons name="add" size={20} color="rgba(76,175,80,0.6)" /> : null}
                   </TouchableOpacity>
                 );
               })
@@ -276,15 +319,16 @@ function fmtConstructionTime(endsAt: number | null): string | null {
 }
 
 // MARK: - Building Cell
-function BuildingCell({ building, isHighlighted }: { building: Building; isHighlighted?: boolean }) {
-  const accent = buildingAccentColor(building.type);
-  const levelColors: Record<number, string> = { 1: '#9E9E9E', 2: '#66BB6A', 3: '#42A5F5', 4: '#AB47BC', 5: '#FFD54F' };
+function BuildingCell({ building, isHighlighted, idx }: { building: Building; isHighlighted?: boolean; idx: number }) {
+  const cfg   = CELL_CFG[building.type] ?? { icon: 'help-circle', color: '#888' };
+  const color = building.isDecayed ? '#555' : cfg.color;
+  const LEVEL_COLORS: Record<number, string> = { 1:'#9E9E9E', 2:'#66BB6A', 3:'#42A5F5', 4:'#AB47BC', 5:'#FFD54F' };
 
-  // Highlight pulse animation (scale 1.0 → 1.15 → 1.0, twice, over 1.5 s)
-  const scale = useSharedValue(1);
+  // Highlight pulse
+  const hiScale = useSharedValue(1);
   useEffect(() => {
     if (isHighlighted) {
-      scale.value = withSequence(
+      hiScale.value = withSequence(
         withTiming(1.15, { duration: 370, easing: Easing.out(Easing.cubic) }),
         withTiming(1.0,  { duration: 370, easing: Easing.in(Easing.cubic) }),
         withTiming(1.15, { duration: 370 }),
@@ -292,9 +336,27 @@ function BuildingCell({ building, isHighlighted }: { building: Building; isHighl
       );
     }
   }, [isHighlighted]);
-  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  // Construction countdown (updates every 10s)
+  // Idle breathing — staggered by position so buildings don't all pulse together
+  const breath = useSharedValue(1);
+  useEffect(() => {
+    breath.value = withDelay(
+      (idx % 12) * 300,
+      withRepeat(
+        withSequence(
+          withTiming(1.03, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.00, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1, false,
+      ),
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: hiScale.value * breath.value }],
+  }));
+
+  // Construction countdown (updates every 10 s)
   const [countdown, setCountdown] = useState(() => fmtConstructionTime(building.constructionEndsAt));
   useEffect(() => {
     if (!building.isUnderConstruction) return;
@@ -305,13 +367,16 @@ function BuildingCell({ building, isHighlighted }: { building: Building; isHighl
 
   if (building.isUnderConstruction) {
     return (
-      <Animated.View style={[styles.buildingCell, animStyle, { borderWidth: 2, borderColor: `${AppColors.gold}90`, borderRadius: 6 }]}>
-        <Ionicons name={"build-outline" as any} size={24} color={AppColors.gold} />
-        <View style={[styles.levelBadge, { backgroundColor: AppColors.gold }]}>
-          <Text style={[styles.levelText, { color: '#000' }]}>{building.targetLevel}</Text>
+      <Animated.View style={[styles.buildingCard, animStyle, {
+        backgroundColor: `${AppColors.gold}18`, borderColor: `${AppColors.gold}60`,
+        shadowColor: AppColors.gold,
+      }]}>
+        <MaterialCommunityIcons name={'hammer-wrench' as any} size={26} color={AppColors.gold} />
+        <View style={[styles.levelPill, { backgroundColor: AppColors.gold }]}>
+          <Text style={styles.levelPillText}>L{building.targetLevel}</Text>
         </View>
         {countdown !== null && (
-          <View style={[styles.resourceBubble, { backgroundColor: '#333' }]}>
+          <View style={[styles.resourceBubble, { backgroundColor: 'rgba(0,0,0,0.65)' }]}>
             <Text style={[styles.resourceBubbleText, { color: AppColors.gold }]}>{countdown}</Text>
           </View>
         )}
@@ -320,11 +385,17 @@ function BuildingCell({ building, isHighlighted }: { building: Building; isHighl
   }
 
   return (
-    <Animated.View style={[styles.buildingCell, animStyle, isHighlighted && styles.highlightedCell]}>
-      <Ionicons name={buildingIconName(building.type) as any} size={28} color={building.isDecayed ? '#666' : accent} />
-      <View style={[styles.levelBadge, { backgroundColor: levelColors[building.level] || '#9E9E9E' }]}>
-        <Text style={styles.levelText}>{building.level}</Text>
+    <Animated.View style={[
+      styles.buildingCard, animStyle,
+      { backgroundColor: `${color}20`, borderColor: `${color}55`, shadowColor: color },
+      isHighlighted && styles.highlightedCell,
+    ]}>
+      <MaterialCommunityIcons name={cfg.icon as any} size={28} color={color} />
+      {/* Level pill — bottom-right */}
+      <View style={[styles.levelPill, { backgroundColor: LEVEL_COLORS[building.level] ?? '#9E9E9E' }]}>
+        <Text style={styles.levelPillText}>L{building.level}</Text>
       </View>
+      {/* Storage bubble — bottom-left */}
       {building.currentStorage > 0 && (
         <View style={styles.resourceBubble}>
           <Text style={styles.resourceBubbleText}>{Math.floor(building.currentStorage)}</Text>
@@ -336,18 +407,85 @@ function BuildingCell({ building, isHighlighted }: { building: Building; isHighl
 
 // MARK: - Obstacle Cell
 function ObstacleCell({ obstacle }: { obstacle: Obstacle }) {
-  const colors: Record<string, string> = {
-    branch: '#8B5E3C', smallRock: '#9E9E9E', mushrooms: '#E53935',
-    largeTree: '#2E7D32', boulder: '#78909C', deadTree: '#795548',
-  };
-  const icons: Record<string, string> = {
-    branch: 'remove', smallRock: 'cube', mushrooms: 'leaf',
-    largeTree: 'leaf', boulder: 'triangle', deadTree: 'leaf',
-  };
+  let visual: React.ReactElement;
+
+  switch (obstacle.type) {
+    case 'smallRock':
+      visual = (
+        <View style={{ width:28, height:20, backgroundColor:'#5A6050', borderRadius:6,
+          borderTopWidth:2, borderTopColor:'#7A8070', borderBottomWidth:2, borderBottomColor:'#3A4040' }}>
+          <View style={{ position:'absolute', top:4, left:6, width:10, height:6,
+            backgroundColor:'rgba(255,255,255,0.08)', borderRadius:3 }} />
+        </View>
+      );
+      break;
+    case 'branch':
+      visual = (
+        <View style={{ width:36, height:20 }}>
+          <View style={{ position:'absolute', width:28, height:3, backgroundColor:'#6B4A22',
+            borderRadius:2, top:4,  left:2, transform:[{rotate:'-8deg'}] }} />
+          <View style={{ position:'absolute', width:22, height:3, backgroundColor:'#7B5A32',
+            borderRadius:2, top:10, left:6, transform:[{rotate:'5deg'}] }} />
+          <View style={{ position:'absolute', width:18, height:3, backgroundColor:'#5C3D1E',
+            borderRadius:2, top:16, left:4, transform:[{rotate:'-12deg'}] }} />
+        </View>
+      );
+      break;
+    case 'mushrooms':
+      visual = (
+        <View style={{ alignItems:'center', width:30, height:26 }}>
+          <View style={{ position:'absolute', bottom:0, left:7,  width:5, height:8, backgroundColor:'#EEE8D5', borderRadius:2 }} />
+          <View style={{ position:'absolute', bottom:0, left:18, width:4, height:6, backgroundColor:'#EEE8D5', borderRadius:2 }} />
+          <View style={{ position:'absolute', top:2,  left:2,  width:16, height:12, borderRadius:8, backgroundColor:'#CC3333' }} />
+          <View style={{ position:'absolute', top:4,  left:16, width:13, height:10, borderRadius:7, backgroundColor:'#E53935' }} />
+          <View style={{ position:'absolute', top:1,  left:5,  width:3,  height:3,  borderRadius:2, backgroundColor:'rgba(255,255,255,0.5)' }} />
+        </View>
+      );
+      break;
+    case 'largeTree':
+      visual = (
+        <View style={{ alignItems:'center', width:34, height:38 }}>
+          <View style={{ position:'absolute', bottom:0, width:6, height:12, backgroundColor:'#4A2E10', borderRadius:2 }} />
+          <View style={{ position:'absolute', top:10, width:30, height:24, borderRadius:15, backgroundColor:'#1A5010' }} />
+          <View style={{ position:'absolute', top:4,  width:24, height:20, borderRadius:12, backgroundColor:'#226A14' }} />
+          <View style={{ position:'absolute', top:0,  width:18, height:16, borderRadius:9,  backgroundColor:'#2A7A1A' }} />
+        </View>
+      );
+      break;
+    case 'deadTree':
+      visual = (
+        <View style={{ alignItems:'center', width:30, height:38 }}>
+          <View style={{ position:'absolute', bottom:0, width:5, height:20, backgroundColor:'#4A3A28', borderRadius:2 }} />
+          <View style={{ position:'absolute', top:6,  width:22, height:16, borderRadius:8, backgroundColor:'#3A3328' }} />
+          <View style={{ position:'absolute', top:2,  width:16, height:13, borderRadius:6, backgroundColor:'#4A4038' }} />
+          <View style={{ position:'absolute', top:4, left:20, width:8, height:3, backgroundColor:'#4A3A28', borderRadius:2, transform:[{rotate:'30deg'}] }} />
+        </View>
+      );
+      break;
+    case 'boulder':
+      visual = (
+        <View>
+          <View style={{ width:32, height:26, backgroundColor:'#607060', borderRadius:10,
+            borderTopWidth:2, borderTopColor:'#808870', borderBottomWidth:2, borderBottomColor:'#404840' }} />
+          <View style={{ position:'absolute', top:5, left:6, width:12, height:7,
+            backgroundColor:'rgba(255,255,255,0.07)', borderRadius:4 }} />
+          <View style={{ position:'absolute', top:13, left:16, width:8, height:5,
+            backgroundColor:'rgba(0,0,0,0.15)', borderRadius:3 }} />
+        </View>
+      );
+      break;
+    default:
+      visual = <Ionicons name="help-circle" size={24} color="#888" />;
+  }
+
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', opacity: obstacle.isClearing ? 0.5 : 1 }}>
-      <Ionicons name={icons[obstacle.type] as any || 'help'} size={24} color={colors[obstacle.type] || '#888'} />
-      {obstacle.isClearing && <Ionicons name="cog" size={14} color="rgba(255,255,255,0.7)" style={{ position: 'absolute' }} />}
+    <View style={{ alignItems:'center', justifyContent:'center', opacity: obstacle.isClearing ? 0.5 : 1 }}>
+      {visual}
+      {obstacle.isClearing && (
+        <View style={{ position:'absolute' }}>
+          <Ionicons name="cog" size={14} color="rgba(255,255,255,0.85)" />
+        </View>
+      )}
     </View>
   );
 }
@@ -614,26 +752,40 @@ function ObstacleRemovalSheet({ obstacle, onClose }: { obstacle: Obstacle; onClo
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1A3A5C' },
-  mapScroll: { flex: 1 },
-  gridContainer: { position: 'relative' },
+  container: { flex: 1, backgroundColor: '#091808' },
+  mapScroll: { flex: 1, backgroundColor: '#091808' },
+  gridContainer: {
+    position: 'relative',
+    borderRadius: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.55, shadowRadius: 14, elevation: 10,
+    overflow: 'hidden',
+  },
   cell: {
     position: 'absolute', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.05)',
   },
-  placementCell: { borderWidth: 1, borderColor: 'rgba(76,175,80,0.4)', borderStyle: 'dashed' },
-  buildingCell: { alignItems: 'center', justifyContent: 'center' },
-  highlightedCell: { borderWidth: 3, borderColor: '#F5A623', borderRadius: 8 },
-  levelBadge: {
-    position: 'absolute', top: 2, right: 2, width: 16, height: 16, borderRadius: 8,
+  placementCell: { borderWidth: 1, borderColor: 'rgba(76,175,80,0.45)', borderStyle: 'dashed' },
+  // Building card
+  buildingCard: {
+    width: CELL_SIZE - 8, height: CELL_SIZE - 8,
+    borderRadius: 10, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 6,
+    elevation: 4,
   },
-  levelText: { fontSize: 9, fontWeight: 'bold', color: '#fff' },
+  highlightedCell: { borderWidth: 2, borderColor: '#F5A623', borderRadius: 10 },
+  levelPill: {
+    position: 'absolute', bottom: 3, right: 3,
+    borderRadius: 5, paddingHorizontal: 4, paddingVertical: 1,
+  },
+  levelPillText: { fontSize: 8, color: '#1A0800', fontWeight: 'bold' },
   resourceBubble: {
-    position: 'absolute', bottom: 2, backgroundColor: 'rgba(76,175,80,0.8)',
-    borderRadius: 6, paddingHorizontal: 4, paddingVertical: 1,
+    position: 'absolute', bottom: 2, left: 3,
+    backgroundColor: 'rgba(30,200,80,0.75)',
+    borderRadius: 5, paddingHorizontal: 3, paddingVertical: 1,
   },
-  resourceBubbleText: { fontSize: 8, fontWeight: 'bold', color: '#fff' },
+  resourceBubbleText: { fontSize: 7, fontWeight: 'bold', color: '#fff' },
   hudTop: { position: 'absolute', top: 50, left: 12, right: 12 },
   hudBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', gap: 6 },
   bottomBar: {
