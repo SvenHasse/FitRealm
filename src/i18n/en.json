@@ -143,6 +143,8 @@
     "special": "Special",
     "alreadyBuilt": "Already built",
     "rathausRequired": "Rathaus L{{level}}",
+    "unlocksAtRathaus": "From Town Hall L{{level}}",
+    "nextSlotAt": "2nd from Rathaus L{{level}}",
     "tooExpensive": "Too expensive",
     "maxReached": "Max reached",
     "instanceCount": "{{current}}/{{max}}"

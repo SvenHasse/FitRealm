@@ -143,6 +143,8 @@
     "special": "Spezial",
     "alreadyBuilt": "Bereits gebaut",
     "rathausRequired": "Rathaus L{{level}}",
+    "unlocksAtRathaus": "Ab Rathaus L{{level}}",
+    "nextSlotAt": "2. ab Rathaus L{{level}}",
     "tooExpensive": "Zu teuer",
     "maxReached": "Max erreicht",
     "instanceCount": "{{current}}/{{max}}"
