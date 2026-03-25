@@ -10,13 +10,15 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import * as Crypto from 'expo-crypto';
-import { AppColors, WorkoutRecord, Animal, AnimalType } from '../models/types';
+import { AppColors, WorkoutRecord, Animal, AnimalType, DamageEffect, BuildingType } from '../models/types';
 import { useGameStore } from '../store/gameStore';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
 import { useWorkoutStore } from '../store/workoutStore';
 import { resetAllData, resetWithMockData } from '../utils/resetUtils';
 import { ANIMAL_CONFIGS } from '../config/EntityConfig';
 import { saveGameState } from '../engines/GameEngine';
+import { gameStateRathausLevel } from '../models/types';
+import { waveService } from '../services/WaveService';
 
 const ALL_ANIMAL_TYPES: AnimalType[] = [
   'erntehuhn', 'lastesel', 'holzbaer', 'spaehfalke', 'steinbock',
@@ -135,6 +137,171 @@ export default function DevToolsSection() {
         },
       ]
     );
+  };
+
+  // ── Wellen-Handlers ───────────────────────────────────────────────────────
+
+  const handleSpawnWaveIn5s = () => {
+    const gs = useEngineStore.getState().gameState;
+    const rathausLevel = gameStateRathausLevel(gs);
+    const lastWorkout = gs.lastWorkoutDate
+      ? new Date(gs.lastWorkoutDate).getTime()
+      : Date.now() - 24 * 3600 * 1000;
+    const wave = waveService.generateWave(rathausLevel, lastWorkout);
+    const now = Date.now();
+    const testWave = {
+      ...wave,
+      status: 'approaching' as const,
+      announcedAt: now,
+      arrivesAt: now + 5000,
+    };
+    const newGs = {
+      ...gs,
+      activeWave: testWave,
+      nextWaveAt: now + 5000,
+      waves: [...gs.waves, testWave],
+    };
+    useEngineStore.setState({ gameState: newGs });
+    saveGameState(newGs);
+    // Trigger resolution after 5s
+    setTimeout(() => {
+      useEngineStore.getState().triggerWaveResolution();
+    }, 5500);
+    Alert.alert('⚔️ Testwelle', `Welle kommt in 5 Sekunden!\nRathaus L${rathausLevel} | AK: ~${Math.round(wave.totalAttackPower)}`);
+  };
+
+  const handleShowApproachingWave = () => {
+    const gs = useEngineStore.getState().gameState;
+    const rathausLevel = gameStateRathausLevel(gs);
+    const lastWorkout = gs.lastWorkoutDate
+      ? new Date(gs.lastWorkoutDate).getTime()
+      : Date.now() - 24 * 3600 * 1000;
+    const wave = waveService.generateWave(rathausLevel, lastWorkout);
+    const now = Date.now();
+    const approachingWave = {
+      ...wave,
+      status: 'approaching' as const,
+      announcedAt: now,
+      arrivesAt: now + 8 * 3600 * 1000, // 8h
+    };
+    const newGs = {
+      ...gs,
+      activeWave: approachingWave,
+      nextWaveAt: approachingWave.arrivesAt,
+      waves: [...gs.waves, approachingWave],
+    };
+    useEngineStore.setState({ gameState: newGs });
+    saveGameState(newGs);
+    Alert.alert('⚠️ Wellen-Warnung', `Banner wird angezeigt.\nWelle in 8h | AK: ~${Math.round(wave.totalAttackPower)}`);
+  };
+
+  const handleSimulateDefeat = () => {
+    Alert.alert(
+      '💀 Niederlage simulieren',
+      'Schwache Welle wird sofort aufgelöst — Dorf verliert (Schaden anwenden).',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Simulieren',
+          onPress: () => {
+            const gs = useEngineStore.getState().gameState;
+            const rathausLevel = gameStateRathausLevel(gs);
+            // Generate a very strong wave
+            const wave = waveService.generateWave(rathausLevel, Date.now() - 200 * 3600 * 1000);
+            const now = Date.now();
+            const strongWave = {
+              ...wave,
+              totalAttackPower: wave.totalAttackPower * 10, // massively overpowered
+              status: 'active' as const,
+              announcedAt: now - 1000,
+              arrivesAt: now - 500,
+            };
+            const newGs = { ...gs, activeWave: strongWave, nextWaveAt: now, waves: [...gs.waves, strongWave] };
+            useEngineStore.setState({ gameState: newGs });
+            saveGameState(newGs);
+            setTimeout(() => {
+              useEngineStore.getState().triggerWaveResolution();
+            }, 300);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSimulateVictory = () => {
+    Alert.alert(
+      '⚔️ Sieg simulieren',
+      'Schwache Welle wird sofort aufgelöst — Dorf gewinnt (Loot erhalten).',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Simulieren',
+          onPress: () => {
+            const gs = useEngineStore.getState().gameState;
+            // Generate a very weak wave
+            const wave = waveService.generateWave(1, Date.now());
+            const now = Date.now();
+            const weakWave = {
+              ...wave,
+              totalAttackPower: 1, // trivially weak → perfect victory
+              status: 'active' as const,
+              announcedAt: now - 1000,
+              arrivesAt: now - 500,
+            };
+            const newGs = { ...gs, activeWave: weakWave, nextWaveAt: now, waves: [...gs.waves, weakWave] };
+            useEngineStore.setState({ gameState: newGs });
+            saveGameState(newGs);
+            setTimeout(() => {
+              useEngineStore.getState().triggerWaveResolution();
+            }, 300);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleAddDamageEffect = () => {
+    const gs = useEngineStore.getState().gameState;
+    const productionBuildings = gs.buildings.filter(b => b.level >= 1 && b.type !== BuildingType.rathaus && b.type !== BuildingType.stall);
+    if (productionBuildings.length === 0) {
+      Alert.alert('Keine Gebäude', 'Baue zuerst Produktionsgebäude.');
+      return;
+    }
+    const target = productionBuildings[Math.floor(Math.random() * productionBuildings.length)];
+    const now = Date.now();
+    const effect: DamageEffect = {
+      buildingId: target.id,
+      effectType: 'productionStop',
+      duration: 2 * 3600,
+      startsAt: now,
+      endsAt: now + 2 * 3600 * 1000,
+    };
+    useEngineStore.getState().addDamageEffect(effect);
+    Alert.alert('🔥 Schadenseffekt', `Gebäude "${target.type}" — Produktion gestoppt für 2h`);
+  };
+
+  const handleClearDamageEffects = () => {
+    const gs = useEngineStore.getState().gameState;
+    const newGs = { ...gs, damageEffects: [] };
+    useEngineStore.setState({ gameState: newGs });
+    saveGameState(newGs);
+    Alert.alert('✅ Schadenseffekte', 'Alle Effekte gelöscht.');
+  };
+
+  const handleShowDefenseBreakdown = () => {
+    const defense = useEngineStore.getState().calculateDefense();
+    Alert.alert(
+      '🛡️ Verteidigung',
+      `Basis-VP: ${defense.basisVP}\nWorkout-VP: ${Math.round(defense.workoutVP)}\nWorker-VP: ${defense.workerVP}\nTier-VP: ${defense.animalVP}\nStreak-Bonus: ${Math.round(defense.streakBonus * 100)}%\n\nGesamt: ${Math.round(defense.totalVP)} VP`
+    );
+  };
+
+  const handleClearActiveWave = () => {
+    const gs = useEngineStore.getState().gameState;
+    const newGs = { ...gs, activeWave: null, nextWaveAt: null };
+    useEngineStore.setState({ gameState: newGs });
+    saveGameState(newGs);
+    Alert.alert('🧹 Welle', 'Aktive Welle und nextWaveAt gelöscht.');
   };
 
   const handleFullReset = () => {
@@ -264,6 +431,24 @@ export default function DevToolsSection() {
           <Text style={s.animalBtnSub}>Stall-Kapazität wird ignoriert — nur für Tests</Text>
         </View>
       </TouchableOpacity>
+
+      {/* ── MONSTERWELLEN ─────────────────────────────────────── */}
+      <SectionLabel text="MONSTERWELLEN" />
+      <View style={s.grid}>
+        <DevBtn label="⚔️ Welle in 5s" onPress={handleSpawnWaveIn5s} />
+        <DevBtn label="⚠️ Annäherungs-Banner" onPress={handleShowApproachingWave} />
+        <DevBtn label="💀 Niederlage sim." onPress={handleSimulateDefeat} />
+        <DevBtn label="🏆 Sieg sim." onPress={handleSimulateVictory} />
+        <DevBtn label="🛡️ VP anzeigen" onPress={handleShowDefenseBreakdown} />
+        <DevBtn label="🧹 Welle löschen" onPress={handleClearActiveWave} />
+      </View>
+
+      {/* ── SCHADENSEFFEKTE ───────────────────────────────────── */}
+      <SectionLabel text="SCHADENSEFFEKTE" />
+      <View style={s.grid}>
+        <DevBtn label="🔥 Zufälligen Effekt" onPress={handleAddDamageEffect} />
+        <DevBtn label="✅ Alle löschen" onPress={handleClearDamageEffects} />
+      </View>
 
       {/* ── RESET ─────────────────────────────────────────────── */}
       <SectionLabel text="RESET" />
