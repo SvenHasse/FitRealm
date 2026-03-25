@@ -118,6 +118,10 @@ export enum BuildingType {
   bibliothek = 'bibliothek',
   marktplatz = 'marktplatz',
   stammeshaus = 'stammeshaus',
+  // --- Entity System (Phase 2+) ---
+  stall = 'stall',
+  wachturm = 'wachturm',
+  mauer = 'mauer',
 }
 
 export const ALL_BUILDING_TYPES: BuildingType[] = Object.values(BuildingType);
@@ -138,6 +142,9 @@ export function buildingDisplayName(type: BuildingType): string {
     [BuildingType.bibliothek]: 'Bibliothek',
     [BuildingType.marktplatz]: 'Marktplatz',
     [BuildingType.stammeshaus]: 'Stammeshaus',
+    [BuildingType.stall]: 'Stall',
+    [BuildingType.wachturm]: 'Wachturm',
+    [BuildingType.mauer]: 'Mauer',
   };
   return names[type];
 }
@@ -159,6 +166,9 @@ export function buildingIconName(type: BuildingType): string {
     [BuildingType.bibliothek]: 'book',
     [BuildingType.marktplatz]: 'storefront',
     [BuildingType.stammeshaus]: 'people',
+    [BuildingType.stall]: 'paw',
+    [BuildingType.wachturm]: 'eye',
+    [BuildingType.mauer]: 'shield-half',
   };
   return icons[type];
 }
@@ -179,6 +189,9 @@ export function buildingDescription(type: BuildingType): string {
     [BuildingType.bibliothek]: 'Unlocks research that improves every aspect of your realm.',
     [BuildingType.marktplatz]: 'Trade surplus resources with other tribes for what you need.',
     [BuildingType.stammeshaus]: 'The ultimate symbol of tribal prestige and endgame power.',
+    [BuildingType.stall]: 'Houses your animals and lets you assign them to buildings for production bonuses.',
+    [BuildingType.wachturm]: 'Provides early warning of incoming monster waves and reduces attacker strength.',
+    [BuildingType.mauer]: 'A stone wall that absorbs damage and protects your settlement from monster attacks.',
   };
   return descriptions[type];
 }
@@ -208,6 +221,9 @@ export function buildingAccentColor(type: BuildingType): string {
     case BuildingType.steinlager:
     case BuildingType.nahrungslager:
     case BuildingType.kaserne:
+    case BuildingType.stall:
+    case BuildingType.wachturm:
+    case BuildingType.mauer:
       return '#8B5CF6'; // purple — infrastructure
     case BuildingType.tempel:
     case BuildingType.bibliothek:
@@ -360,6 +376,14 @@ export interface GameState {
   // Production Engine
   lastProductionTick: string; // ISO date string
   processedGameWorkoutIDs: string[];
+
+  // Entity System
+  animals: Animal[];
+  eggs: AnimalEgg[];
+  waves: MonsterWave[];
+  activeWave: MonsterWave | null;
+  nextWaveAt: number | null;           // Unix timestamp ms
+  damageEffects: DamageEffect[];       // Aktive Schadenseffekte auf Gebäuden
 }
 
 export function gameStateRathausLevel(state: GameState): number {
@@ -406,7 +430,142 @@ export function createDefaultGameState(): GameState {
     lastStreakMilestone: 0,
     lastProductionTick: new Date().toISOString(),
     processedGameWorkoutIDs: [],
+    animals: [],
+    eggs: [],
+    waves: [],
+    activeWave: null,
+    nextWaveAt: null,
+    damageEffects: [],
   };
+}
+
+// ============================================
+// ENTITY SYSTEM — Types
+// ============================================
+
+// --- Tiere ---
+
+export type AnimalRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export type AnimalType =
+  | 'erntehuhn'
+  | 'lastesel'
+  | 'holzbaer'
+  | 'spaehfalke'
+  | 'steinbock'
+  | 'mystischerHirsch'
+  | 'kriegswolf'
+  | 'gluecksphoenixt'
+  | 'uralterDrache';
+
+export type AnimalAssignment =
+  | { type: 'building'; buildingId: string }   // Einem Gebäude zugewiesen (Produktionsbonus)
+  | { type: 'defense' }                         // Der Verteidigung zugewiesen
+  | { type: 'idle' };                           // Im Stall, nicht zugewiesen
+
+export interface Animal {
+  id: string;
+  type: AnimalType;
+  name: string;                    // Anzeigename (z.B. "Holzbär")
+  rarity: AnimalRarity;
+  assignment: AnimalAssignment;
+  obtainedAt: number;              // Timestamp wann erhalten
+}
+
+// --- Tier-Eier ---
+
+export type EggRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface AnimalEgg {
+  id: string;
+  rarity: EggRarity;
+  hatchesInto: AnimalType;          // Welches Tier schlüpft
+  workoutsRequired: number;         // Wie viele Workouts zum Ausbrüten
+  workoutsCompleted: number;        // Bisheriger Fortschritt
+  requiresConsecutive: boolean;     // Müssen Workouts aufeinanderfolgend sein?
+  requiresMinHRmax: number | null;  // Mindest-HRmax-Prozent (null = egal)
+  obtainedAt: number;
+}
+
+// --- Monster ---
+
+export type MonsterTier = 1 | 2 | 3 | 4 | 5;
+
+export type MonsterType =
+  | 'sumpfgoblin'
+  | 'schattenratte'
+  | 'skelettkrieger'
+  | 'giftwurm'
+  | 'dunkelork'
+  | 'nebelgeist'
+  | 'frostdrache'
+  | 'schattenmagier'
+  | 'uralterGolem'
+  | 'verderbnisHydra';
+
+export interface Monster {
+  type: MonsterType;
+  count: number;                    // Anzahl in dieser Welle
+  attackPower: number;              // Angriffskraft (berechnet)
+  hp: number;                       // HP (berechnet)
+  target: MonsterTarget;
+}
+
+export type MonsterTarget =
+  | 'fields'          // Felder/Nahrung
+  | 'storage'         // Lager
+  | 'production'      // Zufälliges Produktionsgebäude
+  | 'magic'           // Tempel/Bibliothek
+  | 'protein'         // Proteinfarm/Tempel
+  | 'all'             // Flächenangriff
+  | 'rathaus';        // Boss: Rathaus
+
+// --- Monsterwellen ---
+
+export type WaveStatus = 'approaching' | 'active' | 'resolved';
+
+export interface MonsterWave {
+  id: string;
+  monsters: Monster[];
+  totalAttackPower: number;
+  status: WaveStatus;
+  announcedAt: number;              // Wann die Warnung kam
+  arrivesAt: number;                // Wann der Angriff startet
+  resolvedAt: number | null;        // Wann der Kampf beendet wurde
+  result: WaveResult | null;
+}
+
+export type WaveResult = {
+  outcome: 'perfect' | 'defended' | 'partial' | 'overrun';
+  damageDealt: DamageEffect[];
+  loot: LootDrop[];
+  playerVP: number;
+  monsterAP: number;
+};
+
+export interface DamageEffect {
+  buildingId: string;
+  effectType: 'productionStop' | 'resourceLoss' | 'disabled';
+  duration: number;                 // Dauer in Millisekunden
+  startsAt: number;
+  endsAt: number;
+}
+
+export interface LootDrop {
+  type: 'muskelmasse' | 'holz' | 'nahrung' | 'protein' | 'stein' | 'egg' | 'cosmetic' | 'trophy';
+  amount: number;
+  eggRarity?: EggRarity;           // Nur bei type === 'egg'
+}
+
+// --- Verteidigung ---
+
+export interface DefenseBreakdown {
+  basisVP: number;        // Aus Gebäuden (Rathaus, Kaserne, Wachturm, Mauer)
+  workoutVP: number;      // Aus Workouts der letzten 24h
+  workerVP: number;       // Aus Workern in Verteidigung
+  animalVP: number;       // Aus Tieren in Verteidigung
+  streakBonus: number;    // Prozentbonus aus Streak
+  totalVP: number;
 }
 
 // MARK: - AppColors

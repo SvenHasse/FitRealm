@@ -181,6 +181,12 @@ export function buildCost(type: BuildingType): ResourceCost {
       return createResourceCost({ muskelmasse: 150, wood: 25, stone: 10 });
     case BuildingType.stammeshaus:
       return createResourceCost({ muskelmasse: 500, protein: 5, streakTokens: 10 });
+    case BuildingType.stall:
+      return createResourceCost({ muskelmasse: 30, wood: 15 });
+    case BuildingType.wachturm:
+      return createResourceCost({ muskelmasse: 150, stone: 30 });
+    case BuildingType.mauer:
+      return createResourceCost({ muskelmasse: 100, stone: 50 });
   }
 }
 
@@ -248,6 +254,15 @@ export function upgradeCost(type: BuildingType, currentLevel: number): ResourceC
       return createResourceCost({ muskelmasse: 200 * s, wood: Math.floor(15 * s), stone: Math.floor(10 * s) });
     case BuildingType.stammeshaus:
       return createResourceCost({ muskelmasse: 400 * s, protein: Math.floor(5 * s), streakTokens: Math.floor(10 * s) });
+    case BuildingType.stall: {
+      // Costs per level: [L1→L2, L2→L3, L3→L4, L4→L5]
+      const stallMM = [60, 120, 200, 350];
+      const stallWood = [30, 60, 100, 175];
+      return createResourceCost({ muskelmasse: stallMM[s - 1] ?? 0, wood: stallWood[s - 1] ?? 0 });
+    }
+    case BuildingType.wachturm:
+    case BuildingType.mauer:
+      return null; // Kosten werden in Phase 5 definiert
     default:
       return null;
   }
@@ -300,6 +315,11 @@ export function rathausRequirement(type: BuildingType): number {
     case BuildingType.proteinfarm:   return 4;
     // Rathaus L5 — endgame
     case BuildingType.stammeshaus:   return 5;
+    // Rathaus L2 — Stall
+    case BuildingType.stall:         return 2;
+    // Noch nicht freigeschalten (Phase 5)
+    case BuildingType.wachturm:      return 99;
+    case BuildingType.mauer:         return 99;
     default:                         return 1;
   }
 }
@@ -311,6 +331,9 @@ export const UNIQUE_BUILDINGS: Set<BuildingType> = new Set([
   BuildingType.marktplatz,
   BuildingType.bibliothek,
   BuildingType.tempel,
+  BuildingType.stall,
+  BuildingType.wachturm,
+  BuildingType.mauer,
 ]);
 
 // MARK: - Progressive Multi-Build Unlock (per Rathaus level)
@@ -368,6 +391,9 @@ export const CONSTRUCTION_TIME: Partial<Record<BuildingType, number[]>> = {
   bibliothek:    [300,  600, 1200, 2400, 4800],
   marktplatz:    [240,  480,  960, 1920, 3840],
   stammeshaus:   [600, 1200, 2400, 4800, 9600],
+  stall:         [600, 1800, 3600, 5400, 7200],   // 10min, 30min, 60min, 90min, 120min
+  wachturm:      [180,  360,  720, 1440, 2880],
+  mauer:         [300,  600, 1200, 2400, 4800],
 };
 
 /** Construction time in seconds for a building at a given target level */
