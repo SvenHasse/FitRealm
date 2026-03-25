@@ -3,11 +3,11 @@
 
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, Alert,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGameStore } from '../store/useGameStore';
-import { AppColors, AnimalType, Animal } from '../models/types';
+import { AppColors, AnimalType } from '../models/types';
 import { ANIMAL_CONFIGS } from '../config/EntityConfig';
 import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
 
@@ -57,41 +57,12 @@ const UNLOCK_CONDITIONS: Record<AnimalType, string> = {
 };
 
 export default function AnimalCollectionSheet({ visible, onClose }: Props) {
-  const { gameState, addAnimal } = useGameStore();
+  const { gameState } = useGameStore();
   const [selectedAnimal, setSelectedAnimal] = useState<AnimalType | null>(null);
 
   const ownedTypes = new Set(gameState.animals.map(a => a.type));
   const ownedCount = ownedTypes.size;
   const tracker = gameState.intensiveWorkoutTracker;
-
-  const handleDevUnlockAll = () => {
-    Alert.alert(
-      '🛠️ Dev: Alle Tiere freischalten',
-      'Alle 9 Tiere werden sofort freigeschaltet.',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Freischalten',
-          onPress: () => {
-            ALL_ANIMAL_TYPES.forEach(type => {
-              if (!gameState.animals.some(a => a.type === type)) {
-                const cfg = ANIMAL_CONFIGS[type];
-                const animal: Animal = {
-                  id: `dev_${type}_${Date.now().toString(36)}`,
-                  type,
-                  name: cfg.name,
-                  rarity: cfg.rarity,
-                  assignment: { type: 'idle' },
-                  obtainedAt: Date.now(),
-                };
-                addAnimal(animal);
-              }
-            });
-          },
-        },
-      ]
-    );
-  };
 
   const getProgress = (type: AnimalType): string | null => {
     if (type === 'spaehfalke') {
@@ -112,13 +83,8 @@ export default function AnimalCollectionSheet({ visible, onClose }: Props) {
             <MaterialCommunityIcons name="close" size={22} color={AppColors.textSecondary} />
           </TouchableOpacity>
           <Text style={styles.title}>Tier-Sammlung</Text>
-          <View style={styles.headerRight}>
-            <TouchableOpacity onPress={handleDevUnlockAll} style={styles.devBtn}>
-              <Text style={styles.devBtnText}>🛠️ Dev</Text>
-            </TouchableOpacity>
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>{ownedCount}/9</Text>
-            </View>
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{ownedCount}/9</Text>
           </View>
         </View>
 
@@ -319,13 +285,6 @@ const styles = StyleSheet.create({
   },
   closeBtn: { padding: 4 },
   title: { fontSize: 17, fontWeight: 'bold', color: '#fff' },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  devBtn: {
-    backgroundColor: 'rgba(255,193,7,0.15)',
-    borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,193,7,0.4)',
-    paddingHorizontal: 8, paddingVertical: 3,
-  },
-  devBtnText: { fontSize: 11, color: '#FFC107', fontWeight: '700' },
   countBadge: {
     backgroundColor: 'rgba(245,166,35,0.15)', borderRadius: 10,
     paddingHorizontal: 8, paddingVertical: 3,
