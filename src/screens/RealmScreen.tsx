@@ -4,16 +4,20 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal,
-  Dimensions,
+  Dimensions, LayoutAnimation, UIManager, Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle,
-  withSequence, withTiming, Easing,
+  withSequence, withTiming, withRepeat, Easing,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android') {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
-import { useGameStore as useCurrencyStore } from '../store/gameStore';
 import {
   AppColors, Building, BuildingType, Obstacle,
   buildingIconName, buildingAccentColor,
@@ -354,99 +358,188 @@ function fmtNum(n: number, lang: string): string {
   return Math.floor(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, sep);
 }
 
-// MARK: - Top Resource Bar
+// MARK: - Top Resource Bar (collapsible)
 function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey) => void }) {
-  const gs = useGameStore(s => s.gameState);
+  const gs  = useGameStore(s => s.gameState);
   const cap = useGameStore(s => s.storageCap);
-  const { currentStreak } = useCurrencyStore();
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
+  const [collapsed, setCollapsed] = useState(false);
+
+  const toggle = () => {
+    LayoutAnimation.configureNext({
+      duration: 220,
+      create:  { type: 'easeInEaseOut', property: 'opacity' },
+      update:  { type: 'easeInEaseOut' },
+      delete:  { type: 'easeInEaseOut', property: 'opacity' },
+    });
+    setCollapsed(c => !c);
+  };
+
+  // Warning colours for collapsed icon strip
+  const woodRatio  = cap.wood  > 0 && cap.wood  !== Infinity ? gs.wood  / cap.wood  : 0;
+  const stoneRatio = cap.stone > 0 && cap.stone !== Infinity ? gs.stone / cap.stone : 0;
+  const foodRatio  = cap.food  > 0 && cap.food  !== Infinity ? gs.food  / cap.food  : 0;
+  const woodColor  = woodRatio  >= 1 ? '#FF5252' : woodRatio  >= 0.8 ? '#FF9800' : '#A0826D';
+  const stoneColor = stoneRatio >= 1 ? '#FF5252' : stoneRatio >= 0.8 ? '#FF9800' : '#9E9E9E';
+  const foodColor  = foodRatio  >= 1 ? '#FF5252' : foodRatio  >= 0.8 ? '#FF9800' : '#4CAF50';
+
+  if (collapsed) {
+    return (
+      <TouchableOpacity style={styles.collapsedPill} onPress={toggle} activeOpacity={0.8}>
+        {/* Currencies */}
+        <View style={styles.collapsedIconGroup}>
+          <Ionicons name="barbell" size={18} color={AppColors.gold} />
+          <MaterialCommunityIcons name="diamond-stone" size={18} color="#00BCD4" />
+        </View>
+        <View style={styles.collapsedSep} />
+        {/* Resources */}
+        <View style={styles.collapsedIconGroup}>
+          <Ionicons name="hammer" size={18} color={woodColor} />
+          <Ionicons name="cube"   size={18} color={stoneColor} />
+          <Ionicons name="leaf"   size={18} color={foodColor} />
+        </View>
+        <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.35)" style={{ marginLeft: 4 }} />
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <View style={styles.resourceBar}>
-      <View style={styles.resourceRow}>
-        {/* Muskelmasse — uncapped */}
-        <ResourcePill icon="barbell" iconColor={AppColors.gold}
-          value={`${fmtNum(gs.muskelmasse, lang)}g`}
-          label={t('hud.muskel')} onPress={() => onResourcePress('muskelmasse')} lang={lang} />
-        <View style={styles.divider} />
-        {/* Protein — uncapped */}
-        <ResourcePill icon="medkit" iconColor="#00BCD4"
-          value={`${fmtNum(gs.protein, lang)}`}
-          label={t('hud.protein')} onPress={() => onResourcePress('protein')} lang={lang} />
-        <View style={styles.divider} />
-        {/* Streak tokens — uncapped */}
-        <ResourcePill icon="flame" iconColor="#FF9800"
-          value={`${fmtNum(gs.streakTokens, lang)}`}
-          label={t('hud.token')} onPress={() => onResourcePress('streakTokens')} lang={lang} />
+      {/* ── Currency Card: Muskelmasse + Protein ── */}
+      <View style={styles.currencyCard}>
+        <TouchableOpacity style={styles.currencySlot} onPress={() => onResourcePress('muskelmasse')} activeOpacity={0.75}>
+          <View style={styles.currencyIconWrap}>
+            <Ionicons name="barbell" size={15} color={AppColors.gold} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.currencyValue} numberOfLines={1}>{fmtNum(gs.muskelmasse, lang)}g</Text>
+            <Text style={styles.currencyLabel}>MUSKELMASSE</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.currencyDivider} />
+
+        <TouchableOpacity style={styles.currencySlot} onPress={() => onResourcePress('protein')} activeOpacity={0.75}>
+          <View style={[styles.currencyIconWrap, { backgroundColor: 'rgba(0,188,212,0.18)' }]}>
+            <MaterialCommunityIcons name="diamond-stone" size={15} color="#00BCD4" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.currencyValue, { color: '#00BCD4' }]} numberOfLines={1}>{fmtNum(gs.protein, lang)}</Text>
+            <Text style={styles.currencyLabel}>PROTEIN</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Collapse button */}
+        <TouchableOpacity onPress={toggle} style={styles.collapseBtn} activeOpacity={0.6}>
+          <Ionicons name="chevron-up" size={14} color="rgba(255,255,255,0.35)" />
+        </TouchableOpacity>
       </View>
-      <View style={[styles.resourceRow, { opacity: 0.9 }]}>
-        {/* Wood — capped */}
-        <ResourcePill icon="hammer" iconColor="#8B7355"
-          value={`${fmtNum(gs.wood, lang)}`}
-          max={cap.wood === Infinity ? undefined : cap.wood} current={gs.wood}
-          label={t('hud.holz')} onPress={() => onResourcePress('wood')} lang={lang} />
-        <View style={styles.divider} />
-        {/* Stone — capped */}
-        <ResourcePill icon="cube" iconColor="#9E9E9E"
-          value={`${fmtNum(gs.stone, lang)}`}
-          max={cap.stone === Infinity ? undefined : cap.stone} current={gs.stone}
-          label={t('hud.stein')} onPress={() => onResourcePress('stone')} lang={lang} />
-        <View style={styles.divider} />
-        {/* Food — capped */}
-        <ResourcePill icon="leaf" iconColor="#4CAF50"
-          value={`${fmtNum(gs.food, lang)}`}
-          max={cap.food === Infinity ? undefined : cap.food} current={gs.food}
-          label={t('hud.nahrung')} onPress={() => onResourcePress('food')} lang={lang} />
-        {currentStreak > 0 && (
-          <>
-            <View style={styles.divider} />
-            <ResourcePill icon="flash" iconColor="#FFEB3B"
-              value={`${currentStreak}d`}
-              label={t('hud.streak')} onPress={() => onResourcePress('streakTokens')} lang={lang} />
-          </>
-        )}
+
+      {/* ── Resource Bars: Holz / Stein / Nahrung ── */}
+      <View style={styles.resourceBarsCard}>
+        <ResourceBarRow
+          icon="hammer" iconColor="#A0826D" label={t('hud.holz')}
+          current={gs.wood}  max={cap.wood  === Infinity ? 0 : cap.wood}
+          onPress={() => onResourcePress('wood')} lang={lang}
+        />
+        <View style={styles.barDivider} />
+        <ResourceBarRow
+          icon="cube" iconColor="#9E9E9E" label={t('hud.stein')}
+          current={gs.stone} max={cap.stone === Infinity ? 0 : cap.stone}
+          onPress={() => onResourcePress('stone')} lang={lang}
+        />
+        <View style={styles.barDivider} />
+        <ResourceBarRow
+          icon="leaf" iconColor="#4CAF50" label={t('hud.nahrung')}
+          current={gs.food}  max={cap.food  === Infinity ? 0 : cap.food}
+          onPress={() => onResourcePress('food')} lang={lang}
+        />
       </View>
     </View>
   );
 }
 
-interface ResourcePillProps {
+// ── Single animated resource bar row ─────────────────────────────────────────
+interface ResourceBarRowProps {
   icon: string;
   iconColor: string;
-  value: string;
   label: string;
+  current: number;
+  max: number;      // 0 = uncapped / unknown
   onPress: () => void;
   lang: string;
-  max?: number;
-  current?: number;
-  suffix?: string;
 }
 
-function ResourcePill({ icon, iconColor, value, label, onPress, lang, max, current }: ResourcePillProps) {
-  const ratio = (max && max > 0 && current !== undefined) ? current / max : 0;
-  const isFull   = ratio >= 1.0;
-  const isAlmost = ratio >= 0.8 && !isFull;
-  const borderColor = isFull ? '#FF6B6B' : isAlmost ? '#F5A623' : 'transparent';
-  const bgColor = isFull ? 'rgba(255,80,80,0.15)' : 'transparent';
-  const maxStr = max !== undefined ? fmtNum(max, lang) : null;
+function ResourceBarRow({ icon, iconColor, label, current, max, onPress, lang }: ResourceBarRowProps) {
+  const hasCap   = max > 0;
+  const ratio    = hasCap ? Math.min(current / max, 1) : 0;
+  const isFull   = hasCap && ratio >= 1.0;
+  const isAlmost = hasCap && ratio >= 0.8 && !isFull;
+
+  // Animate bar fill width via onLayout container width
+  const [containerW, setContainerW] = useState(0);
+  const fillAnim   = useSharedValue(0);
+  const glowAnim   = useSharedValue(0);
+
+  useEffect(() => {
+    fillAnim.value = withTiming(ratio, { duration: 700, easing: Easing.out(Easing.cubic) });
+  }, [ratio]);
+
+  // Pulse glow when almost full or full
+  useEffect(() => {
+    if (isFull || isAlmost) {
+      glowAnim.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 700 }),
+          withTiming(0.3, { duration: 700 }),
+        ), -1, true,
+      );
+    } else {
+      glowAnim.value = withTiming(0, { duration: 300 });
+    }
+  }, [isFull, isAlmost]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: fillAnim.value * containerW,
+  }));
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowAnim.value,
+  }));
+
+  const barColor   = isFull ? '#FF5252' : isAlmost ? '#FF9800' : iconColor;
+  const maxStr     = hasCap ? fmtNum(max, lang) : '∞';
+  const currentStr = fmtNum(current, lang);
 
   return (
-    <TouchableOpacity
-      style={[styles.pill, { borderColor, borderWidth: isFull || isAlmost ? 1 : 0, borderRadius: 8, backgroundColor: bgColor }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Ionicons name={icon as any} size={11} color={iconColor} />
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 1 }}>
-        <Text style={styles.pillValue}>{value}</Text>
-        {maxStr !== null && (
-          <Text style={styles.pillMax}> /{maxStr}</Text>
+    <TouchableOpacity style={styles.barRow} onPress={onPress} activeOpacity={0.7}>
+      {/* Icon */}
+      <View style={[styles.barIconWrap, { backgroundColor: `${iconColor}22` }]}>
+        <Ionicons name={icon as any} size={13} color={iconColor} />
+      </View>
+
+      {/* Label */}
+      <Text style={styles.barLabel}>{label}</Text>
+
+      {/* Progress track */}
+      <View
+        style={styles.barTrack}
+        onLayout={e => setContainerW(e.nativeEvent.layout.width)}
+      >
+        {/* Background shimmer */}
+        <View style={[styles.barTrackBg]} />
+        {/* Fill */}
+        <Animated.View style={[styles.barFill, { backgroundColor: barColor }, fillStyle]} />
+        {/* Glow overlay */}
+        {(isFull || isAlmost) && (
+          <Animated.View style={[styles.barGlow, { backgroundColor: barColor }, glowStyle]} />
         )}
       </View>
-      <Text style={styles.pillLabel}>{label}</Text>
-      {isFull   && <Text style={{ fontSize: 9 }}>🔴</Text>}
-      {isAlmost && !isFull && <Text style={{ fontSize: 9 }}>⚠️</Text>}
-      {!isFull  && !isAlmost && <Ionicons name="information-circle-outline" size={12} color="rgba(255,255,255,0.4)" />}
+
+      {/* Numbers */}
+      <Text style={[styles.barNumbers, isFull && { color: '#FF5252' }, isAlmost && !isFull && { color: '#FF9800' }]}>
+        {currentStr}<Text style={styles.barMax}>/{maxStr}</Text>
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -552,16 +645,73 @@ const styles = StyleSheet.create({
   },
   hudBtn: { alignItems: 'center', paddingVertical: 12, paddingHorizontal: 24 },
   hudBtnLabel: { fontSize: 12, color: '#fff', marginTop: 4 },
-  resourceBar: { gap: 4 },
-  resourceRow: {
+  resourceBar: { gap: 6 },
+
+  // ── Collapsed pill ─────────────────────────────────────────────────────────
+  collapsedPill: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(26,26,46,0.92)', borderRadius: 14, paddingVertical: 8,
-    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+    backgroundColor: 'rgba(20,20,40,0.95)',
+    borderRadius: 14, paddingVertical: 9, paddingHorizontal: 14,
+    borderWidth: 1, borderColor: 'rgba(245,166,35,0.15)',
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4,
+    gap: 10,
   },
-  pill: { flex: 1, alignItems: 'center', gap: 1, paddingVertical: 2, paddingHorizontal: 2 },
-  pillValue: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
-  pillMax: { fontSize: 10, color: 'rgba(255,255,255,0.45)' },
-  pillLabel: { fontSize: 8, color: 'rgba(255,255,255,0.55)' },
+  collapsedIconGroup: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  collapsedSep: { width: 1, height: 18, backgroundColor: 'rgba(255,255,255,0.12)' },
+
+  // ── Currency card (Muskelmasse + Protein) ──────────────────────────────────
+  currencyCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(20,20,40,0.95)',
+    borderRadius: 16, paddingVertical: 10, paddingHorizontal: 4,
+    borderWidth: 1, borderColor: 'rgba(245,166,35,0.18)',
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5,
+  },
+  currencySlot: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10,
+  },
+  currencyIconWrap: {
+    width: 30, height: 30, borderRadius: 10,
+    backgroundColor: 'rgba(245,166,35,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  currencyValue: { fontSize: 15, fontWeight: 'bold', color: AppColors.gold },
+  currencyLabel: { fontSize: 8, fontWeight: '700', color: 'rgba(255,255,255,0.4)', letterSpacing: 0.8, marginTop: 1 },
+  currencyDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.1)' },
+  collapseBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+
+  // ── Resource bars card (Holz / Stein / Nahrung) ────────────────────────────
+  resourceBarsCard: {
+    backgroundColor: 'rgba(20,20,40,0.95)',
+    borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5,
+    gap: 0,
+  },
+  barRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6,
+  },
+  barDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)' },
+  barIconWrap: {
+    width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center',
+  },
+  barLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.75)', width: 48 },
+  barTrack: {
+    flex: 1, height: 7, borderRadius: 4, overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.08)', position: 'relative',
+  },
+  barTrackBg: { ...StyleSheet.absoluteFillObject, borderRadius: 4 },
+  barFill: { position: 'absolute', top: 0, left: 0, bottom: 0, borderRadius: 4 },
+  barGlow: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: 4,
+  },
+  barNumbers: {
+    fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.8)',
+    minWidth: 68, textAlign: 'right',
+  },
+  barMax: { fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: '400' },
+
   divider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.1)' },
   explorationPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
