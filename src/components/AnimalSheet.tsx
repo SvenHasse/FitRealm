@@ -14,6 +14,7 @@ import {
 import { ANIMAL_CONFIGS, STALL_CONFIG } from '../config/EntityConfig';
 import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
 import BuildingRenderer from '../../village-assets/components/BuildingRenderer';
+import AnimalCollectionSheet from './AnimalCollectionSheet';
 
 interface Props {
   stall: Building;
@@ -39,6 +40,7 @@ const RARITY_LABELS: Record<string, string> = {
 export default function AnimalSheet({ stall, onClose }: Props) {
   const store = useGameStore();
   const { gameState } = store;
+  const [collectionVisible, setCollectionVisible] = useState(false);
 
   const stallLevel = stall.isUnderConstruction ? 0 : stall.level;
   const maxSlots = STALL_CONFIG.slotsPerLevel[Math.min(stallLevel, STALL_CONFIG.slotsPerLevel.length - 1)];
@@ -59,8 +61,19 @@ export default function AnimalSheet({ stall, onClose }: Props) {
               : `Level ${stallLevel} · ${animals.length}/${maxSlots} Slots`}
           </Text>
         </View>
-        <View style={{ width: 70 }} />
+        <TouchableOpacity
+          style={styles.collectionBtn}
+          onPress={() => setCollectionVisible(true)}
+        >
+          <Text style={styles.collectionBtnText}>Sammlung</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Tier-Sammlung Sheet */}
+      <AnimalCollectionSheet
+        visible={collectionVisible}
+        onClose={() => setCollectionVisible(false)}
+      />
 
       {/* Stall building visual */}
       <View style={styles.stallVisual}>
@@ -312,6 +325,12 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 17, fontWeight: 'bold', color: '#fff' },
   subtitle: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
+  collectionBtn: {
+    backgroundColor: 'rgba(0,180,216,0.12)',
+    borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,180,216,0.3)',
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  collectionBtnText: { fontSize: 12, color: AppColors.teal, fontWeight: '600' },
   stallVisual: { alignItems: 'center', paddingVertical: 12 },
   constructionBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,

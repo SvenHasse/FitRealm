@@ -9,6 +9,7 @@ import {
   BuildingType, WorkerStatus, WorkoutRecord, HealthSnapshot,
   createDefaultGameState, gameStateRathausLevel, gameStateDecayMultiplier,
   findBuildingById, workerStatus,
+  Animal, AnimalEgg, AnimalType,
 } from '../models/types';
 import {
   ResourceCost, createResourceCost, buildCost, upgradeCost, rathausRequirement,
@@ -96,6 +97,16 @@ export function initializeState(state: GameState): GameState {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     isConstructing: (w as any).isConstructing ?? false,
   }));
+  // Migrate: add intensiveWorkoutTracker if missing
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!(s as any).intensiveWorkoutTracker) {
+    s.intensiveWorkoutTracker = {
+      weeklyCount: 0,
+      weekStart: Date.now(),
+      biweeklyCount: 0,
+      biweeklyStart: Date.now(),
+    };
+  }
   return s;
 }
 
@@ -541,6 +552,12 @@ export function processWorkouts(state: GameState, workouts: WorkoutRecord[], sna
     updateStreak(s, new Date(workout.date));
     awardDailyToken(s, new Date(workout.date));
     s.processedGameWorkoutIDs.push(workout.id);
+
+    // HRmax-Tracking: ≥140bpm gilt als ≥70% HRmax
+    const isIntensive = (workout.averageHeartRate ?? 0) >= 140;
+    if (isIntensive) {
+      _updateIntensiveTracker(s);
+    }
   }
 
   // Step bonus
@@ -576,16 +593,114 @@ function updateStreak(state: GameState, date: Date): void {
   }
   state.lastWorkoutDate = date.toISOString();
 
-  // 3-day milestone
+  // 3-day milestone — Lastesel
   if (state.currentStreak >= 3 && state.lastStreakMilestone < 3) {
     state.streakTokens += 2;
     state.lastStreakMilestone = 3;
+    _grantStreakAnimal(state, 'lastesel');
   }
-  // 7-day milestone
+  // 7-day milestone — Holzbär
   if (state.currentStreak >= 7 && state.lastStreakMilestone < 7) {
     state.streakTokens += 5;
     state.protein += 3;
     state.lastStreakMilestone = 7;
+    _grantStreakAnimal(state, 'holzbaer');
+  }
+  // 14-day milestone — Steinbock
+  if (state.currentStreak >= 14 && state.lastStreakMilestone < 14) {
+    state.lastStreakMilestone = 14;
+    _grantStreakAnimal(state, 'steinbock');
+  }
+  // 21-day milestone — Kriegswolf (nur wenn Rathaus >= L3)
+  if (state.currentStreak >= 21 && state.lastStreakMilestone < 21) {
+    state.lastStreakMilestone = 21;
+    const rathausLevel = gameStateRathausLevel(state);
+    if (rathausLevel >= 3) {
+      _grantStreakAnimal(state, 'kriegswolf');
+    }
+    // If rathaus < 3: no wolf, player sees nothing here — hint shown in UI
+  }
+  // 30-day milestone — Legendäres Ei
+  if (state.currentStreak >= 30 && state.lastStreakMilestone < 30) {
+    state.lastStreakMilestone = 30;
+    const legendaryEgg: AnimalEgg = {
+      id: `egg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
+      rarity: 'legendary',
+      hatchesInto: 'uralterDrache',
+      workoutsRequired: 14,
+      workoutsCompleted: 0,
+      requiresConsecutive: true,
+      requiresMinHRmax: 70,
+      obtainedAt: Date.now(),
+    };
+    state.eggs = [...(state.eggs ?? []), legendaryEgg];
+  }
+}
+
+/** Helper: grant a streak animal reward. If player already has it → bonus resources instead. */
+function _grantStreakAnimal(state: GameState, animalType: AnimalType): void {
+  const config = ANIMAL_CONFIGS[animalType];
+  // Already owns this type?
+  if (state.animals.some(a => a.type === animalType)) {
+    // Bonus resources instead of duplicate
+    state.wood = (state.wood ?? 0) + 50;
+    state.stone = (state.stone ?? 0) + 30;
+    return;
+  }
+  const animal: Animal = {
+    id: `animal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
+    type: animalType,
+    name: config.name,
+    rarity: config.rarity,
+    assignment: { type: 'idle' },
+    obtainedAt: Date.now(),
+  };
+  // Add regardless of stall capacity (assignment: idle, user gets hint in UI)
+  state.animals = [...(state.animals ?? []), animal];
+}
+
+/** HRmax-Tracking: Zählt intensive Workouts (≥70% HRmax) und schaltet Tiere frei. */
+function _updateIntensiveTracker(state: GameState): void {
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const biweekMs = 14 * 24 * 60 * 60 * 1000;
+
+  // Initialisiere tracker falls noch nicht vorhanden (Migration alter States)
+  if (!state.intensiveWorkoutTracker) {
+    state.intensiveWorkoutTracker = {
+      weeklyCount: 0,
+      weekStart: now,
+      biweeklyCount: 0,
+      biweeklyStart: now,
+    };
+  }
+
+  const tracker = state.intensiveWorkoutTracker;
+
+  let weeklyCount = tracker.weeklyCount + 1;
+  let weekStart = tracker.weekStart;
+  let biweeklyCount = tracker.biweeklyCount + 1;
+  let biweeklyStart = tracker.biweeklyStart;
+
+  if (now - weekStart > weekMs) {
+    weeklyCount = 1;
+    weekStart = now;
+  }
+  if (now - biweeklyStart > biweekMs) {
+    biweeklyCount = 1;
+    biweeklyStart = now;
+  }
+
+  state.intensiveWorkoutTracker = { weeklyCount, weekStart, biweeklyCount, biweeklyStart };
+
+  // Spähfalke: 5× ≥70% HRmax in einer Woche
+  if (weeklyCount >= 5 && !state.animals.some(a => a.type === 'spaehfalke')) {
+    _grantStreakAnimal(state, 'spaehfalke');
+  }
+
+  // Mystischer Hirsch: 10× ≥70% HRmax in 14 Tagen
+  if (biweeklyCount >= 10 && !state.animals.some(a => a.type === 'mystischerHirsch')) {
+    _grantStreakAnimal(state, 'mystischerHirsch');
   }
 }
 
