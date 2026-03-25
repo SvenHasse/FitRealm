@@ -306,17 +306,42 @@ export const UNIQUE_BUILDINGS: Set<BuildingType> = new Set([
   BuildingType.tempel,
 ]);
 
-// MARK: - Max Instances per Building Type
-// Mehrfachbau: Feld ≤ 3, Holzfäller ≤ 2, all others ≤ 1
-export function maxInstances(type: BuildingType): number {
-  switch (type) {
-    case BuildingType.feld:           return 3;
-    case BuildingType.holzfaeller:    return 2;
-    case BuildingType.holzlager:      return 2;
-    case BuildingType.steinlager:     return 2;
-    case BuildingType.nahrungslager:  return 2;
-    default:                          return 1;
+// MARK: - Progressive Multi-Build Unlock (per Rathaus level)
+// Each index = required Rathaus level to unlock that instance
+// index 0 = 1st instance, index 1 = 2nd instance, index 2 = 3rd instance
+export const MULTI_BUILD_UNLOCK: Partial<Record<BuildingType, number[]>> = {
+  holzfaeller:   [1, 3],      // 1st free, 2nd at Rathaus L3
+  feld:          [1, 2, 4],   // 1st free, 2nd at L2, 3rd at L4
+  steinbruch:    [2, 4],      // 1st at L2, 2nd at L4
+  proteinfarm:   [4, 5],      // 1st at L4, 2nd at L5
+  kornkammer:    [1],         // only 1× ever
+  holzlager:     [1, 3],      // 1st free, 2nd at L3
+  nahrungslager: [1, 3],      // 1st free, 2nd at L3
+  steinlager:    [2, 4],      // 1st at L2, 2nd at L4
+};
+
+// Returns how many instances of this building type the player may currently build
+export function allowedInstances(type: BuildingType, rathausLevel: number): number {
+  const unlocks = MULTI_BUILD_UNLOCK[type];
+  if (!unlocks) {
+    // Default: 1 instance when rathausRequired is met, 0 otherwise
+    return rathausLevel >= rathausRequirement(type) ? 1 : 0;
   }
+  return unlocks.filter(req => rathausLevel >= req).length;
+}
+
+// Returns the Rathaus level required to unlock the NEXT instance (for UI hints)
+export function nextInstanceUnlockLevel(type: BuildingType, currentInstances: number): number | null {
+  const unlocks = MULTI_BUILD_UNLOCK[type];
+  if (!unlocks || currentInstances >= unlocks.length) return null;
+  return unlocks[currentInstances];
+}
+
+// Total maximum instances ever possible (at max Rathaus)
+export function maxInstances(type: BuildingType): number {
+  const unlocks = MULTI_BUILD_UNLOCK[type];
+  if (unlocks) return unlocks.length;
+  return 1;
 }
 
 // MARK: - Workers

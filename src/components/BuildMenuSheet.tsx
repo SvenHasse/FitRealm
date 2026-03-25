@@ -11,7 +11,7 @@ import {
   buildingIconName, buildingAccentColor,
   gameStateRathausLevel,
 } from '../models/types';
-import { buildCost, rathausRequirement, maxInstances, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, Production } from '../config/GameConfig';
+import { buildCost, rathausRequirement, allowedInstances, nextInstanceUnlockLevel, maxInstances, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, Production } from '../config/GameConfig';
 import { canAfford, costString, hourlyProductionRate } from '../engines/GameEngine';
 
 type TabKey = 'production' | 'infrastructure' | 'special';
@@ -86,19 +86,36 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
       {/* Building Grid */}
       <ScrollView contentContainerStyle={styles.grid}>
         {filteredTypes.map(type => {
-          const cost = buildCost(type);
-          const reqLevel = rathausRequirement(type);
-          const max = maxInstances(type);
-          const existingCount = gameState.buildings.filter(b => b.type === type).length;
-          const meetsReq = gameStateRathausLevel(gameState) >= reqLevel;
-          const affordable = canAfford(gameState, cost);
-          const atMax = existingCount >= max;
-          const canPlace = meetsReq && affordable && !atMax;
-          const lockReason = atMax ? t('buildMenu.maxReached')
-            : !meetsReq ? t('buildMenu.rathausRequired', { level: reqLevel })
-            : !affordable ? t('buildMenu.tooExpensive') : null;
-          // Show "1/2" badge when multi-build is partially used
-          const showCount = max > 1 && existingCount > 0 && !atMax;
+          const cost         = buildCost(type);
+          const rathausLevel = gameStateRathausLevel(gameState);
+          const existing     = gameState.buildings.filter(b => b.type === type).length;
+          const allowed      = allowedInstances(type, rathausLevel);
+          const totalMax     = maxInstances(type);
+          const nextUnlock   = nextInstanceUnlockLevel(type, existing);
+          const nextAlloc    = nextInstanceUnlockLevel(type, allowed); // next slot level (for partial hint)
+
+          // Determine state
+          const notUnlocked  = allowed === 0;               // Case 1: not yet available at all
+          const atMax        = existing >= totalMax;         // Case 3: fully maxed
+          const slotLocked   = !notUnlocked && !atMax        // Case 2: has slots but next one locked
+                             && existing >= allowed && nextUnlock !== null;
+          const canPlace     = !notUnlocked && !atMax && existing < allowed
+                             && canAfford(gameState, cost);  // Case 4: can build
+
+          // Badge content
+          const showBadge    = totalMax > 1 && existing > 0;
+          const badgeLabel   = atMax
+            ? t('buildMenu.instanceCount', { current: existing, max: totalMax })
+            : t('buildMenu.instanceCount', { current: existing, max: totalMax });
+
+          // Primary lock label
+          const lockLabel = notUnlocked
+            ? t('buildMenu.unlocksAtRathaus', { level: rathausRequirement(type) })
+            : atMax
+              ? t('buildMenu.maxReached')
+              : !canAfford(gameState, cost) && existing < allowed
+                ? t('buildMenu.tooExpensive')
+                : null;
 
           return (
             <TouchableOpacity
@@ -108,21 +125,45 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
               activeOpacity={canPlace ? 0.7 : 1}
             >
               <View style={{ position: 'relative' }}>
-                <Ionicons name={buildingIconName(type) as any} size={36} color={canPlace ? buildingAccentColor(type) : 'rgba(255,255,255,0.3)'} />
-                {showCount && (
-                  <View style={styles.countBadge}>
-                    <Text style={styles.countBadgeText}>{t('buildMenu.instanceCount', { current: existingCount, max })}</Text>
+                <Ionicons
+                  name={buildingIconName(type) as any}
+                  size={36}
+                  color={canPlace ? buildingAccentColor(type) : 'rgba(255,255,255,0.3)'}
+                />
+                {/* Badge: shows current/total when partially or fully used */}
+                {showBadge && (
+                  <View style={[styles.countBadge, atMax && styles.countBadgeMax]}>
+                    <Text style={styles.countBadgeText}>{badgeLabel}</Text>
+                  </View>
+                )}
+                {/* Lock icon for fully locked buildings */}
+                {notUnlocked && (
+                  <View style={styles.lockOverlay}>
+                    <Text style={{ fontSize: 14 }}>🔒</Text>
                   </View>
                 )}
               </View>
-              <Text style={[styles.buildName, !canPlace && { opacity: 0.4 }]}>{t(`buildings.${type}`)}</Text>
-              {lockReason ? (
-                <Text style={styles.lockReason}>{lockReason}</Text>
+
+              <Text style={[styles.buildName, (notUnlocked || atMax) && { opacity: 0.4 }]}>
+                {t(`buildings.${type}`)}
+              </Text>
+
+              {/* Primary status line */}
+              {lockLabel ? (
+                <Text style={styles.lockReason}>{lockLabel}</Text>
               ) : (
                 <Text style={styles.costText}>{costString(cost)}</Text>
               )}
-              {/* Storage buildings: show capacity bonus preview */}
-              {storageBuildingResource(type) !== null && !lockReason && (() => {
+
+              {/* Case 2: next slot hint */}
+              {slotLocked && nextAlloc !== null && (
+                <Text style={styles.nextSlotHint}>
+                  {t('buildMenu.nextSlotAt', { level: nextAlloc })}
+                </Text>
+              )}
+
+              {/* Storage capacity bonus preview */}
+              {storageBuildingResource(type) !== null && canPlace && (() => {
                 const bonusArr = getStorageBonusArray(type);
                 const res = storageBuildingResource(type)!;
                 if (!bonusArr) return null;
@@ -139,13 +180,16 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
                   </View>
                 );
               })()}
-              {/* Production buildings: show L1 rate */}
+
+              {/* Production rate at L1 */}
               {[BuildingType.holzfaeller, BuildingType.steinbruch, BuildingType.feld,
-                BuildingType.proteinfarm, BuildingType.kornkammer].includes(type) && !lockReason && (() => {
+                BuildingType.proteinfarm, BuildingType.kornkammer].includes(type) && canPlace && (() => {
                 const info = l1ProductionRate(type);
                 if (!info) return null;
                 return (
-                  <Text style={styles.infoRowText}>⚡ {info.rate % 1 === 0 ? info.rate : info.rate.toFixed(1)}{info.resource}</Text>
+                  <Text style={styles.infoRowText}>
+                    ⚡ {info.rate % 1 === 0 ? info.rate : info.rate.toFixed(1)}{info.resource}
+                  </Text>
                 );
               })()}
             </TouchableOpacity>
@@ -182,7 +226,15 @@ const styles = StyleSheet.create({
     backgroundColor: AppColors.gold, borderRadius: 8,
     paddingHorizontal: 4, paddingVertical: 1,
   },
+  countBadgeMax: { backgroundColor: 'rgba(255,255,255,0.25)' },
   countBadgeText: { fontSize: 9, fontWeight: 'bold', color: '#000' },
+  lockOverlay: {
+    position: 'absolute', bottom: -2, right: -8,
+  },
+  nextSlotHint: {
+    fontSize: 9, fontWeight: '500', color: '#F5A623',
+    textAlign: 'center', marginTop: 2,
+  },
   infoRow: { alignItems: 'center', gap: 2 },
   infoRowText: { fontSize: 9, color: '#4DD0E1', textAlign: 'center' },
   infoRowSub: { fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: 'center' },
