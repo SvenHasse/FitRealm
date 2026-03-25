@@ -14,6 +14,7 @@ interface Props {
   defenseVP: number;
   onDetails: () => void;
   onPrepare: () => void;
+  isBloodWave?: boolean;
 }
 
 function formatCountdown(ms: number): string {
@@ -27,7 +28,7 @@ function formatCountdown(ms: number): string {
   return `${s}s`;
 }
 
-export default function WaveBanner({ wave, defenseVP, onDetails, onPrepare }: Props) {
+export default function WaveBanner({ wave, defenseVP, onDetails, onPrepare, isBloodWave }: Props) {
   const [timeLeft, setTimeLeft] = useState(wave.arrivesAt - Date.now());
 
   useEffect(() => {
@@ -37,18 +38,19 @@ export default function WaveBanner({ wave, defenseVP, onDetails, onPrepare }: Pr
     return () => clearInterval(timer);
   }, [wave.arrivesAt]);
 
-  // Pulse animation
+  // Pulse animation — Blutwellen pulsen schneller
   const opacity = useSharedValue(1);
   useEffect(() => {
+    const dur = isBloodWave ? 400 : 800;
     opacity.value = withRepeat(
       withSequence(
-        withTiming(0.5, { duration: 800 }),
-        withTiming(1.0, { duration: 800 }),
+        withTiming(0.4, { duration: dur }),
+        withTiming(1.0, { duration: dur }),
       ),
       -1,
       false,
     );
-  }, []);
+  }, [isBloodWave]);
 
   const animStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -58,10 +60,16 @@ export default function WaveBanner({ wave, defenseVP, onDetails, onPrepare }: Pr
   const isDefending = defenseVP >= totalAK;
   const vpColor = isDefending ? '#66BB6A' : '#EF5350';
 
+  const containerStyle = isBloodWave
+    ? [styles.container, styles.bloodContainer]
+    : [styles.container];
+
   return (
-    <View style={styles.container}>
+    <View style={containerStyle}>
       <Animated.View style={[styles.header, animStyle]}>
-        <Text style={styles.warningText}>Monsterwelle naht!</Text>
+        <Text style={[styles.warningText, isBloodWave && styles.bloodWarningText]}>
+          {isBloodWave ? '🩸 Blutwelle nähert sich!' : 'Monsterwelle naht!'}
+        </Text>
         <Text style={styles.countdown}>{formatCountdown(timeLeft)}</Text>
       </Animated.View>
 
@@ -109,6 +117,13 @@ const styles = StyleSheet.create({
     padding: 10,
     marginTop: 6,
     gap: 6,
+  },
+  bloodContainer: {
+    backgroundColor: 'rgba(183,28,28,0.25)',
+    borderColor: 'rgba(183,28,28,0.8)',
+  },
+  bloodWarningText: {
+    color: '#EF9A9A',
   },
   header: {
     flexDirection: 'row',

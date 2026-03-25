@@ -4,6 +4,9 @@
 import { MonsterWave, Monster, MonsterType } from '../models/types';
 import { MONSTER_CONFIGS, WAVE_CONFIG } from '../config/EntityConfig';
 
+// Re-export for convenience
+export { WAVE_CONFIG };
+
 const TIER1_MONSTERS: MonsterType[] = ['sumpfgoblin', 'schattenratte'];
 const TIER2_MONSTERS: MonsterType[] = ['skelettkrieger', 'giftwurm'];
 const TIER3_MONSTERS: MonsterType[] = ['dunkelork', 'nebelgeist'];
@@ -137,6 +140,75 @@ export class WaveService {
     }
 
     return base + interval;
+  }
+
+  isBossEventDue(lastBossEventAt: number | null, rathausLevel: number): boolean {
+    if (rathausLevel < 5) return false;
+    if (lastBossEventAt === null) return false; // Erst nach der allerersten Wave
+    return (Date.now() - lastBossEventAt) >= WAVE_CONFIG.bossEventIntervalDays * 24 * 3600 * 1000;
+  }
+
+  isBloodWaveDue(lastBloodWaveAt: number | null): boolean {
+    if (lastBloodWaveAt === null) return false;
+    return (Date.now() - lastBloodWaveAt) >= WAVE_CONFIG.bloodWaveIntervalDays * 24 * 3600 * 1000;
+  }
+
+  generateBossWave(bossType: 'uralterGolem' | 'verderbnisHydra', rathausLevel: number): MonsterWave {
+    const now = Date.now();
+    const cfg = MONSTER_CONFIGS[bossType];
+
+    // Boss-Monster selbst
+    const bossAttackPower = randInt(
+      Math.round(cfg.baseAttackPower[0] * (3 + rathausLevel * 0.5)),
+      Math.round(cfg.baseAttackPower[1] * (3 + rathausLevel * 0.5)),
+    );
+    const bossMonster: Monster = {
+      type: bossType,
+      count: 1,
+      attackPower: bossAttackPower,
+      hp: cfg.baseHP,
+      target: cfg.target as Monster['target'],
+    };
+
+    // Begleiter (Tier 2-3)
+    const companionTypes: MonsterType[] = ['skelettkrieger', 'dunkelork', 'giftwurm', 'nebelgeist'];
+    const companionCount = randInt(2, 4);
+    const companions: Monster[] = [];
+    for (let i = 0; i < companionCount; i++) {
+      const cType = pickRandom(companionTypes);
+      const cCfg = MONSTER_CONFIGS[cType];
+      companions.push({
+        type: cType,
+        count: randInt(1, 2),
+        attackPower: randInt(cCfg.baseAttackPower[0], cCfg.baseAttackPower[1]),
+        hp: cCfg.baseHP,
+        target: cCfg.target as Monster['target'],
+      });
+    }
+
+    const monsters: Monster[] = [bossMonster, ...companions];
+    const totalAttackPower = monsters.reduce((sum, m) => sum + m.count * m.attackPower, 0);
+
+    // Boss-Wellen haben längere Vorlaufzeit (+12h)
+    const warningMs = (WAVE_CONFIG.baseWarningMs / (1000 * 60 * 60) + 12) * 3600 * 1000;
+
+    return {
+      id: `boss_${now}_${Math.random().toString(36).slice(2)}`,
+      monsters,
+      totalAttackPower,
+      status: 'approaching',
+      announcedAt: now,
+      arrivesAt: now + warningMs,
+      resolvedAt: null,
+      result: null,
+    };
+  }
+
+  applyBloodWaveModifiers(wave: MonsterWave): MonsterWave {
+    return {
+      ...wave,
+      totalAttackPower: Math.round(wave.totalAttackPower * WAVE_CONFIG.bloodWaveMultiplier),
+    };
   }
 }
 

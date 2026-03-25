@@ -9,7 +9,7 @@ import {
   createDefaultGameState, gameStateRathausLevel, findBuildingById, workerStatus, WorkerStatus,
   obstacleRemovalCost,
   Animal, AnimalEgg, AnimalAssignment, MonsterWave, WaveResult, DamageEffect, DefenseBreakdown,
-  LootDrop, EggRarity,
+  LootDrop, EggRarity, Trophy,
 } from '../models/types';
 import { ANIMAL_CONFIGS, STALL_CONFIG, WAVE_CONFIG, DEFENSE_CONFIG } from '../config/EntityConfig';
 import { waveService } from '../services/WaveService';
@@ -146,6 +146,16 @@ interface GameStore {
   // Actions - consecutiveEgg check
   checkConsecutiveEggs: () => void;
 
+  // Actions - Trophies (Phase 6)
+  addTrophy: (trophy: Trophy) => void;
+  placeTrophy: (trophyId: string, position: { x: number; y: number }) => void;
+
+  // Actions - Dragon Unlock (Phase 6)
+  clearPendingDragonUnlock: () => void;
+
+  // Pending dragon unlock
+  pendingDragonUnlock: boolean;
+
   // Helpers
   canAfford: (cost: ResourceCost) => boolean;
   hourlyProductionRate: (building: Building) => number;
@@ -169,6 +179,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   lastCollectResult: null,
   pendingWaveResult: null,
   pendingHatchResult: null,
+  pendingDragonUnlock: false,
   storageCap: getTotalStorageCap([]),
 
   // MARK: - Initialize
@@ -304,11 +315,38 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   sellBuilding(id) {
-    const result = GE.sellBuilding(get().gameState, id);
+    const prevGs = get().gameState;
+    const result = GE.sellBuilding(prevGs, id);
     if (!result) return null;
-    set({ gameState: result.newState, storageCap: getTotalStorageCap(result.newState.buildings) });
-    GE.saveGameState(result.newState);
-    _syncAllCurrencies(result.newState);
+
+    let finalState = result.newState;
+
+    // Stall-Verkauf: Alle dem Stall zugewiesenen Tiere → idle
+    const soldBuilding = prevGs.buildings.find(b => b.id === id);
+    if (soldBuilding?.type === BuildingType.stall) {
+      finalState = {
+        ...finalState,
+        animals: finalState.animals.map(a =>
+          a.assignment.type === 'building'
+            ? { ...a, assignment: { type: 'idle' as const } }
+            : a,
+        ),
+      };
+    } else if (soldBuilding) {
+      // Beliebiges anderes Gebäude: Zugewiesene Tiere → idle
+      finalState = {
+        ...finalState,
+        animals: finalState.animals.map(a =>
+          (a.assignment.type === 'building' && (a.assignment as { type: 'building'; buildingId: string }).buildingId === id)
+            ? { ...a, assignment: { type: 'idle' as const } }
+            : a,
+        ),
+      };
+    }
+
+    set({ gameState: finalState, storageCap: getTotalStorageCap(finalState.buildings) });
+    GE.saveGameState(finalState);
+    _syncAllCurrencies(finalState);
     return result.refund;
   },
 
@@ -745,25 +783,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    if (gs.nextWaveAt <= Date.now()) {
+    // Wenn nextWaveAt vor mehr als 14 Tagen → nur eine Welle auflösen, kein Backlog
+    const fourteenDaysAgo = Date.now() - 14 * 24 * 3600 * 1000;
+    if (gs.nextWaveAt < fourteenDaysAgo) {
+      // Setze nextWaveAt auf "vor 1 Minute" damit nur eine Welle aufgelöst wird
+      const patchedGs: GameState = { ...gs, nextWaveAt: Date.now() - 60 * 1000 };
+      set({ gameState: patchedGs });
+      GE.saveGameState(patchedGs);
+    }
+
+    const currentGs = get().gameState;
+    if (currentGs.nextWaveAt && currentGs.nextWaveAt <= Date.now()) {
       // Wave time has passed → resolve offline combat
-      if (gs.activeWave && gs.activeWave.status !== 'resolved') {
+      if (currentGs.activeWave && currentGs.activeWave.status !== 'resolved') {
         // Existing active wave — resolve it
         get().triggerWaveResolution();
       } else {
         // Generate a new wave and immediately resolve it
-        const rathausLevel = gameStateRathausLevel(gs);
-        const lastWorkoutTs = gs.lastWorkoutDate
-          ? new Date(gs.lastWorkoutDate).getTime()
+        const rathausLevel = gameStateRathausLevel(currentGs);
+        const lastWorkoutTs = currentGs.lastWorkoutDate
+          ? new Date(currentGs.lastWorkoutDate).getTime()
           : Date.now() - 72 * 60 * 60 * 1000;
-        const watchtowerBuilding = gs.buildings.find(b => b.type === BuildingType.wachturm && b.level >= 1 && !b.isUnderConstruction);
+        const watchtowerBuilding = currentGs.buildings.find(b => b.type === BuildingType.wachturm && b.level >= 1 && !b.isUnderConstruction);
         const watchtowerLevel = watchtowerBuilding?.level ?? 0;
-        const hasScoutFalcon = gs.animals.some(a => a.type === 'spaehfalke' && a.assignment.type === 'defense');
+        const hasScoutFalcon = currentGs.animals.some(a => a.type === 'spaehfalke' && a.assignment.type === 'defense');
         const wave = waveService.generateWave(rathausLevel, lastWorkoutTs, watchtowerLevel, hasScoutFalcon);
         const startWaveGs: GameState = {
-          ...gs,
+          ...currentGs,
           activeWave: { ...wave, status: 'active' },
-          waves: [...gs.waves, { ...wave, status: 'active' }],
+          waves: [...currentGs.waves, { ...wave, status: 'active' }],
         };
         set({ gameState: startWaveGs });
         GE.saveGameState(startWaveGs);
@@ -778,17 +826,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!gs.activeWave) return;
 
     const defense = get().calculateDefense();
-    const { result, damages, loot, effectiveAK, wallHPUsed } = combatService.resolveCombat(
-      defense,
-      gs.activeWave,
-      gs.animals,
-      gs.buildings,
-      gs.wallHP,
+    const rathausLevel = gameStateRathausLevel(gs);
+    const activeWaveCopy = gs.activeWave;
+
+    // Bestimme ob Blutwelle oder Boss-Event
+    const isBloodWaveDue = waveService.isBloodWaveDue(gs.lastBloodWaveAt);
+    const isBossEventDue = waveService.isBossEventDue(gs.lastBossEventAt, rathausLevel);
+    const isBossWave = isBossEventDue && (
+      activeWaveCopy.monsters[0]?.type === 'uralterGolem' ||
+      activeWaveCopy.monsters[0]?.type === 'verderbnisHydra'
     );
+    const isBloodWave = isBloodWaveDue && !isBossWave;
+
+    let combatResult: { result: WaveResult; damages: DamageEffect[]; loot: LootDrop[]; effectiveAK: number; wallHPUsed: number };
+
+    if (isBossWave && activeWaveCopy.monsters[0]?.type === 'uralterGolem') {
+      const r = combatService.resolveBossGolem(defense, activeWaveCopy, gs.wallHP);
+      combatResult = { result: r.result, damages: r.damages, loot: r.loot, effectiveAK: activeWaveCopy.totalAttackPower, wallHPUsed: r.wallHPUsed };
+    } else if (isBossWave && activeWaveCopy.monsters[0]?.type === 'verderbnisHydra') {
+      const r = combatService.resolveBossHydra(defense, activeWaveCopy, gs.animals);
+      combatResult = { result: r.result, damages: r.damages, loot: r.loot, effectiveAK: activeWaveCopy.totalAttackPower, wallHPUsed: r.wallHPUsed };
+    } else {
+      // Normale Welle oder Blutwelle
+      const waveToResolve = isBloodWave
+        ? waveService.applyBloodWaveModifiers(activeWaveCopy)
+        : activeWaveCopy;
+      const r = combatService.resolveCombat(defense, waveToResolve, gs.animals, gs.buildings, gs.wallHP);
+      // Felder für Blutwelle setzen
+      const resultWithFlags: WaveResult = { ...r.result, isBloodWave };
+      combatResult = { ...r, result: resultWithFlags };
+    }
+
+    const { result, damages, loot, effectiveAK, wallHPUsed } = combatResult;
 
     const resolvedAt = Date.now();
     const resolvedWave: MonsterWave = {
-      ...gs.activeWave,
+      ...activeWaveCopy,
       status: 'resolved',
       resolvedAt,
       result,
@@ -805,7 +878,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const updatedWaves = updatedGs.waves.map(w =>
       w.id === resolvedWave.id ? resolvedWave : w,
     );
-    // If wave wasn't in array yet, add it
     const waveInArray = updatedWaves.find(w => w.id === resolvedWave.id);
     const finalWaves = waveInArray ? updatedWaves : [...updatedWaves, resolvedWave];
 
@@ -818,6 +890,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newWallHP = { ...newWallHP, current: Math.max(0, newWallHP.current - wallHPUsed) };
     }
 
+    // Nach Boss-Sieg: Trophäe vergeben
+    const bossWon = isBossWave && (result.outcome === 'perfect' || result.outcome === 'defended');
+    let newTrophies = [...updatedGs.trophies];
+    if (bossWon && activeWaveCopy.monsters[0]?.type === 'uralterGolem') {
+      const trophy: Trophy = {
+        id: `trophy_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        type: 'golemHerz',
+        name: 'Herz des Uralten Golems',
+        emoji: '🔮',
+        obtainedAt: Date.now(),
+        gridPosition: null,
+      };
+      newTrophies = [...newTrophies, trophy];
+    } else if (bossWon && activeWaveCopy.monsters[0]?.type === 'verderbnisHydra') {
+      const trophy: Trophy = {
+        id: `trophy_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        type: 'hydraSchuppe',
+        name: 'Schuppe der Verderbnis-Hydra',
+        emoji: '🐍',
+        obtainedAt: Date.now(),
+        gridPosition: null,
+      };
+      newTrophies = [...newTrophies, trophy];
+    }
+
+    // Uralter Drache freischalten: Streak ≥ 30 und Boss besiegt
+    const dragonAlreadyOwned = updatedGs.animals.some(a => a.type === 'uralterDrache');
+    const shouldUnlockDragon = bossWon && updatedGs.currentStreak >= 30 && !dragonAlreadyOwned;
+
     const finalGs: GameState = {
       ...updatedGs,
       activeWave: null,
@@ -825,8 +926,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       nextWaveAt,
       damageEffects: allDamages,
       wallHP: newWallHP,
+      trophies: newTrophies,
+      lastBloodWaveAt: isBloodWave ? Date.now() : updatedGs.lastBloodWaveAt,
+      lastBossEventAt: isBossWave ? Date.now() : (updatedGs.lastBossEventAt ?? Date.now()),
+      pendingDragonUnlock: shouldUnlockDragon,
     };
-    set({ gameState: finalGs });
+    set({ gameState: finalGs, pendingDragonUnlock: shouldUnlockDragon });
     GE.saveGameState(finalGs);
 
     // Set pending result for UI
@@ -1054,6 +1159,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   buildingStorageCap(building) {
     return GE.buildingStorageCap(building, get().gameState.buildings);
+  },
+
+  // MARK: - Trophies (Phase 6)
+
+  addTrophy(trophy) {
+    const gs = get().gameState;
+    const newGs = { ...gs, trophies: [...gs.trophies, trophy] };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  placeTrophy(trophyId, position) {
+    const gs = get().gameState;
+    const newGs = {
+      ...gs,
+      trophies: gs.trophies.map(t => t.id === trophyId ? { ...t, gridPosition: position } : t),
+    };
+    set({ gameState: newGs });
+    GE.saveGameState(newGs);
+  },
+
+  // MARK: - Dragon Unlock (Phase 6)
+
+  clearPendingDragonUnlock() {
+    const gs = get().gameState;
+    const newGs = { ...gs, pendingDragonUnlock: false };
+    set({ gameState: newGs, pendingDragonUnlock: false });
+    GE.saveGameState(newGs);
   },
 }));
 
