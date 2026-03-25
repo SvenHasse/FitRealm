@@ -12,7 +12,7 @@ import {
 } from '../models/types';
 import {
   ResourceCost, createResourceCost, buildCost, upgradeCost, rathausRequirement,
-  UNIQUE_BUILDINGS, maxInstances, sellValue,
+  UNIQUE_BUILDINGS, allowedInstances, nextInstanceUnlockLevel, sellValue,
   Production, Storage, Earn, Workers,
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
   getTotalStorageCap, storageBuildingResource, getStorageBonusArray,
@@ -551,14 +551,16 @@ export function canBuild(state: GameState, type: BuildingType, position: GridPos
   if (state.buildings.some(b => b.position.row === position.row && b.position.col === position.col)) {
     return [false, 'Slot is occupied.'];
   }
-  const req = rathausRequirement(type);
-  if (gameStateRathausLevel(state) < req) {
-    return [false, `Rathaus level ${req} required.`];
-  }
-  const existingCount = state.buildings.filter(b => b.type === type).length;
-  const max = maxInstances(type);
-  if (existingCount >= max) {
-    return [false, `Maximum ${max} of this building already placed.`];
+  const rathausLevel = gameStateRathausLevel(state);
+  const existing = state.buildings.filter(b => b.type === type).length;
+  const allowed = allowedInstances(type, rathausLevel);
+
+  if (existing >= allowed) {
+    const nextLevel = nextInstanceUnlockLevel(type, existing);
+    if (nextLevel !== null) {
+      return [false, `Requires Rathaus level ${nextLevel} to build another.`];
+    }
+    return [false, 'Maximum instances already built.'];
   }
   if (!canAfford(state, buildCost(type))) {
     return [false, 'Not enough resources.'];
