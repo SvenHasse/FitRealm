@@ -11,14 +11,14 @@ import {
   buildingIconName, buildingAccentColor,
   gameStateRathausLevel,
 } from '../models/types';
-import { buildCost, rathausRequirement, maxInstances, LAGER_BONUS_PER_LEVEL, getTotalStorageCap, Production } from '../config/GameConfig';
+import { buildCost, rathausRequirement, maxInstances, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, Production } from '../config/GameConfig';
 import { canAfford, costString, hourlyProductionRate } from '../engines/GameEngine';
 
 type TabKey = 'production' | 'infrastructure' | 'special';
 
 const categoryMap: Record<TabKey, BuildingType[]> = {
   production: [BuildingType.kornkammer, BuildingType.proteinfarm, BuildingType.holzfaeller, BuildingType.steinbruch, BuildingType.feld],
-  infrastructure: [BuildingType.lager, BuildingType.kaserne],
+  infrastructure: [BuildingType.holzlager, BuildingType.steinlager, BuildingType.nahrungslager, BuildingType.kaserne],
   special: [BuildingType.tempel, BuildingType.bibliothek, BuildingType.marktplatz, BuildingType.stammeshaus],
 };
 
@@ -121,17 +121,21 @@ export default function BuildMenuSheet({ onSelectBuilding, onClose }: Props) {
               ) : (
                 <Text style={styles.costText}>{costString(cost)}</Text>
               )}
-              {/* Lager: show bonus preview */}
-              {type === BuildingType.lager && !lockReason && (() => {
-                const b = LAGER_BONUS_PER_LEVEL[0];
+              {/* Storage buildings: show capacity bonus preview */}
+              {storageBuildingResource(type) !== null && !lockReason && (() => {
+                const bonusArr = getStorageBonusArray(type);
+                const res = storageBuildingResource(type)!;
+                if (!bonusArr) return null;
+                const l1Bonus = bonusArr[0];
+                const curCap = currentCap[res as keyof typeof currentCap] as number;
+                const newCap = curCap + l1Bonus;
+                const emoji = type === BuildingType.holzlager ? '🪵'
+                            : type === BuildingType.steinlager ? '🪨' : '🌾';
+                const resName = res === 'wood' ? 'Holz' : res === 'stone' ? 'Stein' : 'Nahrung';
                 return (
                   <View style={styles.infoRow}>
-                    <Text style={styles.infoRowText}>
-                      📦 +{b.muskelmasse}g · +{b.wood} Holz · +{b.food} Nahr. · +{b.stone} Stein
-                    </Text>
-                    <Text style={styles.infoRowSub}>
-                      Aktuell: {Math.floor(currentCap.muskelmasse)}g / {Math.floor(currentCap.muskelmasse + b.muskelmasse)}g
-                    </Text>
+                    <Text style={styles.infoRowText}>{emoji} +{l1Bonus} {resName} Kapazität</Text>
+                    <Text style={styles.infoRowSub}>{resName}: {Math.floor(curCap)} → {Math.floor(newCap)}</Text>
                   </View>
                 );
               })()}

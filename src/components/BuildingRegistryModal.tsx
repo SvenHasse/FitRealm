@@ -42,7 +42,7 @@ const CATEGORIES: CategoryDef[] = [
     key: 'infrastructure',
     emoji: '🏗️',
     labelKey: 'registry.categoryInfrastructure',
-    types: [BuildingType.lager, BuildingType.kaserne],
+    types: [BuildingType.holzlager, BuildingType.steinlager, BuildingType.nahrungslager, BuildingType.kaserne],
   },
   {
     key: 'special',

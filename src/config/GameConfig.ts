@@ -80,7 +80,6 @@ export const Storage = {
   steinbruch: 500.0,
   feld: 300.0,
   proteinfarm: 10.0,
-  lagerBonusPerLevel: 500.0,
   levelScale: 2.0,
 
   cap(base: number, level: number): number {
@@ -98,51 +97,56 @@ export interface StorageCapacity {
   streakTokens: number;
 }
 
-// Base caps WITHOUT any Lager — enough for ~4-6 hours of casual play
+// Base storage caps — Muskelmasse and Protein are unlimited (earned through real sport)
 export const BASE_STORAGE: StorageCapacity = {
-  muskelmasse: 500,   // ~2-3 workouts worth
-  protein: 20,        // rare resource, small cap intentional
-  wood: 300,          // ~15h production at L1 Holzfäller
-  stone: 200,         // ~20h production at L1 Steinbruch
-  food: 250,          // ~30h production at L1 Feld
-  streakTokens: 50,   // plenty of room, not a bottleneck
+  muskelmasse: Infinity, // never capped — earned through real sport
+  protein:     Infinity, // never capped — too rare and valuable
+  wood:        300,      // ~15h production at L1 Holzfäller
+  stone:       200,      // ~20h production at L1 Steinbruch
+  food:        250,      // ~30h production at L1 Feld
+  streakTokens: Infinity,
 };
 
-// Lager bonus per level (cumulative — L2 Lager gives L1+L2 bonus)
-export const LAGER_BONUS_PER_LEVEL: Omit<StorageCapacity, 'streakTokens'>[] = [
-  { muskelmasse: 500,  protein: 10,  wood: 400,  stone: 300,  food: 350  }, // L1
-  { muskelmasse: 1000, protein: 20,  wood: 800,  stone: 600,  food: 700  }, // L2
-  { muskelmasse: 2000, protein: 40,  wood: 1600, stone: 1200, food: 1400 }, // L3
-  { muskelmasse: 4000, protein: 80,  wood: 3200, stone: 2400, food: 2800 }, // L4
-  { muskelmasse: 8000, protein: 160, wood: 6400, stone: 4800, food: 5600 }, // L5
-];
+// 🪵 Holzlager — Wood storage bonus per level
+export const HOLZLAGER_STORAGE = [500, 1000, 2000, 4000, 8000];
+// 🪨 Steinlager — Stone storage bonus per level
+export const STEINLAGER_STORAGE = [400, 800, 1600, 3200, 6400];
+// 🌾 Nahrungslager — Food storage bonus per level
+export const NAHRUNGSLAGER_STORAGE = [450, 900, 1800, 3600, 7200];
 
 // Helper: calculate total storage cap given current buildings
 export function getTotalStorageCap(buildings: Building[]): StorageCapacity {
   const cap: StorageCapacity = { ...BASE_STORAGE };
-  for (const b of buildings.filter(b => b.type === BuildingType.lager)) {
-    const bonus = LAGER_BONUS_PER_LEVEL[Math.min(b.level - 1, LAGER_BONUS_PER_LEVEL.length - 1)];
-    cap.muskelmasse += bonus.muskelmasse;
-    cap.protein     += bonus.protein;
-    cap.wood        += bonus.wood;
-    cap.stone       += bonus.stone;
-    cap.food        += bonus.food;
+  for (const b of buildings) {
+    if (b.type === BuildingType.holzlager) {
+      cap.wood  += HOLZLAGER_STORAGE[Math.min(b.level - 1, HOLZLAGER_STORAGE.length - 1)];
+    } else if (b.type === BuildingType.steinlager) {
+      cap.stone += STEINLAGER_STORAGE[Math.min(b.level - 1, STEINLAGER_STORAGE.length - 1)];
+    } else if (b.type === BuildingType.nahrungslager) {
+      cap.food  += NAHRUNGSLAGER_STORAGE[Math.min(b.level - 1, NAHRUNGSLAGER_STORAGE.length - 1)];
+    }
   }
   return cap;
 }
 
-// Helper: preview cap if a Lager at given level were added
-export function getStorageCapPreview(buildings: Building[], newLagerLevel: number): StorageCapacity {
-  const bonus = LAGER_BONUS_PER_LEVEL[Math.min(newLagerLevel - 1, LAGER_BONUS_PER_LEVEL.length - 1)];
-  const current = getTotalStorageCap(buildings);
-  return {
-    muskelmasse:  current.muskelmasse  + bonus.muskelmasse,
-    protein:      current.protein      + bonus.protein,
-    wood:         current.wood         + bonus.wood,
-    stone:        current.stone        + bonus.stone,
-    food:         current.food         + bonus.food,
-    streakTokens: current.streakTokens,
-  };
+// Helper: get the storage bonus array for a specific storage building type
+export function getStorageBonusArray(type: BuildingType): number[] | null {
+  switch (type) {
+    case BuildingType.holzlager:    return HOLZLAGER_STORAGE;
+    case BuildingType.steinlager:   return STEINLAGER_STORAGE;
+    case BuildingType.nahrungslager: return NAHRUNGSLAGER_STORAGE;
+    default: return null;
+  }
+}
+
+// Helper: which resource does a storage building cap?
+export function storageBuildingResource(type: BuildingType): 'wood' | 'stone' | 'food' | null {
+  switch (type) {
+    case BuildingType.holzlager:    return 'wood';
+    case BuildingType.steinlager:   return 'stone';
+    case BuildingType.nahrungslager: return 'food';
+    default: return null;
+  }
 }
 
 // MARK: - Build Costs
@@ -160,8 +164,12 @@ export function buildCost(type: BuildingType): ResourceCost {
       return createResourceCost({ muskelmasse: 80, wood: 20 });
     case BuildingType.feld:
       return createResourceCost({ muskelmasse: 30 });
-    case BuildingType.lager:
-      return createResourceCost({ muskelmasse: 60, wood: 20 });
+    case BuildingType.holzlager:
+      return createResourceCost({ muskelmasse: 40, wood: 20 });
+    case BuildingType.steinlager:
+      return createResourceCost({ muskelmasse: 60, wood: 30 });
+    case BuildingType.nahrungslager:
+      return createResourceCost({ muskelmasse: 30, wood: 15 });
     case BuildingType.kaserne:
       return createResourceCost({ muskelmasse: 120, wood: 40, stone: 10 });
     case BuildingType.tempel:
@@ -202,8 +210,33 @@ export function upgradeCost(type: BuildingType, currentLevel: number): ResourceC
       return createResourceCost({ muskelmasse: 150 * s, wood: Math.floor(10 * s) });
     case BuildingType.feld:
       return createResourceCost({ muskelmasse: 60 * s, wood: Math.floor(5 * s) });
-    case BuildingType.lager:
-      return createResourceCost({ muskelmasse: 100 * s, wood: Math.floor(20 * s) });
+    case BuildingType.holzlager: {
+      const holzCosts = [
+        createResourceCost({ muskelmasse: 120, wood: 60 }),
+        createResourceCost({ muskelmasse: 350, wood: 150 }),
+        createResourceCost({ muskelmasse: 900, wood: 350 }),
+        createResourceCost({ muskelmasse: 2200, wood: 800 }),
+      ];
+      return holzCosts[s - 1] ?? null;
+    }
+    case BuildingType.steinlager: {
+      const steinCosts = [
+        createResourceCost({ muskelmasse: 180, wood: 80 }),
+        createResourceCost({ muskelmasse: 500, wood: 200 }),
+        createResourceCost({ muskelmasse: 1200, wood: 450 }),
+        createResourceCost({ muskelmasse: 3000, wood: 1000 }),
+      ];
+      return steinCosts[s - 1] ?? null;
+    }
+    case BuildingType.nahrungslager: {
+      const nahrCosts = [
+        createResourceCost({ muskelmasse: 100, wood: 50 }),
+        createResourceCost({ muskelmasse: 300, wood: 120 }),
+        createResourceCost({ muskelmasse: 750, wood: 300 }),
+        createResourceCost({ muskelmasse: 1800, wood: 700 }),
+      ];
+      return nahrCosts[s - 1] ?? null;
+    }
     case BuildingType.kaserne:
       return createResourceCost({ muskelmasse: 200 * s, wood: Math.floor(30 * s), stone: Math.floor(10 * s) });
     case BuildingType.tempel:
@@ -251,8 +284,10 @@ export function rathausRequirement(type: BuildingType): number {
     case BuildingType.kornkammer: return 1;
     case BuildingType.holzfaeller: return 1;
     case BuildingType.feld: return 1;
-    case BuildingType.lager: return 1;
+    case BuildingType.holzlager: return 1;
+    case BuildingType.nahrungslager: return 1;
     case BuildingType.steinbruch: return 2;
+    case BuildingType.steinlager: return 2;
     case BuildingType.proteinfarm: return 2;
     case BuildingType.kaserne: return 2;
     case BuildingType.tempel: return 3;
@@ -275,9 +310,12 @@ export const UNIQUE_BUILDINGS: Set<BuildingType> = new Set([
 // Mehrfachbau: Feld ≤ 3, Holzfäller ≤ 2, all others ≤ 1
 export function maxInstances(type: BuildingType): number {
   switch (type) {
-    case BuildingType.feld:        return 3;
-    case BuildingType.holzfaeller: return 2;
-    default:                       return 1;
+    case BuildingType.feld:           return 3;
+    case BuildingType.holzfaeller:    return 2;
+    case BuildingType.holzlager:      return 2;
+    case BuildingType.steinlager:     return 2;
+    case BuildingType.nahrungslager:  return 2;
+    default:                          return 1;
   }
 }
 
