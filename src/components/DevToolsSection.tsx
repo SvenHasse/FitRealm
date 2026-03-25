@@ -10,15 +10,16 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import * as Crypto from 'expo-crypto';
-import { AppColors, WorkoutRecord, Animal, AnimalType, DamageEffect, BuildingType } from '../models/types';
+import { AppColors, WorkoutRecord, Animal, AnimalType, AnimalEgg, AnimalRarity, DamageEffect, BuildingType, Trophy } from '../models/types';
 import { useGameStore } from '../store/gameStore';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
 import { useWorkoutStore } from '../store/workoutStore';
 import { resetAllData, resetWithMockData } from '../utils/resetUtils';
-import { ANIMAL_CONFIGS } from '../config/EntityConfig';
+import { ANIMAL_CONFIGS, EGG_HATCH_CONFIGS } from '../config/EntityConfig';
 import { saveGameState } from '../engines/GameEngine';
 import { gameStateRathausLevel } from '../models/types';
 import { waveService } from '../services/WaveService';
+import { combatService } from '../services/CombatService';
 
 const ALL_ANIMAL_TYPES: AnimalType[] = [
   'erntehuhn', 'lastesel', 'holzbaer', 'spaehfalke', 'steinbock',
@@ -304,6 +305,211 @@ export default function DevToolsSection() {
     Alert.alert('🧹 Welle', 'Aktive Welle und nextWaveAt gelöscht.');
   };
 
+  // ── Ei-Handlers ───────────────────────────────────────────────────────────
+
+  const handleAddEgg = (rarity: AnimalRarity) => {
+    const cfg = EGG_HATCH_CONFIGS[rarity];
+    // Pick a random animal of matching rarity
+    const matching = ALL_ANIMAL_TYPES.filter(t => ANIMAL_CONFIGS[t].rarity === rarity);
+    const hatchesInto = matching[Math.floor(Math.random() * matching.length)] ?? 'erntehuhn';
+    const egg: AnimalEgg = {
+      id: `dev_egg_${rarity}_${Date.now().toString(36)}`,
+      rarity,
+      hatchesInto: hatchesInto as AnimalEgg['hatchesInto'],
+      workoutsRequired: cfg.workoutsRequired,
+      workoutsCompleted: 0,
+      requiresConsecutive: cfg.requiresConsecutive,
+      requiresMinHRmax: cfg.requiresMinHRmax,
+      obtainedAt: Date.now(),
+    };
+    useEngineStore.getState().addEgg(egg);
+    Alert.alert('🥚 Ei hinzugefügt', `${rarity.toUpperCase()}-Ei\nSchlüpft in: ${cfg.workoutsRequired} Workouts${cfg.requiresMinHRmax ? `\n⚠️ Braucht ≥${cfg.requiresMinHRmax}% HRmax` : ''}${cfg.requiresConsecutive ? '\n🔗 Consecutive nötig' : ''}`);
+  };
+
+  const handleIncrementAllEggs = () => {
+    const gs = useEngineStore.getState().gameState;
+    if (gs.eggs.length === 0) { Alert.alert('Keine Eier', 'Zuerst ein Ei hinzufügen.'); return; }
+    gs.eggs.forEach(egg => {
+      if (egg.workoutsCompleted < egg.workoutsRequired) {
+        useEngineStore.getState().incrementEggProgress(egg.id);
+      }
+    });
+    Alert.alert('🥚 Fortschritt', `${gs.eggs.length} Ei(er) um 1 Workout erhöht.`);
+  };
+
+  const handleHatchAllEggs = () => {
+    Alert.alert('🐣 Alle Eier ausbrüten', 'Alle Eier werden sofort auf max. Workouts gesetzt und schlüpfen.', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Ausbrüten',
+        onPress: () => {
+          const gs = useEngineStore.getState().gameState;
+          if (gs.eggs.length === 0) { Alert.alert('Keine Eier', 'Zuerst ein Ei hinzufügen.'); return; }
+          // Set all eggs to completed, then hatch
+          const readyEggs = gs.eggs.map(e => ({ ...e, workoutsCompleted: e.workoutsRequired }));
+          const newGs = { ...gs, eggs: readyEggs };
+          useEngineStore.setState({ gameState: newGs });
+          // Now hatch each
+          readyEggs.forEach(egg => {
+            useEngineStore.getState().hatchEgg(egg.id);
+          });
+        },
+      },
+    ]);
+  };
+
+  const handleClearAllEggs = () => {
+    const gs = useEngineStore.getState().gameState;
+    const newGs = { ...gs, eggs: [] };
+    useEngineStore.setState({ gameState: newGs });
+    saveGameState(newGs);
+    Alert.alert('🗑️ Eier', 'Alle Eier gelöscht.');
+  };
+
+  const handleShowEggStatus = () => {
+    const gs = useEngineStore.getState().gameState;
+    if (gs.eggs.length === 0) { Alert.alert('Keine Eier', 'Noch keine Eier vorhanden.'); return; }
+    const lines = gs.eggs.map(e =>
+      `${e.rarity.toUpperCase()}-Ei: ${e.workoutsCompleted}/${e.workoutsRequired} Workouts${e.requiresMinHRmax ? ` (≥${e.requiresMinHRmax}% HRmax)` : ''}${e.requiresConsecutive ? ' [consec]' : ''}`
+    );
+    Alert.alert('🥚 Ei-Status', lines.join('\n'));
+  };
+
+  // ── Boss/Blutwellen-Handlers ───────────────────────────────────────────────
+
+  const handleSpawnBossGolem = () => {
+    Alert.alert('🗿 Boss: Uralter Golem', '3-Phasen-Boss-Welle startet in 5 Sekunden.', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Starten',
+        onPress: () => {
+          const gs = useEngineStore.getState().gameState;
+          const bossWave = waveService.generateBossWave('uralterGolem', gameStateRathausLevel(gs));
+          const now = Date.now();
+          const testWave = { ...bossWave, status: 'active' as const, announcedAt: now, arrivesAt: now + 5000 };
+          const newGs = { ...gs, activeWave: testWave, nextWaveAt: now + 5000, waves: [...gs.waves, testWave] };
+          useEngineStore.setState({ gameState: newGs });
+          saveGameState(newGs);
+          setTimeout(() => { useEngineStore.getState().triggerWaveResolution(); }, 5500);
+        },
+      },
+    ]);
+  };
+
+  const handleSpawnBossHydra = () => {
+    Alert.alert('🐍 Boss: Verderbnis-Hydra', '3-Köpfe-Boss-Welle startet in 5 Sekunden.', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Starten',
+        onPress: () => {
+          const gs = useEngineStore.getState().gameState;
+          const bossWave = waveService.generateBossWave('verderbnisHydra', gameStateRathausLevel(gs));
+          const now = Date.now();
+          const testWave = { ...bossWave, status: 'active' as const, announcedAt: now, arrivesAt: now + 5000 };
+          const newGs = { ...gs, activeWave: testWave, nextWaveAt: now + 5000, waves: [...gs.waves, testWave] };
+          useEngineStore.setState({ gameState: newGs });
+          saveGameState(newGs);
+          setTimeout(() => { useEngineStore.getState().triggerWaveResolution(); }, 5500);
+        },
+      },
+    ]);
+  };
+
+  const handleSpawnBloodWave = () => {
+    const gs = useEngineStore.getState().gameState;
+    const rathausLevel = gameStateRathausLevel(gs);
+    const lastWorkout = gs.lastWorkoutDate ? new Date(gs.lastWorkoutDate).getTime() : Date.now() - 24 * 3600 * 1000;
+    const baseWave = waveService.generateWave(rathausLevel, lastWorkout);
+    const bloodWave = waveService.applyBloodWaveModifiers(baseWave);
+    const now = Date.now();
+    const testWave = { ...bloodWave, status: 'active' as const, announcedAt: now, arrivesAt: now + 5000 };
+    const newGs = { ...gs, activeWave: testWave, nextWaveAt: now + 5000, waves: [...gs.waves, testWave] };
+    useEngineStore.setState({ gameState: newGs });
+    saveGameState(newGs);
+    setTimeout(() => { useEngineStore.getState().triggerWaveResolution(); }, 5500);
+    Alert.alert('🩸 Blutwelle', `Startet in 5s!\nAK: ~${Math.round(bloodWave.totalAttackPower)} (1.5× verstärkt)\nLoot: 2× bei Sieg`);
+  };
+
+  // ── Trophäen-Handlers ─────────────────────────────────────────────────────
+
+  const handleAddGolemTrophy = () => {
+    const trophy: Trophy = {
+      id: `dev_trophy_golem_${Date.now().toString(36)}`,
+      type: 'golemHerz',
+      name: 'Golem-Herz',
+      emoji: '💎',
+      obtainedAt: Date.now(),
+      gridPosition: null,
+    };
+    useEngineStore.getState().addTrophy(trophy);
+    Alert.alert('🏆 Trophäe', 'Golem-Herz erhalten! Im Dorf platzierbar (leere Zelle antippen).');
+  };
+
+  const handleAddHydraTrophy = () => {
+    const trophy: Trophy = {
+      id: `dev_trophy_hydra_${Date.now().toString(36)}`,
+      type: 'hydraSchuppe',
+      name: 'Hydra-Schuppe',
+      emoji: '🐍',
+      obtainedAt: Date.now(),
+      gridPosition: null,
+    };
+    useEngineStore.getState().addTrophy(trophy);
+    Alert.alert('🏆 Trophäe', 'Hydra-Schuppe erhalten! Im Dorf platzierbar (leere Zelle antippen).');
+  };
+
+  const handleTriggerDragonUnlock = () => {
+    Alert.alert('🐲 Drachen-Freischaltung', 'Drachen-Sequenz wird ausgelöst (Streak-Check wird ignoriert).', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Auslösen',
+        onPress: () => {
+          const gs = useEngineStore.getState().gameState;
+          // Add dragon if not owned
+          if (!gs.animals.some(a => a.type === 'uralterDrache')) {
+            const dragon: Animal = {
+              id: `dev_dragon_${Date.now().toString(36)}`,
+              type: 'uralterDrache',
+              name: ANIMAL_CONFIGS['uralterDrache'].name,
+              rarity: 'legendary',
+              assignment: { type: 'idle' },
+              obtainedAt: Date.now(),
+            };
+            const newGs = { ...gs, animals: [...gs.animals, dragon] };
+            useEngineStore.setState({ gameState: newGs, pendingDragonUnlock: true });
+            saveGameState(newGs);
+          } else {
+            // Dragon already owned, just trigger animation
+            useEngineStore.setState({ pendingDragonUnlock: true });
+            Alert.alert('Drache', 'Drache bereits im Stall — Animation wird trotzdem gezeigt.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleShowTrophyStatus = () => {
+    const gs = useEngineStore.getState().gameState;
+    if (gs.trophies.length === 0) { Alert.alert('Keine Trophäen', 'Noch keine Trophäen vorhanden.'); return; }
+    const lines = gs.trophies.map(t =>
+      `${t.emoji} ${t.name}: ${t.gridPosition ? `Platziert (${t.gridPosition.x},${t.gridPosition.y})` : 'Nicht platziert'}`
+    );
+    Alert.alert('🏆 Trophäen', lines.join('\n'));
+  };
+
+  // ── Streak-Simulationshelfer ───────────────────────────────────────────────
+
+  const handleSimulateStreak30 = () => {
+    const { devAddStreak } = useGameStore.getState();
+    const es = useEngineStore.getState();
+    const currentStreak = es.gameState.currentStreak ?? 0;
+    const needed = Math.max(0, 30 - currentStreak);
+    if (needed === 0) { Alert.alert('Streak', 'Streak ist bereits ≥ 30 Tage.'); return; }
+    devAddStreak(needed);
+    es.patchGameStateCurrencies({ currentStreak: currentStreak + needed });
+    Alert.alert('🔥 Streak', `Streak auf 30 Tage gesetzt (war ${currentStreak}).`);
+  };
+
   const handleFullReset = () => {
     Alert.alert(
       'Wirklich alles loeschen?',
@@ -422,6 +628,20 @@ export default function DevToolsSection() {
         </Text>
       </View>
 
+      {/* ── EIER ──────────────────────────────────────────────── */}
+      <SectionLabel text="EIER" />
+      <View style={s.grid}>
+        <DevBtn label="🥚 Common-Ei" onPress={() => handleAddEgg('common')} />
+        <DevBtn label="🥚 Uncommon-Ei" onPress={() => handleAddEgg('uncommon')} />
+        <DevBtn label="🥚 Rare-Ei" onPress={() => handleAddEgg('rare')} />
+        <DevBtn label="🥚 Epic-Ei" onPress={() => handleAddEgg('epic')} />
+        <DevBtn label="🥚 Legendary-Ei" onPress={() => handleAddEgg('legendary')} />
+        <DevBtn label="📊 Ei-Status" onPress={handleShowEggStatus} />
+        <DevBtn label="+1 Workout alle" onPress={handleIncrementAllEggs} />
+        <DevBtn label="🐣 Alle ausbrüten" onPress={handleHatchAllEggs} />
+        <DevBtn label="🗑️ Alle löschen" onPress={handleClearAllEggs} />
+      </View>
+
       {/* ── TIERE ─────────────────────────────────────────────── */}
       <SectionLabel text="TIERE" />
       <TouchableOpacity style={s.animalBtn} onPress={handleDevUnlockAllAnimals} activeOpacity={0.75}>
@@ -441,6 +661,24 @@ export default function DevToolsSection() {
         <DevBtn label="🏆 Sieg sim." onPress={handleSimulateVictory} />
         <DevBtn label="🛡️ VP anzeigen" onPress={handleShowDefenseBreakdown} />
         <DevBtn label="🧹 Welle löschen" onPress={handleClearActiveWave} />
+      </View>
+
+      {/* ── BOSS & BLUTWELLEN ─────────────────────────────────── */}
+      <SectionLabel text="BOSS & BLUTWELLEN" />
+      <View style={s.grid}>
+        <DevBtn label="🗿 Boss: Golem (5s)" onPress={handleSpawnBossGolem} />
+        <DevBtn label="🐍 Boss: Hydra (5s)" onPress={handleSpawnBossHydra} />
+        <DevBtn label="🩸 Blutwelle (5s)" onPress={handleSpawnBloodWave} />
+      </View>
+
+      {/* ── TROPHÄEN & DRACHE ─────────────────────────────────── */}
+      <SectionLabel text="TROPHÄEN & DRACHE" />
+      <View style={s.grid}>
+        <DevBtn label="💎 Golem-Herz" onPress={handleAddGolemTrophy} />
+        <DevBtn label="🐍 Hydra-Schuppe" onPress={handleAddHydraTrophy} />
+        <DevBtn label="📋 Trophäen-Status" onPress={handleShowTrophyStatus} />
+        <DevBtn label="🐲 Drachen-Sequenz" onPress={handleTriggerDragonUnlock} />
+        <DevBtn label="🔥 Streak → 30d" onPress={handleSimulateStreak30} />
       </View>
 
       {/* ── SCHADENSEFFEKTE ───────────────────────────────────── */}
