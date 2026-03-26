@@ -68,6 +68,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    zIndex: -1,
+    zIndex: 2,  // above SVG (z=0), below building icons (z=5+)
   },
 });
