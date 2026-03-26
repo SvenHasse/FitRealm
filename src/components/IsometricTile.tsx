@@ -14,10 +14,10 @@ interface Props {
 }
 
 const TILE_COLORS: Record<TileVariant, { top: string; left: string; right: string; stroke?: string }> = {
-  grass:     { top: 'transparent', left: 'transparent', right: 'transparent' },
-  path:      { top: 'transparent', left: 'transparent', right: 'transparent' },
-  water:     { top: 'rgba(44,95,138,0.3)', left: 'transparent', right: 'transparent' },
-  highlight: { top: 'rgba(255,215,0,0.3)', left: 'transparent', right: 'transparent', stroke: '#FFD700' },
+  grass:     { top: '#9fb486', left: '#778764', right: '#8b9e75' },
+  path:      { top: '#C4A96B', left: '#8B7044', right: '#A08050' },
+  water:     { top: '#2C5F8A', left: '#1A3D5C', right: '#234E73' },
+  highlight: { top: 'rgba(255,215,0,0.35)', left: 'rgba(255,215,0,0.15)', right: 'rgba(255,215,0,0.25)', stroke: '#FFD700' },
 };
 
 function IsometricTileInner({ x, y, variant }: Props) {
