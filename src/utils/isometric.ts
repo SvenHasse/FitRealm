@@ -1,9 +1,9 @@
 // isometric.ts
 // FitRealm - Isometric coordinate utilities for the 2.5D realm map
 
-export const TILE_W = 96;
-export const TILE_H = 48;
-export const TILE_DEPTH = 16;
+export const TILE_W = 128;
+export const TILE_H = 64;
+export const TILE_DEPTH = 20;
 
 /**
  * Convert grid (row, col) to screen pixel coordinates.
