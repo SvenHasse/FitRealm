@@ -34,7 +34,6 @@ import { formatDuration } from '../utils/formatDuration';
 import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding, { getBuildingHeight } from '../components/IsometricBuilding';
-import IsometricForest from '../components/IsometricForest';
 import { ForestParallax } from '../components/village/ForestParallax';
 import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
 import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
@@ -68,11 +67,6 @@ const CANVAS_H = CANVAS_SIZE.height;
 const MIN_SCALE = 0.35;
 const MAX_SCALE = 1.5;
 const INITIAL_SCALE = 0.55;
-
-// Forest border around the 15x15 playfield
-const FOREST_BORDER = 5;
-const FOREST_TOTAL_SIZE = GRID_SIZE + FOREST_BORDER * 2;
-const FOREST_SVG_SIZE = getGridPixelSize(FOREST_TOTAL_SIZE);
 
 // ── Per-building visual config for the map cells ──────────────────────────────
 const CELL_CFG: Record<string, { icon: string; color: string }> = {
@@ -279,6 +273,8 @@ export default function RealmScreen() {
 
   // Scroll ref for map navigation
   const scrollRef = useRef<ScrollView>(null);
+  // Initial scroll position (set by Rathaus-centering useEffect, used for parallax delta)
+  const initialScrollPos = useRef({ x: 0, y: 0 });
   // Track the SVG container layout position for touch conversion
   const svgLayoutRef = useRef({ pageX: 0, pageY: 0 });
   const svgContainerRef = useRef<Animated.View>(null);
@@ -289,22 +285,33 @@ export default function RealmScreen() {
   }, []);
 
   // Centre camera on Rathaus at startup
+  // transform:scale pivots around the Animated.View centre, not the origin.
+  // Visual position of a point (animX, animY) within the Animated.View:
+  //   visualX = padX + containerW/2 + (animX - containerW/2) * INITIAL_SCALE
+  //   visualY = padY + containerH/2 + (animY - containerH/2) * INITIAL_SCALE
+  // where padX/padY = half the extra content padding (200w → 100, 400h → 200).
   useEffect(() => {
     const rathaus = gameState.buildings.find(b => b.type === BuildingType.rathaus);
     if (!rathaus) return;
     const { x, y } = gridToScreen(rathaus.position.row, rathaus.position.col, GRID_SIZE);
     const containerW = Math.round(CANVAS_W * 25 / 15);
     const containerH = Math.round(CANVAS_H * 25 / 15);
-    const rathausOffsetX = Math.round((containerW - CANVAS_W) / 2);
-    const rathausOffsetY = Math.round((containerH - CANVAS_H) / 2);
-    const rathausScreenX = rathausOffsetX + x + TILE_W / 2;
-    const rathausScreenY = rathausOffsetY + y + TILE_H / 2;
+    const sOffX = Math.round((containerW - CANVAS_W) / 2); // svgOffsetX
+    const sOffY = Math.round((containerH - CANVAS_H) / 2); // svgOffsetY
+    // Rathaus tile centre in Animated.View space
+    const animX = sOffX + x + TILE_W / 2;
+    const animY = sOffY + y + TILE_H / 2;
+    // Content padding: contentContainerStyle adds 200 extra width + 400 extra height
+    const padX = 100;
+    const padY = 200;
+    // Visual position in content coordinate space
+    const visualX = padX + containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
+    const visualY = padY + containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
+    const targetX = Math.max(0, visualX - SCREEN_W / 2);
+    const targetY = Math.max(0, visualY - SCREEN_H / 2);
+    initialScrollPos.current = { x: targetX, y: targetY };
     setTimeout(() => {
-      scrollRef.current?.scrollTo({
-        x: Math.max(0, rathausScreenX * INITIAL_SCALE - SCREEN_W / 2),
-        y: Math.max(0, rathausScreenY * INITIAL_SCALE - SCREEN_H / 2),
-        animated: false,
-      });
+      scrollRef.current?.scrollTo({ x: targetX, y: targetY, animated: false });
     }, 50);
   }, []);
 
@@ -496,10 +503,6 @@ export default function RealmScreen() {
   const svgOffsetX = Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2);
   const svgOffsetY = Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2);
 
-  // Centre the scroll on initial mount
-  const initialScrollX = Math.max(0, (CANVAS_W - SCREEN_W) / 2);
-  const initialScrollY = Math.max(0, (CANVAS_H - SCREEN_H) / 2);
-
   // Shared values for parallax scroll tracking
   const parallaxScrollX = useSharedValue(0);
   const parallaxScrollY = useSharedValue(0);
@@ -539,15 +542,14 @@ export default function RealmScreen() {
         directionalLockEnabled={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        contentOffset={{ x: initialScrollX, y: initialScrollY }}
         bounces
         scrollEnabled
         decelerationRate="fast"
         scrollEventThrottle={16}
         onScroll={(e) => {
           const { contentOffset } = e.nativeEvent;
-          parallaxScrollX.value = contentOffset.x - initialScrollX;
-          parallaxScrollY.value = contentOffset.y - initialScrollY;
+          parallaxScrollX.value = contentOffset.x - initialScrollPos.current.x;
+          parallaxScrollY.value = contentOffset.y - initialScrollPos.current.y;
         }}
       >
         <GestureDetector gesture={pinchGesture}>
@@ -608,21 +610,7 @@ export default function RealmScreen() {
               svgOffsetY={svgOffsetY}
             />
 
-            {/* Layer 5: IsometricForest SVG ground tiles — border area around playfield */}
-            <Svg
-              style={{
-                position: 'absolute',
-                left: svgOffsetX - FOREST_BORDER * TILE_W,
-                top: svgOffsetY - FOREST_BORDER * TILE_H,
-                pointerEvents: 'none',
-              }}
-              width={FOREST_SVG_SIZE.width}
-              height={FOREST_SVG_SIZE.height}
-            >
-              <IsometricForest gridSize={GRID_SIZE} borderSize={FOREST_BORDER} />
-            </Svg>
-
-            {/* Layer 6: Forest PNG ON TOP — transparent center shows tiles through,
+            {/* Layer 5: Forest PNG ON TOP — transparent center shows tiles through,
                 tree edges naturally overlap the playfield border = correct depth */}
             <ForestParallax
               canvasWidth={CANVAS_W}
