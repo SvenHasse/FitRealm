@@ -16,6 +16,8 @@ import {
 import Player from './Player';
 import PolarBearSVG from './PolarBear';
 import ConveyorBeltComponent from './ConveyorBelt';
+import GrillComponent from './Grill';
+import SalesCounterComponent from './SalesCounter';
 import FloatingTextLayer from './FloatingText';
 import Snowflakes from './Snowflakes';
 
@@ -130,7 +132,8 @@ const snowHills = [
 export default function GameWorld({ state }: Props) {
   const { playerPosition, backpack, isAttacking, isMoving, tickCount, attackTarget,
           bears, droppedItems, floatingTexts,
-          conveyorItems, shredderProcessing, steakOutputPile } = state;
+          conveyorItems, shredderProcessing, steakOutputPile,
+          grillItems, grillOutputPile, counterSteaks, moneyPileAmount, customers } = state;
 
   // Camera
   const camX = playerPosition.x - VIEW_WIDTH_UNITS / 2;
@@ -182,20 +185,21 @@ export default function GameWorld({ state }: Props) {
         tick={tickCount}
         machineActive={shredderProcessing.length > 0}
       />
-      <StationPlaceholder x={GRILL.x + GRILL.width / 2} y={GRILL.y + GRILL.height / 2} w={GRILL.width} h={GRILL.height} label="Grill" color="#d84315" />
-      <StationPlaceholder x={GRILL_OUTPUT.x} y={GRILL_OUTPUT.y} w={40} h={25} label="Fertig" color="#5d4037" />
-      <StationPlaceholder x={SALES_COUNTER.x + SALES_COUNTER.width / 2} y={SALES_COUNTER.y} w={SALES_COUNTER.width} h={30} label="Verkaufstheke" color="#6d4c41" />
-      <StationPlaceholder x={MONEY_PILE.x} y={MONEY_PILE.y} w={35} h={25} label="$" color="#388e3c" />
+      {/* Grill system */}
+      <GrillComponent
+        grillItems={grillItems}
+        grillOutputPile={grillOutputPile}
+        tick={tickCount}
+        grillActive={grillItems.length > 0}
+      />
 
-      {/* Customer row placeholder */}
-      <G>
-        {[0, 1, 2, 3, 4, 5].map(i => (
-          <G key={`cust-${i}`}>
-            <Circle cx={300 + i * 55} cy={CUSTOMER_ROW_Y + 20} r={10} fill="#42a5f5" />
-            <Circle cx={300 + i * 55} cy={CUSTOMER_ROW_Y + 8} r={6} fill="#ffcc80" />
-          </G>
-        ))}
-      </G>
+      {/* Sales counter, customers, money pile */}
+      <SalesCounterComponent
+        counterSteaks={counterSteaks}
+        moneyPileAmount={moneyPileAmount}
+        customers={customers}
+        tick={tickCount}
+      />
 
       {/* Dropped items */}
       {droppedItems.map(item => (
