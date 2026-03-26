@@ -33,7 +33,7 @@ import { formatDuration } from '../utils/formatDuration';
 import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding from '../components/IsometricBuilding';
-import IsometricForest from '../components/IsometricForest';
+// IsometricForest SVG removed — replaced by pre-rendered ForestParallax PNG
 import { ForestParallax } from '../components/village/ForestParallax';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
@@ -408,8 +408,8 @@ export default function RealmScreen() {
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: CANVAS_W + 80,
-          height: CANVAS_H + 80,
+          width: CANVAS_W + 200,
+          height: CANVAS_H + 400,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -438,19 +438,17 @@ export default function RealmScreen() {
           onMoveShouldSetResponder={() => false}
           onResponderRelease={handleMapPress}
         >
-          <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}>
-            {/* Forest border ground tiles (SVG) */}
-            <IsometricForest gridSize={GRID_SIZE} borderSize={BORDER_SIZE} />
-            {/* Game grid tiles, buildings, obstacles */}
-            {renderGridTiles}
-          </Svg>
-          {/* Pre-rendered 3D forest with parallax effect */}
+          {/* Pre-rendered 3D forest background (behind SVG grid) */}
           <ForestParallax
             canvasWidth={CANVAS_W}
             canvasHeight={CANVAS_H}
             scrollX={parallaxScrollX}
             scrollY={parallaxScrollY}
           />
+          <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} style={{ position: 'absolute', top: 0, left: 0 }}>
+            {/* Game grid tiles, buildings, obstacles — NO forest border tiles */}
+            {renderGridTiles}
+          </Svg>
         </View>
       </ScrollView>
 
