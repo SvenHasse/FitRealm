@@ -81,3 +81,51 @@ export const CUSTOMER_ROW_Y = 1020;
 // ─── Interaktions-Radien ─────────────────────────────────────────────────────
 export const PICKUP_RADIUS = 25;
 export const STATION_INTERACT_RADIUS = 35;
+
+// ─── Upgrade-Definitionen ────────────────────────────────────────────────────
+import { UpgradeDefinition } from './types';
+
+export const UPGRADE_DEFINITIONS: UpgradeDefinition[] = [
+  {
+    id: 'stronger_axe', name: 'Stärkere Axt', icon: 'axe',
+    costs: [50, 120, 250], maxLevel: 3,
+    position: { x: 550, y: 430 }, paidAmount: 0, currentLevel: 0,
+    description: 'Mehr Schaden gegen Eisbären',
+  },
+  {
+    id: 'bigger_backpack', name: 'Größerer Rucksack', icon: 'backpack',
+    costs: [80, 180, 350], maxLevel: 3,
+    position: { x: 500, y: 620 }, paidAmount: 0, currentLevel: 0,
+    description: 'Mehr Tragekapazität',
+  },
+  {
+    id: 'faster_shoes', name: 'Schnellere Schuhe', icon: 'shoe',
+    costs: [60, 150], maxLevel: 2,
+    position: { x: 350, y: 620 }, paidAmount: 0, currentLevel: 0,
+    description: 'Schneller laufen',
+  },
+  {
+    id: 'better_conveyor', name: 'Schnelleres Band', icon: 'gear',
+    costs: [100, 220], maxLevel: 2,
+    position: { x: 180, y: 570 }, paidAmount: 0, currentLevel: 0,
+    description: 'Förderband + Schredder schneller',
+  },
+  {
+    id: 'better_grill', name: 'Besserer Grill', icon: 'flame',
+    costs: [120, 250], maxLevel: 2,
+    position: { x: 800, y: 750 }, paidAmount: 0, currentLevel: 0,
+    description: 'Schneller grillen, mehr Kapazität',
+  },
+  {
+    id: 'more_customers', name: 'Mehr Kunden', icon: 'people',
+    costs: [150, 300], maxLevel: 2,
+    position: { x: 650, y: 960 }, paidAmount: 0, currentLevel: 0,
+    description: 'Mehr und schnellere Kunden',
+  },
+  {
+    id: 'auto_conveyor', name: 'Auto-Transport', icon: 'conveyor',
+    costs: [500], maxLevel: 1,
+    position: { x: 450, y: 680 }, paidAmount: 0, currentLevel: 0,
+    description: 'Automatisches Band: Schredder → Grill',
+  },
+];
