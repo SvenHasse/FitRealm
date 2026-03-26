@@ -32,6 +32,7 @@ function getSpriteSource(type: BuildingType, level: number): any | null {
     return BuildingSprites[key] ?? null;
   }
   if (type === BuildingType.holzfaeller) {
+    // Only schmiede_level_1 exists — use it for all levels until more sprites are added
     return BuildingSprites.schmiede_level_1;
   }
   return null; // No sprite available — SVG fallback

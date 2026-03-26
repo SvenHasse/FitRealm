@@ -49,7 +49,16 @@
     "syncHealthData": "Sync Health Data"
   },
   "realm": {
-    "tapToPlace": "Tap an empty cell: {{building}}"
+    "tapToPlace": "Tap an empty cell: {{building}}",
+    "stallFirstAnimal": "A harvest chicken has moved into your stable!",
+    "trophyPlaceHint": "{{emoji}} Place trophy — tap an empty cell"
+  },
+  "wall": {
+    "repairTitle": "Repair Wall",
+    "repairCostMessage": "Repair cost: {{cost}} Wood\nCurrent: {{wood}} Wood",
+    "repairButton": "Repair ({{cost}} Wood)",
+    "notEnoughTitle": "Not enough Wood",
+    "notEnoughBody": "You need {{cost}} Wood."
   },
   "building": {
     "sell": "Sell",

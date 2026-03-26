@@ -34,7 +34,7 @@ import { formatDuration } from '../utils/formatDuration';
 import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding, { getBuildingHeight } from '../components/IsometricBuilding';
-// IsometricForest SVG removed — replaced by pre-rendered ForestParallax PNG
+import IsometricForest from '../components/IsometricForest';
 import { ForestParallax } from '../components/village/ForestParallax';
 import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
 import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
@@ -63,6 +63,16 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const CANVAS_SIZE = getGridPixelSize(GRID_SIZE);
 const CANVAS_W = CANVAS_SIZE.width;
 const CANVAS_H = CANVAS_SIZE.height;
+
+// Zoom scale constants
+const MIN_SCALE = 0.35;
+const MAX_SCALE = 1.5;
+const INITIAL_SCALE = 0.55;
+
+// Forest border around the 15x15 playfield
+const FOREST_BORDER = 5;
+const FOREST_TOTAL_SIZE = GRID_SIZE + FOREST_BORDER * 2;
+const FOREST_SVG_SIZE = getGridPixelSize(FOREST_TOTAL_SIZE);
 
 // ── Per-building visual config for the map cells ──────────────────────────────
 const CELL_CFG: Record<string, { icon: string; color: string }> = {
@@ -278,6 +288,26 @@ export default function RealmScreen() {
     store.checkObstacleCompletion();
   }, []);
 
+  // Centre camera on Rathaus at startup
+  useEffect(() => {
+    const rathaus = gameState.buildings.find(b => b.type === BuildingType.rathaus);
+    if (!rathaus) return;
+    const { x, y } = gridToScreen(rathaus.position.row, rathaus.position.col, GRID_SIZE);
+    const containerW = Math.round(CANVAS_W * 25 / 15);
+    const containerH = Math.round(CANVAS_H * 25 / 15);
+    const rathausOffsetX = Math.round((containerW - CANVAS_W) / 2);
+    const rathausOffsetY = Math.round((containerH - CANVAS_H) / 2);
+    const rathausScreenX = rathausOffsetX + x + TILE_W / 2;
+    const rathausScreenY = rathausOffsetY + y + TILE_H / 2;
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        x: Math.max(0, rathausScreenX * INITIAL_SCALE - SCREEN_W / 2),
+        y: Math.max(0, rathausScreenY * INITIAL_SCALE - SCREEN_H / 2),
+        animated: false,
+      });
+    }, 50);
+  }, []);
+
   // Clear highlight after 1.5 s
   useEffect(() => {
     if (!highlightedBuildingId) return;
@@ -338,7 +368,7 @@ export default function RealmScreen() {
         store.buildBuilding(buildPlacementMode, { row, col });
         setBuildPlacementMode(null);
         if (isFirstStall) {
-          setToastMessage('Ein Erntehuhn hat sich in deinem Stall niedergelassen!');
+          setToastMessage(t('realm.stallFirstAnimal'));
           setTimeout(() => setToastMessage(null), 3500);
         }
       }
@@ -475,9 +505,6 @@ export default function RealmScreen() {
   const parallaxScrollY = useSharedValue(0);
 
   // Pinch-to-zoom
-  const MIN_SCALE = 0.35;
-  const MAX_SCALE = 1.5;
-  const INITIAL_SCALE = 0.55;
   const scale = useSharedValue(INITIAL_SCALE);
   const savedScale = useSharedValue(INITIAL_SCALE);
 
@@ -581,7 +608,21 @@ export default function RealmScreen() {
               svgOffsetY={svgOffsetY}
             />
 
-            {/* Layer 5: Forest PNG ON TOP — transparent center shows tiles through,
+            {/* Layer 5: IsometricForest SVG ground tiles — border area around playfield */}
+            <Svg
+              style={{
+                position: 'absolute',
+                left: svgOffsetX - FOREST_BORDER * TILE_W,
+                top: svgOffsetY - FOREST_BORDER * TILE_H,
+                pointerEvents: 'none',
+              }}
+              width={FOREST_SVG_SIZE.width}
+              height={FOREST_SVG_SIZE.height}
+            >
+              <IsometricForest gridSize={GRID_SIZE} borderSize={FOREST_BORDER} />
+            </Svg>
+
+            {/* Layer 6: Forest PNG ON TOP — transparent center shows tiles through,
                 tree edges naturally overlap the playfield border = correct depth */}
             <ForestParallax
               canvasWidth={CANVAS_W}
@@ -613,7 +654,7 @@ export default function RealmScreen() {
       {placingTrophy && (
         <View style={styles.placementBanner}>
           <Text style={styles.placementText}>
-            {placingTrophy.emoji} Trophäe platzieren — tippe auf ein leeres Feld
+            {t('realm.trophyPlaceHint', { emoji: placingTrophy.emoji })}
           </Text>
           <TouchableOpacity onPress={() => setPlacingTrophy(null)}>
             <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.7)" />
@@ -640,17 +681,17 @@ export default function RealmScreen() {
                 if (!mauerBuilding) return;
                 const repairCost = Math.ceil(missingHP * 20 / gameState.wallHP.max * mauerBuilding.level);
                 Alert.alert(
-                  'Mauer reparieren',
-                  `Reparaturkosten: ${repairCost} Holz\nAktuell: ${Math.floor(gameState.wood)} Holz`,
+                  t('wall.repairTitle'),
+                  t('wall.repairCostMessage', { cost: repairCost, wood: Math.floor(gameState.wood) }),
                   [
-                    { text: 'Abbrechen', style: 'cancel' },
+                    { text: t('common.cancel'), style: 'cancel' },
                     {
-                      text: `Reparieren (${repairCost} Holz)`,
+                      text: t('wall.repairButton', { cost: repairCost }),
                       onPress: () => {
                         if (gameState.wood >= repairCost) {
                           store.repairWall();
                         } else {
-                          Alert.alert('Nicht genug Holz', `Du brauchst ${repairCost} Holz.`);
+                          Alert.alert(t('wall.notEnoughTitle'), t('wall.notEnoughBody', { cost: repairCost }));
                         }
                       },
                     },
