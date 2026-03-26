@@ -22,7 +22,7 @@ interface Props {
   viewHeight: number;
 }
 
-const NUM_FLAKES = 70;
+const NUM_FLAKES = 40;
 
 function createFlakes(): Flake[] {
   const flakes: Flake[] = [];

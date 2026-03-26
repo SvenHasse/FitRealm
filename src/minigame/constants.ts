@@ -5,7 +5,7 @@ export const WORLD_WIDTH = 1000;
 export const WORLD_HEIGHT = 1600;
 
 // ─── Spieler ─────────────────────────────────────────────────────────────────
-export const PLAYER_SPEED = 3.0;
+export const PLAYER_SPEED = 5.5;
 export const PLAYER_RADIUS = 14;
 export const PLAYER_START_X = 500;
 export const PLAYER_START_Y = 700;
@@ -16,7 +16,7 @@ export const JOYSTICK_KNOB_RADIUS = 24;
 export const JOYSTICK_DEAD_ZONE = 5;
 
 // ─── Game Loop ───────────────────────────────────────────────────────────────
-export const GAME_TICK_MS = 50; // 20 ticks/s
+export const GAME_TICK_MS = 33; // ~30 ticks/s
 
 // ─── UI-Farben (FitRealm Dark Theme) ────────────────────────────────────────
 export const UI_BG_PRIMARY = '#0e1016';
@@ -60,27 +60,28 @@ export const BEAR_SHADING = '#e8e8e0';
 export const BEAR_INNER_EAR = '#dddddd';
 
 // ─── Rucksack ────────────────────────────────────────────────────────────────
-export const MAX_BACKPACK_CAPACITY = 5;
+export const MAX_BACKPACK_CAPACITY = 15;
 export const BACKPACK_ITEM_WIDTH = 12;
 export const BACKPACK_ITEM_HEIGHT = 10;
 export const BACKPACK_STACK_OFFSET_Y = -8;
 
 // ─── Layout-Positionen (Welt-Koordinaten) ────────────────────────────────────
-export const BEAR_PEN = { x: 200, y: 80, width: 600, height: 280 };
-export const BEAR_PEN_GATE = { x: 425, y: 360, width: 150 };
+export const BEAR_PEN = { x: 150, y: 50, width: 700, height: 320 };
+export const BEAR_PEN_GATE = { x: 425, y: 370, width: 150 };
 export const CONVEYOR_TABLE = { x: 250, y: 530 };
-export const CONVEYOR_BELT = { startX: 250, startY: 530, endX: 120, endY: 490, width: 22 };
-export const SHREDDER = { x: 100, y: 470, width: 65, height: 55 };
-export const STEAK_OUTPUT = { x: 100, y: 540 };
-export const GRILL = { x: 750, y: 720, width: 55, height: 45 };
-export const GRILL_OUTPUT = { x: 750, y: 780 };
-export const SALES_COUNTER = { x: 350, y: 950, width: 300, height: 25 };
-export const MONEY_PILE = { x: 500, y: 1000 };
-export const CUSTOMER_ROW_Y = 1020;
+export const CONVEYOR_BELT = { startX: 250, startY: 530, endX: 120, endY: 490, width: 30 };
+export const SHREDDER = { x: 100, y: 470, width: 90, height: 75 };
+export const STEAK_OUTPUT = { x: 100, y: 560 };
+export const GRILL = { x: 750, y: 720, width: 75, height: 60 };
+export const GRILL_OUTPUT = { x: 750, y: 800 };
+export const SALES_COUNTER = { x: 350, y: 950, width: 400, height: 30 };
+export const MONEY_PILE = { x: 500, y: 1010 };
+export const CUSTOMER_ROW_Y = 1030;
 
 // ─── Interaktions-Radien ─────────────────────────────────────────────────────
 export const PICKUP_RADIUS = 25;
 export const STATION_INTERACT_RADIUS = 35;
+export const UPGRADE_INTERACT_RADIUS = 45;
 
 // ─── Upgrade-Definitionen ────────────────────────────────────────────────────
 import { UpgradeDefinition } from './types';

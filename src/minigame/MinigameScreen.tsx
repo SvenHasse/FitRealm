@@ -14,7 +14,7 @@ import {
 import {
   GAME_TICK_MS, PLAYER_START_X, PLAYER_START_Y, PLAYER_SPEED,
   MAX_BACKPACK_CAPACITY, WORLD_WIDTH, WORLD_HEIGHT,
-  BEAR_PEN, PICKUP_RADIUS, STATION_INTERACT_RADIUS,
+  BEAR_PEN, PICKUP_RADIUS, STATION_INTERACT_RADIUS, UPGRADE_INTERACT_RADIUS,
   CONVEYOR_TABLE, STEAK_OUTPUT, SHREDDER,
   GRILL, GRILL_OUTPUT, SALES_COUNTER, MONEY_PILE,
   UI_BG_PRIMARY, UI_BORDER, UI_TEXT, UI_TEAL, UI_TEXT_DIM, RAW_MEAT_COLOR,
@@ -79,7 +79,7 @@ function createBears(count: number): PolarBear[] {
       alive: true,
       respawnTimer: 0,
       walkDirection: normalizedRandom(),
-      walkTimer: Math.floor(randomInRange(60, 120)),
+      walkTimer: Math.floor(randomInRange(90, 180)),
       idlePauseTimer: 0,
       size: Math.floor(randomInRange(18, 22)),
     });
@@ -112,7 +112,7 @@ function createInitialState(): GameState {
     currentItemType: null,
     isMoving: false,
 
-    bears: createBears(6),
+    bears: createBears(10),
     droppedItems: [],
 
     conveyorItems: [],
@@ -124,7 +124,7 @@ function createInitialState(): GameState {
     moneyPileAmount: 0,
 
     customers: createCustomers(6),
-    customerBuyTimer: 40,
+    customerBuyTimer: 60,
 
     totalMoney: 0,
     upgrades: UPGRADE_DEFINITIONS.map(u => ({ ...u })),
@@ -168,16 +168,17 @@ function getTutorialTarget(step: number): Position | null {
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'TICK': {
+      try {
       const { joystickDx, joystickDy } = action;
       const moving = Math.abs(joystickDx) > 0.05 || Math.abs(joystickDy) > 0.05;
 
       // ── Pre-compute Upgrade Effects (from current state) ──
       const _axeUpg = state.upgrades.find(u => u.id === 'stronger_axe');
-      const preEffDamage = 10 + (_axeUpg?.currentLevel ?? 0) * 10;
+      const preEffDamage = 10 + ((_axeUpg?.currentLevel ?? 0) * 10);
       const _bpUpg = state.upgrades.find(u => u.id === 'bigger_backpack');
-      const preEffCapacity = 5 + (_bpUpg?.currentLevel ?? 0) * 3;
+      const preEffCapacity = 15 + ((_bpUpg?.currentLevel ?? 0) * 5);
       const _shoeUpg = state.upgrades.find(u => u.id === 'faster_shoes');
-      const preEffSpeed = 3.0 + (_shoeUpg?.currentLevel ?? 0) * 0.8;
+      const preEffSpeed = 5.5 + ((_shoeUpg?.currentLevel ?? 0) * 0.8);
       const _convUpg = state.upgrades.find(u => u.id === 'better_conveyor');
       const preConvLevel = _convUpg?.currentLevel ?? 0;
       const _grillUpg = state.upgrades.find(u => u.id === 'better_grill');
@@ -188,7 +189,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // ── Player movement ──
       let newX = state.playerPosition.x + joystickDx * preEffSpeed;
-      let newY = state.playerPosition.y + joystickDy * state.playerSpeed;
+      let newY = state.playerPosition.y + joystickDy * preEffSpeed;
       const margin = 20;
       newX = Math.max(margin, Math.min(WORLD_WIDTH - margin, newX));
       newY = Math.max(margin, Math.min(WORLD_HEIGHT - margin, newY));
@@ -207,7 +208,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
               position: randomPenPosition(),
               respawnTimer: 0,
               walkDirection: normalizedRandom(),
-              walkTimer: Math.floor(randomInRange(60, 120)),
+              walkTimer: Math.floor(randomInRange(90, 180)),
               idlePauseTimer: 0,
             };
           }
@@ -228,14 +229,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           if (Math.random() < 0.3) {
             return {
               ...bear,
-              idlePauseTimer: Math.floor(randomInRange(40, 80)),
+              idlePauseTimer: Math.floor(randomInRange(60, 120)),
               walkTimer: 0,
             };
           }
           return {
             ...bear,
             walkDirection: normalizedRandom(),
-            walkTimer: Math.floor(randomInRange(60, 120)),
+            walkTimer: Math.floor(randomInRange(90, 180)),
           };
         }
 
@@ -282,7 +283,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (nearestBear) {
           isAttacking = true;
           attackTarget = nearestBear.id;
-          attackCooldown = 10; // 0.5s
+          attackCooldown = 15; // 0.5s at 30/s
 
           // Apply damage
           const bearIdx = newBears.findIndex(b => b.id === nearestBear!.id);
@@ -307,7 +308,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 ...b,
                 hp: 0,
                 alive: false,
-                respawnTimer: 160, // 8s
+                respawnTimer: 150, // 5s at 30/s
               };
               // "BONK!" text
               newFloats.push({
@@ -358,7 +359,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
         // Check capacity
         if (backpack.length >= preEffCapacity) {
-          if (state.tickCount - lastFullWarningTick > 30) {
+          if (state.tickCount - lastFullWarningTick > 45) {
             newFloats.push({
               id: uid(),
               text: 'VOLL!',
@@ -375,7 +376,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
         // Check item type compatibility
         if (currentItemType !== null && currentItemType !== item.type) {
-          if (state.tickCount - lastFullWarningTick > 30) {
+          if (state.tickCount - lastFullWarningTick > 45) {
             newFloats.push({
               id: uid(),
               text: 'Erst ablegen!',
@@ -392,7 +393,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
         // Pick up
         allDrops[i] = { ...item, collected: true };
-        backpack.push({ id: uid(), type: item.type });
+        backpack = [...backpack, { id: uid(), type: item.type }];
         currentItemType = item.type;
         newFloats.push({
           id: uid(),
@@ -413,19 +414,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       let shredderProcessing = [...state.shredderProcessing];
       let steakOutputPile = state.steakOutputPile;
       let lastStationInteractTick = state.lastStationInteractTick;
-      const stationCooldown = 6; // ticks between drops/pickups (0.3s)
+      const stationCooldown = 9; // ticks between drops/pickups (0.3s at 30/s)
 
       // CONVEYOR_TABLE: Drop raw meat from backpack onto conveyor
       const tablePos: Position = { x: CONVEYOR_TABLE.x, y: CONVEYOR_TABLE.y };
       if (dist(playerPos, tablePos) < STATION_INTERACT_RADIUS &&
-          currentItemType === ItemType.RAW_MEAT &&
+          currentItemType !== null && currentItemType === ItemType.RAW_MEAT &&
           backpack.length > 0 &&
           state.tickCount - lastStationInteractTick >= stationCooldown) {
         // Remove one item from backpack
         backpack = backpack.slice(0, -1);
         if (backpack.length === 0) currentItemType = null;
         // Add to conveyor
-        conveyorItems.push({ id: uid(), progress: 0 });
+        conveyorItems = [...conveyorItems, { id: uid(), progress: 0 }];
         lastStationInteractTick = state.tickCount;
         newFloats.push({
           id: uid(), text: '-1', position: { x: playerPos.x, y: playerPos.y },
@@ -440,8 +441,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           (currentItemType === null || currentItemType === ItemType.STEAK) &&
           backpack.length < preEffCapacity &&
           state.tickCount - lastStationInteractTick >= stationCooldown) {
-        steakOutputPile -= 1;
-        backpack.push({ id: uid(), type: ItemType.STEAK });
+        steakOutputPile = Math.max(0, steakOutputPile - 1);
+        backpack = [...backpack, { id: uid(), type: ItemType.STEAK }];
         currentItemType = ItemType.STEAK;
         lastStationInteractTick = state.tickCount;
         newFloats.push({
@@ -451,17 +452,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       // ── Conveyor Belt Movement ──
-      conveyorItems = conveyorItems.map(ci => ({ ...ci, progress: ci.progress + 0.008 * Math.pow(1.5, preConvLevel) }));
+      conveyorItems = conveyorItems.map(ci => ({ ...ci, progress: ci.progress + 0.005 * Math.pow(1.5, preConvLevel) }));
 
       // Items reaching end of belt -> into shredder
       const arrivedItems = conveyorItems.filter(ci => ci.progress >= 1.0);
       conveyorItems = conveyorItems.filter(ci => ci.progress < 1.0);
       for (const _item of arrivedItems) {
-        shredderProcessing.push({ id: uid(), progress: 0 });
+        shredderProcessing = [...shredderProcessing, { id: uid(), progress: 0 }];
       }
 
       // ── Shredder Processing ──
-      shredderProcessing = shredderProcessing.map(sp => ({ ...sp, progress: sp.progress + 0.025 * Math.pow(1.5, preConvLevel) }));
+      shredderProcessing = shredderProcessing.map(sp => ({ ...sp, progress: sp.progress + 0.017 * Math.pow(1.5, preConvLevel) }));
       const finishedSteaks = shredderProcessing.filter(sp => sp.progress >= 1.0);
       shredderProcessing = shredderProcessing.filter(sp => sp.progress < 1.0);
       if (finishedSteaks.length > 0) {
@@ -482,13 +483,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // GRILL: Drop steaks from backpack
       const grillPos: Position = { x: GRILL.x + GRILL.width / 2, y: GRILL.y + GRILL.height / 2 };
       if (dist(playerPos, grillPos) < STATION_INTERACT_RADIUS &&
-          currentItemType === ItemType.STEAK &&
+          currentItemType !== null && currentItemType === ItemType.STEAK &&
           backpack.length > 0 &&
           grillItems.length < preEffGrillCap &&
           state.tickCount - lastStationInteractTick >= stationCooldown) {
         backpack = backpack.slice(0, -1);
         if (backpack.length === 0) currentItemType = null;
-        grillItems.push({ id: uid(), progress: 0 });
+        grillItems = [...grillItems, { id: uid(), progress: 0 }];
         lastStationInteractTick = state.tickCount;
         newFloats.push({
           id: uid(), text: '-1', position: { x: playerPos.x, y: playerPos.y },
@@ -503,8 +504,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           (currentItemType === null || currentItemType === ItemType.GRILLED_STEAK) &&
           backpack.length < preEffCapacity &&
           state.tickCount - lastStationInteractTick >= stationCooldown) {
-        grillOutputPile -= 1;
-        backpack.push({ id: uid(), type: ItemType.GRILLED_STEAK });
+        grillOutputPile = Math.max(0, grillOutputPile - 1);
+        backpack = [...backpack, { id: uid(), type: ItemType.GRILLED_STEAK }];
         currentItemType = ItemType.GRILLED_STEAK;
         lastStationInteractTick = state.tickCount;
         newFloats.push({
@@ -514,7 +515,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       // Grill processing
-      grillItems = grillItems.map(gi => ({ ...gi, progress: gi.progress + 0.017 * Math.pow(1.4, preGrillLevel) }));
+      grillItems = grillItems.map(gi => ({ ...gi, progress: gi.progress + 0.011 * Math.pow(1.4, preGrillLevel) }));
       const finishedGrilled = grillItems.filter(gi => gi.progress >= 1.0);
       grillItems = grillItems.filter(gi => gi.progress < 1.0);
       if (finishedGrilled.length > 0) {
@@ -530,14 +531,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // ── Sales Counter ──
       let counterSteaks = state.counterSteaks;
-      let moneyPileAmount = state.moneyPileAmount;
+      let moneyPileAmount = state.moneyPileAmount || 0;
       let totalMoney = state.totalMoney;
 
-      // Drop grilled steaks at counter
+      // Drop grilled steaks at counter (max 20 on counter)
       const counterPos: Position = { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y };
       if (dist(playerPos, counterPos) < STATION_INTERACT_RADIUS + 20 &&
-          currentItemType === ItemType.GRILLED_STEAK &&
+          currentItemType !== null && currentItemType === ItemType.GRILLED_STEAK &&
           backpack.length > 0 &&
+          counterSteaks < 20 &&
           state.tickCount - lastStationInteractTick >= stationCooldown) {
         backpack = backpack.slice(0, -1);
         if (backpack.length === 0) currentItemType = null;
@@ -557,9 +559,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }));
 
       if (customerBuyTimer <= 0 && counterSteaks > 0) {
-        counterSteaks -= 1;
-        moneyPileAmount += 10;
-        customerBuyTimer = [40, 30, 22][preCustLevel] ?? 22;
+        counterSteaks = Math.max(0, counterSteaks - 1);
+        moneyPileAmount = (moneyPileAmount || 0) + 10;
+        customerBuyTimer = [60, 45, 33][preCustLevel] ?? 33;
         newFloats.push({
           id: uid(), text: '+$10',
           position: { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y - 10 },
@@ -570,21 +572,21 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         if (unhappy.length > 0) {
           const lucky = unhappy[Math.floor(Math.random() * unhappy.length)];
           newCustomers = newCustomers.map(c =>
-            c.id === lucky.id ? { ...c, happyTimer: 20, hasSteakInHand: true } : c
+            c.id === lucky.id ? { ...c, happyTimer: 30, hasSteakInHand: true } : c
           );
         }
       }
 
       // ── Money Pile Pickup ──
       const moneyPos: Position = { x: MONEY_PILE.x, y: MONEY_PILE.y };
-      const moneyPickupCooldown = 3; // faster than station cooldown
+      const moneyPickupCooldown = 5; // at 30/s
       if (dist(playerPos, moneyPos) < PICKUP_RADIUS + 5 &&
-          moneyPileAmount >= 10 &&
+          (moneyPileAmount || 0) >= 10 &&
           (currentItemType === null || currentItemType === ItemType.MONEY) &&
           backpack.length < preEffCapacity &&
           state.tickCount - lastStationInteractTick >= moneyPickupCooldown) {
-        moneyPileAmount -= 10;
-        backpack.push({ id: uid(), type: ItemType.MONEY });
+        moneyPileAmount = Math.max(0, (moneyPileAmount || 0) - 10);
+        backpack = [...backpack, { id: uid(), type: ItemType.MONEY }];
         currentItemType = ItemType.MONEY;
         lastStationInteractTick = state.tickCount;
         // "CHA-CHING!" only on first pickup in sequence
@@ -599,44 +601,46 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // ── Upgrade Payment ──
       let upgrades = state.upgrades.map(u => ({ ...u }));
-      const upgradePayCooldown = 2;
+      const upgradePayCooldown = 3; // at 30/s
 
-      for (let ui = 0; ui < upgrades.length; ui++) {
-        const upg = upgrades[ui];
-        if (upg.currentLevel >= upg.maxLevel) continue;
-        if (dist(playerPos, upg.position) >= STATION_INTERACT_RADIUS) continue;
-        if (currentItemType !== ItemType.MONEY || backpack.length === 0) continue;
-        if (state.tickCount - lastStationInteractTick < upgradePayCooldown) continue;
+      if (state.tickCount % 2 === 0) {
+        for (let ui = 0; ui < upgrades.length; ui++) {
+          const upg = upgrades[ui];
+          if (upg.currentLevel >= upg.maxLevel) continue;
+          if (dist(playerPos, upg.position) >= UPGRADE_INTERACT_RADIUS) continue;
+          if (currentItemType !== ItemType.MONEY || backpack.length === 0) continue;
+          if (state.tickCount - lastStationInteractTick < upgradePayCooldown) continue;
 
-        // Pay $10
-        backpack = backpack.slice(0, -1);
-        if (backpack.length === 0) currentItemType = null;
-        upg.paidAmount += 10;
-        lastStationInteractTick = state.tickCount;
+          // Pay $10
+          backpack = backpack.slice(0, -1);
+          if (backpack.length === 0) currentItemType = null;
+          upg.paidAmount += 10;
+          lastStationInteractTick = state.tickCount;
 
-        // Check if upgrade complete
-        const cost = upg.costs[upg.currentLevel];
-        if (upg.paidAmount >= cost) {
-          upg.currentLevel += 1;
-          upg.paidAmount = 0;
-          newFloats.push({
-            id: uid(), text: 'UPGRADE!',
-            position: { x: upg.position.x, y: upg.position.y },
-            color: '#4caf50', opacity: 1, offsetY: -20, fontSize: 18,
-          });
+          // Check if upgrade complete
+          const cost = upg.costs[upg.currentLevel];
+          if (upg.paidAmount >= cost) {
+            upg.currentLevel += 1;
+            upg.paidAmount = 0;
+            newFloats.push({
+              id: uid(), text: 'UPGRADE!',
+              position: { x: upg.position.x, y: upg.position.y },
+              color: '#4caf50', opacity: 1, offsetY: -20, fontSize: 18,
+            });
+          }
+          break; // Only pay one upgrade per tick
         }
-        break; // Only pay one upgrade per tick
       }
 
       // ── Compute Upgrade Effects ──
       const axeUpg = upgrades.find(u => u.id === 'stronger_axe');
-      const effectiveDamage = 10 + (axeUpg?.currentLevel ?? 0) * 10;
+      const effectiveDamage = 10 + ((axeUpg?.currentLevel ?? 0) * 10);
 
       const bpUpg = upgrades.find(u => u.id === 'bigger_backpack');
-      const effectiveCapacity = 5 + (bpUpg?.currentLevel ?? 0) * 3;
+      const effectiveCapacity = 15 + ((bpUpg?.currentLevel ?? 0) * 5);
 
       const shoeUpg = upgrades.find(u => u.id === 'faster_shoes');
-      const effectiveSpeed = 3.0 + (shoeUpg?.currentLevel ?? 0) * 0.8;
+      const effectiveSpeed = 5.5 + ((shoeUpg?.currentLevel ?? 0) * 0.8);
 
       const convUpg = upgrades.find(u => u.id === 'better_conveyor');
       const _convLevel = convUpg?.currentLevel ?? 0;
@@ -652,35 +656,35 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const hasAutoConveyor = (autoConvUpg?.currentLevel ?? 0) >= 1;
 
       // ── Auto-Conveyor: steakOutputPile -> grill ──
-      if (hasAutoConveyor && steakOutputPile > 0 && grillItems.length < effectiveGrillCap && state.tickCount % 10 === 0) {
-        steakOutputPile -= 1;
-        grillItems.push({ id: uid(), progress: 0 });
+      if (hasAutoConveyor && steakOutputPile > 0 && grillItems.length < effectiveGrillCap && state.tickCount % 15 === 0) {
+        steakOutputPile = Math.max(0, steakOutputPile - 1);
+        grillItems = [...grillItems, { id: uid(), progress: 0 }];
       }
 
       // ── Add customers if needed ──
       const targetCustomerCount = 6 + custLevel * 3;
       if (newCustomers.length < targetCustomerCount) {
-        while (newCustomers.length < targetCustomerCount) {
-          newCustomers.push({
+        const toAdd: typeof newCustomers = [];
+        while (newCustomers.length + toAdd.length < targetCustomerCount) {
+          toAdd.push({
             id: uid(),
-            color: CUSTOMER_COLORS[newCustomers.length % CUSTOMER_COLORS.length],
+            color: CUSTOMER_COLORS[(newCustomers.length + toAdd.length) % CUSTOMER_COLORS.length],
             hasSteakInHand: false,
             happyTimer: 0,
           });
         }
+        newCustomers = [...newCustomers, ...toAdd];
       }
 
-      // ── Floating texts decay + cap at 50 ──
-      let updatedFloats = [...state.floatingTexts, ...newFloats]
+      // ── Floating texts decay + cap at 15 ──
+      const updatedFloats = [...state.floatingTexts, ...newFloats]
         .map(ft => ({
           ...ft,
-          opacity: ft.opacity - 0.025,
-          offsetY: ft.offsetY - 1.5,
+          opacity: ft.opacity - 0.017,
+          offsetY: ft.offsetY - 1.0,
         }))
-        .filter(ft => ft.opacity > 0);
-      if (updatedFloats.length > 50) {
-        updatedFloats = updatedFloats.slice(-50);
-      }
+        .filter(ft => ft.opacity > 0)
+        .slice(-15);
 
       // ── Tutorial Step Transitions ──
       let tutorialStep = state.tutorialStep;
@@ -717,7 +721,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             if (counterSteaks > 0 && backpack.length === 0) tutorialStep = 10;
             break;
           case 10:
-            if (moneyPileAmount > 0 && backpack.length > 0 && finalCurrentItemType === ItemType.MONEY) tutorialStep = 11;
+            if ((moneyPileAmount || 0) > 0 && backpack.length > 0 && finalCurrentItemType === ItemType.MONEY) tutorialStep = 11;
             break;
           case 11:
             if (upgrades.some(u => u.currentLevel > 0)) tutorialStep = 12;
@@ -725,7 +729,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           case 12:
             if (tutorialCompleteAt === 0) {
               tutorialCompleteAt = state.tickCount;
-            } else if (state.tickCount - tutorialCompleteAt > 60) {
+            } else if (state.tickCount - tutorialCompleteAt > 90) {
               tutorialStep = 0;
               tutorialCompleteAt = 0;
             }
@@ -749,12 +753,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         attackTarget,
         conveyorItems,
         shredderProcessing,
-        steakOutputPile,
+        steakOutputPile: Math.max(0, steakOutputPile),
         grillItems,
-        grillOutputPile,
-        counterSteaks,
-        moneyPileAmount,
-        totalMoney,
+        grillOutputPile: Math.max(0, grillOutputPile),
+        counterSteaks: Math.max(0, counterSteaks),
+        moneyPileAmount: Math.max(0, moneyPileAmount || 0),
+        totalMoney: Math.max(0, totalMoney),
         upgrades,
         customerBuyTimer,
         customers: newCustomers,
@@ -765,6 +769,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         tickCount: state.tickCount + 1,
         lastFullWarningTick,
       };
+      } catch (error) {
+        console.warn('GameTick error:', error);
+        return { ...state, tickCount: state.tickCount + 1 };
+      }
     }
 
     case 'SET_PLAYER_POSITION':
@@ -858,10 +866,10 @@ export default function MinigameScreen({ navigation, onExit, onEarnReward }: Min
           <TouchableOpacity style={styles.backButton} onPress={handleExit}>
             <Ionicons name="arrow-back" size={22} color={UI_TEXT} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Eisb\u00e4ren-Fabrik</Text>
+          <Text style={styles.headerTitle}>Eisb{'\u00e4'}ren-Fabrik</Text>
           {state.totalMoney > 0 && onEarnReward ? (
             <TouchableOpacity style={styles.rewardBtn} onPress={handleClaimReward}>
-              <Text style={styles.rewardBtnText}>Einl\u00f6sen</Text>
+              <Text style={styles.rewardBtnText}>Einl{'\u00f6'}sen</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.headerSpacer} />
@@ -877,8 +885,8 @@ export default function MinigameScreen({ navigation, onExit, onEarnReward }: Min
           {/* Start Screen Overlay */}
           {showStartScreen && (
             <Animated.View style={[styles.startOverlay, startFadeStyle]}>
-              <Text style={styles.startTitle}>EISB\u00c4REN-FABRIK</Text>
-              <Text style={styles.startSubtitle}>Jage \u00b7 Verarbeite \u00b7 Verkaufe</Text>
+              <Text style={styles.startTitle}>EISB{'\u00c4'}REN-FABRIK</Text>
+              <Text style={styles.startSubtitle}>Jage {'\u00b7'} Verarbeite {'\u00b7'} Verkaufe</Text>
               <TouchableOpacity
                 style={styles.playButton}
                 onPress={() => {
