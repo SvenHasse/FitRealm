@@ -25,6 +25,7 @@ import RealmScreen from './src/screens/RealmScreen';
 import GoalsScreen from './src/screens/GoalsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import WorkoutRewardScreen from './src/screens/WorkoutRewardScreen';
+import MinigameScreen from './src/minigame/MinigameScreen';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -108,6 +109,11 @@ export default function App() {
           name="WorkoutReward"
           component={WorkoutRewardScreen}
           options={{ presentation: 'modal' }}
+        />
+        <RootStack.Screen
+          name="Minigame"
+          component={MinigameScreen}
+          options={{ presentation: 'fullScreenModal' }}
         />
       </RootStack.Navigator>
     </NavigationContainer>
