@@ -13,6 +13,7 @@ import {
   MAX_BACKPACK_CAPACITY, WORLD_WIDTH, WORLD_HEIGHT,
   BEAR_PEN, PICKUP_RADIUS, STATION_INTERACT_RADIUS,
   CONVEYOR_TABLE, STEAK_OUTPUT, SHREDDER,
+  GRILL, GRILL_OUTPUT, SALES_COUNTER, MONEY_PILE,
   UI_BG_PRIMARY, UI_BORDER, UI_TEXT, RAW_MEAT_COLOR,
 } from './constants';
 import GameWorld from './components/GameWorld';
@@ -80,6 +81,19 @@ function createBears(count: number): PolarBear[] {
   return bears;
 }
 
+// ─── Initial Customers ───────────────────────────────────────────────────────
+
+const CUSTOMER_COLORS = ['#1565c0', '#c62828', '#2e7d32', '#f9a825', '#6a1b9a', '#e65100'];
+
+function createCustomers(count: number): import('./types').Customer[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: uid(),
+    color: CUSTOMER_COLORS[i % CUSTOMER_COLORS.length],
+    hasSteakInHand: false,
+    happyTimer: 0,
+  }));
+}
+
 // ─── Initial State ───────────────────────────────────────────────────────────
 
 function createInitialState(): GameState {
@@ -103,8 +117,8 @@ function createInitialState(): GameState {
     counterSteaks: 0,
     moneyPileAmount: 0,
 
-    customers: [],
-    customerBuyTimer: 0,
+    customers: createCustomers(6),
+    customerBuyTimer: 40,
 
     totalMoney: 0,
     upgrades: [],
@@ -420,6 +434,134 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
+      // ── Grill Interactions ──
+      let grillItems = [...state.grillItems];
+      let grillOutputPile = state.grillOutputPile;
+
+      // GRILL: Drop steaks from backpack
+      const grillPos: Position = { x: GRILL.x + GRILL.width / 2, y: GRILL.y + GRILL.height / 2 };
+      if (dist(playerPos, grillPos) < STATION_INTERACT_RADIUS &&
+          currentItemType === ItemType.STEAK &&
+          backpack.length > 0 &&
+          grillItems.length < 3 &&
+          state.tickCount - lastStationInteractTick >= stationCooldown) {
+        backpack = backpack.slice(0, -1);
+        if (backpack.length === 0) currentItemType = null;
+        grillItems.push({ id: uid(), progress: 0 });
+        lastStationInteractTick = state.tickCount;
+        newFloats.push({
+          id: uid(), text: '-1', position: { x: playerPos.x, y: playerPos.y },
+          color: '#8d6e63', opacity: 1, offsetY: -20, fontSize: 11,
+        });
+      }
+
+      // GRILL_OUTPUT: Pick up grilled steaks
+      const grillOutPos: Position = { x: GRILL_OUTPUT.x, y: GRILL_OUTPUT.y };
+      if (dist(playerPos, grillOutPos) < STATION_INTERACT_RADIUS &&
+          grillOutputPile > 0 &&
+          (currentItemType === null || currentItemType === ItemType.GRILLED_STEAK) &&
+          backpack.length < state.backpackCapacity &&
+          state.tickCount - lastStationInteractTick >= stationCooldown) {
+        grillOutputPile -= 1;
+        backpack.push({ id: uid(), type: ItemType.GRILLED_STEAK });
+        currentItemType = ItemType.GRILLED_STEAK;
+        lastStationInteractTick = state.tickCount;
+        newFloats.push({
+          id: uid(), text: '+1', position: { x: playerPos.x, y: playerPos.y },
+          color: '#5d4037', opacity: 1, offsetY: -20, fontSize: 11,
+        });
+      }
+
+      // Grill processing
+      grillItems = grillItems.map(gi => ({ ...gi, progress: gi.progress + 0.017 }));
+      const finishedGrilled = grillItems.filter(gi => gi.progress >= 1.0);
+      grillItems = grillItems.filter(gi => gi.progress < 1.0);
+      if (finishedGrilled.length > 0) {
+        grillOutputPile += finishedGrilled.length;
+        for (const _g of finishedGrilled) {
+          newFloats.push({
+            id: uid(), text: '+1 Grill-Steak',
+            position: { x: GRILL.x + GRILL.width / 2, y: GRILL.y },
+            color: '#5d4037', opacity: 1, offsetY: -10, fontSize: 10,
+          });
+        }
+      }
+
+      // ── Sales Counter ──
+      let counterSteaks = state.counterSteaks;
+      let moneyPileAmount = state.moneyPileAmount;
+      let totalMoney = state.totalMoney;
+
+      // Drop grilled steaks at counter
+      const counterPos: Position = { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y };
+      if (dist(playerPos, counterPos) < STATION_INTERACT_RADIUS + 20 &&
+          currentItemType === ItemType.GRILLED_STEAK &&
+          backpack.length > 0 &&
+          state.tickCount - lastStationInteractTick >= stationCooldown) {
+        backpack = backpack.slice(0, -1);
+        if (backpack.length === 0) currentItemType = null;
+        counterSteaks += 1;
+        lastStationInteractTick = state.tickCount;
+        newFloats.push({
+          id: uid(), text: '-1', position: { x: playerPos.x, y: playerPos.y },
+          color: '#5d4037', opacity: 1, offsetY: -20, fontSize: 11,
+        });
+      }
+
+      // ── Customer Buy Logic ──
+      let customerBuyTimer = state.customerBuyTimer - 1;
+      let newCustomers = state.customers.map(c => ({
+        ...c,
+        happyTimer: Math.max(0, c.happyTimer - 1),
+      }));
+
+      if (customerBuyTimer <= 0 && counterSteaks > 0) {
+        counterSteaks -= 1;
+        moneyPileAmount += 10;
+        customerBuyTimer = 40; // 2 sec
+        newFloats.push({
+          id: uid(), text: '+$10',
+          position: { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y - 10 },
+          color: '#ffd700', opacity: 1, offsetY: -10, fontSize: 12,
+        });
+        // Make a random customer happy
+        const unhappy = newCustomers.filter(c => c.happyTimer === 0);
+        if (unhappy.length > 0) {
+          const lucky = unhappy[Math.floor(Math.random() * unhappy.length)];
+          newCustomers = newCustomers.map(c =>
+            c.id === lucky.id ? { ...c, happyTimer: 20, hasSteakInHand: true } : c
+          );
+        }
+      }
+
+      // ── Money Pile Pickup ──
+      const moneyPos: Position = { x: MONEY_PILE.x, y: MONEY_PILE.y };
+      const moneyPickupCooldown = 3; // faster than station cooldown
+      if (dist(playerPos, moneyPos) < PICKUP_RADIUS + 5 &&
+          moneyPileAmount >= 10 &&
+          (currentItemType === null || currentItemType === ItemType.MONEY) &&
+          backpack.length < state.backpackCapacity &&
+          state.tickCount - lastStationInteractTick >= moneyPickupCooldown) {
+        moneyPileAmount -= 10;
+        backpack.push({ id: uid(), type: ItemType.MONEY });
+        currentItemType = ItemType.MONEY;
+        lastStationInteractTick = state.tickCount;
+        // "CHA-CHING!" only on first pickup in sequence
+        if (state.currentItemType !== ItemType.MONEY) {
+          newFloats.push({
+            id: uid(), text: 'CHA-CHING!',
+            position: { x: playerPos.x, y: playerPos.y },
+            color: '#ffd700', opacity: 1, offsetY: -35, fontSize: 13,
+          });
+        }
+      }
+
+      // ── Money → Total (when carrying money and going to upgrade fields, for now just deposit anywhere) ──
+      // For Phase 4: Money on backpack is deposited at upgrade fields.
+      // For now: If player has money and is far from money pile, it auto-converts
+      // TEMP: money items on backpack count as totalMoney when deposited
+      // This will be replaced with upgrade field logic in Phase 5
+
       // ── Floating texts decay ──
       const updatedFloats = [...state.floatingTexts, ...newFloats]
         .map(ft => ({
@@ -443,6 +585,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         conveyorItems,
         shredderProcessing,
         steakOutputPile,
+        grillItems,
+        grillOutputPile,
+        counterSteaks,
+        moneyPileAmount,
+        totalMoney,
+        customerBuyTimer,
+        customers: newCustomers,
         lastStationInteractTick,
         floatingTexts: updatedFloats,
         tickCount: state.tickCount + 1,
