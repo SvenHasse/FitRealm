@@ -438,18 +438,16 @@ export default function RealmScreen() {
       >
         <View
           ref={svgContainerRef}
-          style={{ width: Math.round(CANVAS_W * 25 / 15), height: Math.round(CANVAS_H * 25 / 15), position: 'relative', overflow: 'visible' }}
+          style={{
+            width: Math.round(CANVAS_W * 25 / 15),
+            height: Math.round(CANVAS_H * 25 / 15),
+            position: 'relative',
+          }}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => false}
           onResponderRelease={handleMapPress}
         >
-          {/* Pre-rendered 3D forest background (behind SVG grid) */}
-          <ForestParallax
-            canvasWidth={CANVAS_W}
-            canvasHeight={CANVAS_H}
-            scrollX={parallaxScrollX}
-            scrollY={parallaxScrollY}
-          />
+          {/* Layer 1: SVG grid tiles + buildings (bottom layer) */}
           <Svg
             width={CANVAS_W}
             height={CANVAS_H}
@@ -460,9 +458,17 @@ export default function RealmScreen() {
               left: Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2),
             }}
           >
-            {/* Game grid tiles, buildings, obstacles — NO forest border tiles */}
             {renderGridTiles}
           </Svg>
+
+          {/* Layer 2: Forest PNG ON TOP — transparent center shows tiles through,
+              tree edges naturally overlap the playfield border = correct depth */}
+          <ForestParallax
+            canvasWidth={CANVAS_W}
+            canvasHeight={CANVAS_H}
+            scrollX={parallaxScrollX}
+            scrollY={parallaxScrollY}
+          />
         </View>
       </ScrollView>
 
