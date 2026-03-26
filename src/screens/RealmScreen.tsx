@@ -54,12 +54,10 @@ import { waveService } from '../services/WaveService';
 import { Trophy } from '../models/types';
 
 const GRID_SIZE = WorldConstants.gridSize; // 15
-const BORDER_SIZE = 5;
-const TOTAL_GRID = GRID_SIZE + BORDER_SIZE * 2; // 25
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Total pixel dimensions of the isometric canvas (with extra margin to prevent clipping)
-const CANVAS_SIZE = getGridPixelSize(TOTAL_GRID);
+// Canvas = just the 15x15 playfield. Forest PNG extends beyond.
+const CANVAS_SIZE = getGridPixelSize(GRID_SIZE);
 const CANVAS_W = CANVAS_SIZE.width;
 const CANVAS_H = CANVAS_SIZE.height;
 
@@ -229,7 +227,7 @@ export default function RealmScreen() {
 
   // Scroll map so the building sits roughly at viewport centre
   const scrollToBuilding = useCallback((row: number, col: number) => {
-    const { x, y } = gridToScreen(row + BORDER_SIZE, col + BORDER_SIZE, TOTAL_GRID);
+    const { x, y } = gridToScreen(row, col, GRID_SIZE);
     const scrollX = Math.max(0, x - SCREEN_W / 2);
     const scrollY = Math.max(0, y - SCREEN_H / 2);
     scrollRef.current?.scrollTo({ x: scrollX, y: scrollY, animated: true });
@@ -289,17 +287,19 @@ export default function RealmScreen() {
 
   // Handle tap on the SVG canvas area — proper diamond hit-testing
   // SVG is offset by 100px in both axes inside the container
-  const SVG_OFFSET = 250;
+  // SVG is centered in the larger container — offset = (containerSize - canvasSize) / 2
+  const SVG_OFFSET_X = Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2);
+  const SVG_OFFSET_Y = Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2);
   const handleMapPress = useCallback((event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
     // Subtract the SVG offset since the SVG sits at (100,100) within the container
-    const svgX = locationX - SVG_OFFSET;
-    const svgY = locationY - SVG_OFFSET;
+    const svgX = locationX - SVG_OFFSET_X;
+    const svgY = locationY - SVG_OFFSET_Y;
 
     // First pass: use screenToGrid to get approximate cell
-    const { row: rawRow, col: rawCol } = screenToGrid(svgX, svgY, TOTAL_GRID);
-    const approxRow = rawRow - BORDER_SIZE;
-    const approxCol = rawCol - BORDER_SIZE;
+    const { row: rawRow, col: rawCol } = screenToGrid(svgX, svgY, GRID_SIZE);
+    const approxRow = rawRow;
+    const approxCol = rawCol;
 
     // Second pass: diamond hit-test the approximate cell and its neighbors
     // (screenToGrid can be off by 1 near tile edges)
@@ -311,7 +311,7 @@ export default function RealmScreen() {
         const testRow = approxRow + dr;
         const testCol = approxCol + dc;
         if (testRow < 0 || testRow >= GRID_SIZE || testCol < 0 || testCol >= GRID_SIZE) continue;
-        const { x, y } = gridToScreen(testRow + BORDER_SIZE, testCol + BORDER_SIZE, TOTAL_GRID);
+        const { x, y } = gridToScreen(testRow, testCol, GRID_SIZE);
         if (isTapInDiamond(svgX, svgY, x, y)) {
           bestRow = testRow;
           bestCol = testCol;
@@ -337,7 +337,7 @@ export default function RealmScreen() {
 
     for (let row = 0; row < GRID_SIZE; row++) {
       for (let col = 0; col < GRID_SIZE; col++) {
-        const { x, y } = gridToScreen(row + BORDER_SIZE, col + BORDER_SIZE, TOTAL_GRID);
+        const { x, y } = gridToScreen(row, col, GRID_SIZE);
         const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
         const obstacle = obstacles.find(o => o.row === row && o.col === col && !o.isCleared);
         const isPlacementTarget = (buildPlacementMode != null || placingTrophy != null) && !building && !obstacle;
@@ -413,8 +413,8 @@ export default function RealmScreen() {
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: CANVAS_W + 600,
-          height: CANVAS_H + 1200,
+          width: Math.round(CANVAS_W * 25 / 15) + 200,
+          height: Math.round(CANVAS_H * 25 / 15) + 400,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -438,19 +438,28 @@ export default function RealmScreen() {
       >
         <View
           ref={svgContainerRef}
-          style={{ width: CANVAS_W + 500, height: CANVAS_H + 500, position: 'relative' }}
+          style={{ width: Math.round(CANVAS_W * 25 / 15), height: Math.round(CANVAS_H * 25 / 15), position: 'relative', overflow: 'visible' }}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => false}
           onResponderRelease={handleMapPress}
         >
           {/* Pre-rendered 3D forest background (behind SVG grid) */}
           <ForestParallax
-            canvasWidth={CANVAS_W + 500}
-            canvasHeight={CANVAS_H + 500}
+            canvasWidth={CANVAS_W}
+            canvasHeight={CANVAS_H}
             scrollX={parallaxScrollX}
             scrollY={parallaxScrollY}
           />
-          <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} style={{ position: 'absolute', top: 250, left: 250 }}>
+          <Svg
+            width={CANVAS_W}
+            height={CANVAS_H}
+            viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+            style={{
+              position: 'absolute',
+              top: Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2),
+              left: Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2),
+            }}
+          >
             {/* Game grid tiles, buildings, obstacles — NO forest border tiles */}
             {renderGridTiles}
           </Svg>
