@@ -12,6 +12,7 @@ import {
   findBuildingById, workerStatus, WorkerStatus,
 } from '../models/types';
 import { upgradeCost, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, constructionTime, skipConstructionCost } from '../config/GameConfig';
+import { ANIMAL_CONFIGS } from '../config/EntityConfig';
 import { costString, canAfford, hourlyProductionRate, buildingStorageCap, SellConsequences } from '../engines/GameEngine';
 import SellConfirmModal from './SellConfirmModal';
 import { formatDuration } from '../utils/formatDuration';
@@ -90,6 +91,11 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
         <ConstructionCard building={building} />
       ) : (
         <>
+          {/* Animal section — only for production buildings */}
+          {['holzfaeller', 'feld', 'steinbruch', 'proteinfarm', 'kornkammer'].includes(building.type) && (
+            <AnimalSection building={building} />
+          )}
+
           {/* Storage bonus section for dedicated storage buildings */}
           {storageBuildingResource(building.type) !== null && (
             <StorageBonusSection building={building} />
@@ -316,6 +322,69 @@ function WorkerSection({ building }: { building: Building }) {
   );
 }
 
+
+// MARK: - Animal Section
+const RARITY_COLORS: Record<string, string> = {
+  common: '#9E9E9E', uncommon: '#4CAF50', rare: '#2196F3', epic: '#9C27B0', legendary: '#FFD700',
+};
+
+function AnimalSection({ building }: { building: Building }) {
+  const store = useGameStore();
+  const { t } = useTranslation();
+
+  const animal = store.gameState.animals.find(
+    a => a.assignment.type === 'building' && (a.assignment as any).buildingId === building.id,
+  );
+
+  if (!animal) {
+    return (
+      <View style={[styles.card, { borderWidth: 1, borderColor: 'rgba(168,85,247,0.3)', backgroundColor: 'rgba(168,85,247,0.05)' }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <Text style={{ fontSize: 16 }}>🐾</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(168,85,247,0.7)' }}>{t('animalSection.title')}</Text>
+        </View>
+        <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{t('animalSection.none')}</Text>
+        <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontStyle: 'italic', marginTop: 4 }}>{t('animalSection.noneHint')}</Text>
+      </View>
+    );
+  }
+
+  const cfg = ANIMAL_CONFIGS[animal.type];
+  const rarityColor = RARITY_COLORS[cfg.rarity] ?? '#9E9E9E';
+  const bonusTypeLabel =
+    cfg.buildingBonus.bonusType === 'production' ? t('animals.bonusTypeProd') :
+    cfg.buildingBonus.bonusType === 'storage'    ? t('animals.bonusTypeStorage') :
+    cfg.buildingBonus.bonusType === 'speed'      ? t('animals.bonusTypeSpeed') :
+                                                   t('animals.bonusTypeGlobal');
+
+  return (
+    <View style={[styles.card, { borderWidth: 1, borderColor: 'rgba(168,85,247,0.3)', backgroundColor: 'rgba(168,85,247,0.06)' }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Text style={{ fontSize: 36 }}>{cfg.emoji}</Text>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>{cfg.name}</Text>
+            <View style={{ paddingHorizontal: 6, paddingVertical: 2, backgroundColor: `${rarityColor}25`, borderRadius: 5, borderWidth: 1, borderColor: rarityColor }}>
+              <Text style={{ fontSize: 9, fontWeight: '700', color: rarityColor }}>
+                {t(`animals.rarity${cfg.rarity.charAt(0).toUpperCase() + cfg.rarity.slice(1)}`)}
+              </Text>
+            </View>
+          </View>
+          {cfg.buildingBonus.bonusPercent > 0 && (
+            <Text style={{ fontSize: 14, color: '#00B4D8', fontWeight: '600', marginTop: 2 }}>
+              {t('animalSection.bonus', { pct: cfg.buildingBonus.bonusPercent, bonusType: bonusTypeLabel })}
+            </Text>
+          )}
+          {cfg.flavorText ? (
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontStyle: 'italic', marginTop: 4 }} numberOfLines={2}>
+              {cfg.flavorText}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
 
 // MARK: - Construction Card
 function fmtTimeLeft(endsAt: number | null): string | null {

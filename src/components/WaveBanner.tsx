@@ -6,6 +6,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { MonsterWave } from '../models/types';
 import { MONSTER_CONFIGS } from '../config/EntityConfig';
 
@@ -17,8 +18,8 @@ interface Props {
   isBloodWave?: boolean;
 }
 
-function formatCountdown(ms: number): string {
-  if (ms <= 0) return 'JETZT';
+function formatCountdown(ms: number, nowLabel: string): string {
+  if (ms <= 0) return nowLabel;
   const totalSeconds = Math.floor(ms / 1000);
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
@@ -29,6 +30,7 @@ function formatCountdown(ms: number): string {
 }
 
 export default function WaveBanner({ wave, defenseVP, onDetails, onPrepare, isBloodWave }: Props) {
+  const { t } = useTranslation();
   const [timeLeft, setTimeLeft] = useState(wave.arrivesAt - Date.now());
 
   useEffect(() => {
@@ -68,9 +70,9 @@ export default function WaveBanner({ wave, defenseVP, onDetails, onPrepare, isBl
     <View style={containerStyle}>
       <Animated.View style={[styles.header, animStyle]}>
         <Text style={[styles.warningText, isBloodWave && styles.bloodWarningText]}>
-          {isBloodWave ? '🩸 Blutwelle nähert sich!' : 'Monsterwelle naht!'}
+          {isBloodWave ? t('waves.bloodWaveApproaching') : t('waves.approaching')}
         </Text>
-        <Text style={styles.countdown}>{formatCountdown(timeLeft)}</Text>
+        <Text style={styles.countdown}>{formatCountdown(timeLeft, t('waves.now'))}</Text>
       </Animated.View>
 
       {/* Monster list */}
@@ -98,10 +100,10 @@ export default function WaveBanner({ wave, defenseVP, onDetails, onPrepare, isBl
       {/* Actions */}
       <View style={styles.actionRow}>
         <TouchableOpacity style={styles.detailsBtn} onPress={onDetails}>
-          <Text style={styles.detailsBtnText}>Details</Text>
+          <Text style={styles.detailsBtnText}>{t('waves.details')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.prepareBtn} onPress={onPrepare}>
-          <Text style={styles.prepareBtnText}>Vorbereiten</Text>
+          <Text style={styles.prepareBtnText}>{t('waves.prepare')}</Text>
         </TouchableOpacity>
       </View>
     </View>

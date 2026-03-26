@@ -6,6 +6,7 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import { AppColors, AnimalType } from '../models/types';
 import { ANIMAL_CONFIGS } from '../config/EntityConfig';
@@ -24,14 +25,6 @@ const RARITY_COLORS: Record<string, string> = {
   legendary: '#FFD700',
 };
 
-const RARITY_LABELS: Record<string, string> = {
-  common: 'Gewöhnlich',
-  uncommon: 'Ungewöhnlich',
-  rare: 'Selten',
-  epic: 'Episch',
-  legendary: 'Legendär',
-};
-
 const ALL_ANIMAL_TYPES: AnimalType[] = [
   'erntehuhn',
   'lastesel',
@@ -44,19 +37,8 @@ const ALL_ANIMAL_TYPES: AnimalType[] = [
   'uralterDrache',
 ];
 
-const UNLOCK_CONDITIONS: Record<AnimalType, string> = {
-  erntehuhn: '✅ Starter-Tier (beim ersten Stall)',
-  lastesel: '🔒 3-Tage-Streak',
-  holzbaer: '🔒 7-Tage-Streak',
-  spaehfalke: '🔒 5× 70% HRmax-Workouts/Woche',
-  steinbock: '🔒 14-Tage-Streak',
-  mystischerHirsch: '🔒 10× 70% HRmax in 14 Tagen',
-  kriegswolf: '🔒 21-Tage-Streak + Rathaus L3',
-  gluecksphoenixt: '🔒 Legendäres Ei ausbrüten',
-  uralterDrache: '🔒 Boss besiegen + 30-Tage Streak',
-};
-
 export default function AnimalCollectionSheet({ visible, onClose }: Props) {
+  const { t } = useTranslation();
   const { gameState } = useGameStore();
   const [selectedAnimal, setSelectedAnimal] = useState<AnimalType | null>(null);
 
@@ -66,13 +48,22 @@ export default function AnimalCollectionSheet({ visible, onClose }: Props) {
 
   const getProgress = (type: AnimalType): string | null => {
     if (type === 'spaehfalke') {
-      return `${Math.min(tracker?.weeklyCount ?? 0, 5)}/5 HRmax-Workouts diese Woche`;
+      return t('animals.progressSpaehfalke', { count: Math.min(tracker?.weeklyCount ?? 0, 5) });
     }
     if (type === 'mystischerHirsch') {
-      return `${Math.min(tracker?.biweeklyCount ?? 0, 10)}/10 HRmax-Workouts in 14 Tagen`;
+      return t('animals.progressMystHirsch', { count: Math.min(tracker?.biweeklyCount ?? 0, 10) });
     }
     return null;
   };
+
+  const rarityLabel = (rarity: string) =>
+    t(`animals.rarity${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`);
+
+  const bonusTypeLabel = (bonusType: string) =>
+    bonusType === 'production' ? t('animals.bonusTypeProd') :
+    bonusType === 'storage'    ? t('animals.bonusTypeStorage') :
+    bonusType === 'speed'      ? t('animals.bonusTypeSpeed') :
+                                 t('animals.bonusTypeGlobal');
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -82,7 +73,7 @@ export default function AnimalCollectionSheet({ visible, onClose }: Props) {
           <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
             <MaterialCommunityIcons name="close" size={22} color={AppColors.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Tier-Sammlung</Text>
+          <Text style={styles.title}>{t('animals.collection')}</Text>
           <View style={styles.countBadge}>
             <Text style={styles.countText}>{ownedCount}/9</Text>
           </View>
@@ -93,7 +84,7 @@ export default function AnimalCollectionSheet({ visible, onClose }: Props) {
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${(ownedCount / 9) * 100}%` as any }]} />
           </View>
-          <Text style={styles.progressLabel}>{ownedCount} von 9 Tieren entdeckt</Text>
+          <Text style={styles.progressLabel}>{t('animals.discovered', { count: ownedCount })}</Text>
         </View>
 
         {/* Animal list */}
@@ -137,7 +128,7 @@ export default function AnimalCollectionSheet({ visible, onClose }: Props) {
                     {owned && (
                       <View style={[styles.rarityBadge, { backgroundColor: rarityColor + '25', borderColor: rarityColor }]}>
                         <Text style={[styles.rarityText, { color: rarityColor }]}>
-                          {RARITY_LABELS[cfg.rarity]}
+                          {rarityLabel(cfg.rarity)}
                         </Text>
                       </View>
                     )}
@@ -146,10 +137,10 @@ export default function AnimalCollectionSheet({ visible, onClose }: Props) {
                   {owned ? (
                     <View style={styles.ownedStats}>
                       <MaterialCommunityIcons name="check-circle" size={12} color="#4CAF50" />
-                      <Text style={styles.ownedText}> Erhalten</Text>
+                      <Text style={styles.ownedText}> {t('animals.owned')}</Text>
                       {cfg.buildingBonus.bonusPercent > 0 && (
                         <Text style={styles.statText}>
-                          {' · '}+{cfg.buildingBonus.bonusPercent}% {cfg.buildingBonus.bonusType === 'production' ? 'Prod.' : cfg.buildingBonus.bonusType === 'storage' ? 'Lager' : cfg.buildingBonus.bonusType === 'speed' ? 'Geschw.' : 'Global'}
+                          {' · '}+{cfg.buildingBonus.bonusPercent}% {bonusTypeLabel(cfg.buildingBonus.bonusType)}
                         </Text>
                       )}
                       {cfg.defenseVP > 0 && (
@@ -158,7 +149,7 @@ export default function AnimalCollectionSheet({ visible, onClose }: Props) {
                     </View>
                   ) : (
                     <View>
-                      <Text style={styles.conditionText}>{UNLOCK_CONDITIONS[type]}</Text>
+                      <Text style={styles.conditionText}>{t(`animals.unlock.${type}`)}</Text>
                       {progress && (
                         <Text style={styles.progressText}>{progress}</Text>
                       )}
@@ -202,13 +193,22 @@ function AnimalDetailModal({
   tracker: { weeklyCount: number; biweeklyCount: number };
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const cfg = ANIMAL_CONFIGS[type];
   const rarityColor = RARITY_COLORS[cfg.rarity];
+
+  const rarityLabel = t(`animals.rarity${cfg.rarity.charAt(0).toUpperCase() + cfg.rarity.slice(1)}`);
+
   const progress = type === 'spaehfalke'
-    ? `${Math.min(tracker?.weeklyCount ?? 0, 5)}/5 HRmax-Workouts diese Woche`
+    ? t('animals.progressSpaehfalke', { count: Math.min(tracker?.weeklyCount ?? 0, 5) })
     : type === 'mystischerHirsch'
-    ? `${Math.min(tracker?.biweeklyCount ?? 0, 10)}/10 HRmax-Workouts in 14 Tagen`
+    ? t('animals.progressMystHirsch', { count: Math.min(tracker?.biweeklyCount ?? 0, 10) })
     : null;
+
+  const targetLabel =
+    cfg.buildingBonus.targetBuilding === '*' ? t('animals.allBuildings') :
+    cfg.buildingBonus.targetBuilding === 'lager' ? t('resources.wood') + '/' + t('resources.stone') + '/' + t('resources.food') :
+    t(`buildings.${cfg.buildingBonus.targetBuilding}`, { defaultValue: cfg.buildingBonus.targetBuilding });
 
   return (
     <Modal visible animationType="fade" transparent onRequestClose={onClose}>
@@ -228,7 +228,7 @@ function AnimalDetailModal({
           <Text style={styles.detailEmoji}>{cfg.emoji}</Text>
           <Text style={styles.detailName}>{cfg.name}</Text>
           <View style={[styles.rarityBadge, { backgroundColor: rarityColor + '25', borderColor: rarityColor, alignSelf: 'center', marginBottom: 12 }]}>
-            <Text style={[styles.rarityText, { color: rarityColor }]}>{RARITY_LABELS[cfg.rarity]}</Text>
+            <Text style={[styles.rarityText, { color: rarityColor }]}>{rarityLabel}</Text>
           </View>
 
           {/* Flavor text */}
@@ -240,14 +240,14 @@ function AnimalDetailModal({
                 <View style={styles.detailStatRow}>
                   <MaterialCommunityIcons name="lightning-bolt" size={14} color={AppColors.gold} />
                   <Text style={styles.detailStatText}>
-                    +{cfg.buildingBonus.bonusPercent}% Produktion ({cfg.buildingBonus.targetBuilding})
+                    +{cfg.buildingBonus.bonusPercent}% {t('animals.production')} ({targetLabel})
                   </Text>
                 </View>
               )}
               {cfg.defenseVP > 0 && (
                 <View style={styles.detailStatRow}>
                   <MaterialCommunityIcons name="shield" size={14} color="#EF5350" />
-                  <Text style={styles.detailStatText}>+{cfg.defenseVP} Verteidigungspunkte</Text>
+                  <Text style={styles.detailStatText}>{t('animals.defensePoints', { vp: cfg.defenseVP })}</Text>
                 </View>
               )}
               {cfg.specialAbility && (
@@ -260,8 +260,8 @@ function AnimalDetailModal({
           ) : (
             <View style={styles.lockedInfo}>
               <MaterialCommunityIcons name="lock" size={20} color="#607D8B" />
-              <Text style={styles.lockedTitle}>Noch nicht freigeschaltet</Text>
-              <Text style={styles.lockedCondition}>{UNLOCK_CONDITIONS[type]}</Text>
+              <Text style={styles.lockedTitle}>{t('animals.notUnlocked')}</Text>
+              <Text style={styles.lockedCondition}>{t(`animals.unlock.${type}`)}</Text>
               {progress && (
                 <View style={styles.progressRow}>
                   <MaterialCommunityIcons name="clock-outline" size={13} color={AppColors.teal} />

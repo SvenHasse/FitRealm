@@ -8,6 +8,7 @@ import {
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withDelay,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { MonsterWave, WaveResult, DamageEffect, LootDrop, AppColors, BossPhaseResult } from '../models/types';
 import { MONSTER_CONFIGS } from '../config/EntityConfig';
 
@@ -23,34 +24,22 @@ interface Props {
   onClose: () => void;
 }
 
-const OUTCOME_CONFIG = {
-  perfect: {
-    emoji: '⚔️',
-    label: 'PERFEKT VERTEIDIGT!',
-    color: '#66BB6A',
-    tip: null,
-  },
-  defended: {
-    emoji: '🛡️',
-    label: 'VERTEIDIGT!',
-    color: '#42A5F5',
-    tip: null,
-  },
-  partial: {
-    emoji: '⚡',
-    label: 'TEILWEISE VERTEIDIGT',
-    color: '#FFA726',
-    tip: 'Tipp: Weise mehr Tiere der Verteidigung zu und trainiere regelmäßig!',
-  },
-  overrun: {
-    emoji: '💀',
-    label: 'ÜBERRANNT!',
-    color: '#EF5350',
-    tip: 'Tipp: Baue Mauern und Wachtürme auf, und trainiere täglich für mehr Verteidigungspunkte!',
-  },
-};
+const OUTCOME_EMOJIS = {
+  perfect: '⚔️',
+  defended: '🛡️',
+  partial: '⚡',
+  overrun: '💀',
+} as const;
+
+const OUTCOME_COLORS = {
+  perfect: '#66BB6A',
+  defended: '#42A5F5',
+  partial: '#FFA726',
+  overrun: '#EF5350',
+} as const;
 
 function LootItem({ drop, index }: { drop: LootDrop; index: number }) {
+  const { t } = useTranslation();
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(12);
 
@@ -68,15 +57,15 @@ function LootItem({ drop, index }: { drop: LootDrop; index: number }) {
   let label = '';
   let emoji = '';
   switch (drop.type) {
-    case 'holz': emoji = '🪵'; label = `+${drop.amount} Holz`; break;
-    case 'stein': emoji = '🪨'; label = `+${drop.amount} Stein`; break;
-    case 'nahrung': emoji = '🌾'; label = `+${drop.amount} Nahrung`; break;
-    case 'muskelmasse': emoji = '💪'; label = `+${drop.amount}g Muskelmasse`; break;
-    case 'protein': emoji = '💊'; label = `+${drop.amount} Protein`; break;
-    case 'egg': emoji = '🥚'; label = `${drop.eggRarity ?? 'Gewöhnliches'} Ei`; break;
-    case 'trophy': emoji = '🏆'; label = `Trophäe`; break;
-    case 'cosmetic': emoji = '✨'; label = `Kosmetik`; break;
-    default: emoji = '📦'; label = `+${drop.amount}`; break;
+    case 'holz':       emoji = '🪵'; label = `+${drop.amount} ${t('resources.wood')}`; break;
+    case 'stein':      emoji = '🪨'; label = `+${drop.amount} ${t('resources.stone')}`; break;
+    case 'nahrung':    emoji = '🌾'; label = `+${drop.amount} ${t('resources.food')}`; break;
+    case 'muskelmasse':emoji = '💪'; label = `+${drop.amount}g ${t('resources.muskelmasse')}`; break;
+    case 'protein':    emoji = '💊'; label = `+${drop.amount} ${t('resources.protein')}`; break;
+    case 'egg':        emoji = '🥚'; label = `${drop.eggRarity ?? t('animals.rarityCommon')} ${t('waves.egg')}`; break;
+    case 'trophy':     emoji = '🏆'; label = t('waves.trophy'); break;
+    case 'cosmetic':   emoji = '✨'; label = t('waves.cosmetic'); break;
+    default:           emoji = '📦'; label = `+${drop.amount}`; break;
   }
 
   return (
@@ -87,19 +76,20 @@ function LootItem({ drop, index }: { drop: LootDrop; index: number }) {
   );
 }
 
-function DamageItem({ effect, buildings }: { effect: DamageEffect; buildings?: { id: string; type: string }[] }) {
+function DamageItem({ effect }: { effect: DamageEffect }) {
+  const { t } = useTranslation();
   const durationH = Math.round(effect.duration / (1000 * 60 * 60) * 10) / 10;
   let effectLabel = '';
   switch (effect.effectType) {
-    case 'productionStop': effectLabel = `Produktion gestoppt (${durationH}h)`; break;
-    case 'resourceLoss': effectLabel = 'Ressourcen verloren'; break;
-    case 'disabled': effectLabel = `Deaktiviert (${durationH}h)`; break;
+    case 'productionStop': effectLabel = t('waves.damageProductionStop', { hours: durationH }); break;
+    case 'resourceLoss':   effectLabel = t('waves.damageResourceLoss'); break;
+    case 'disabled':       effectLabel = t('waves.damageDisabled', { hours: durationH }); break;
   }
   return (
     <View style={styles.damageItem}>
       <Text style={styles.damageEmoji}>🔥</Text>
       <Text style={styles.damageLabel}>
-        Gebäude {effect.buildingId.slice(0, 8)}... — {effectLabel}
+        {t('waves.damageBuilding', { id: effect.buildingId.slice(0, 8) })} — {effectLabel}
       </Text>
     </View>
   );
@@ -108,18 +98,29 @@ function DamageItem({ effect, buildings }: { effect: DamageEffect; buildings?: {
 export default function WaveResultSheet({
   visible, wave, result, defenseVP, effectiveAK, damages, loot, nextWaveIn, onClose,
 }: Props) {
+  const { t } = useTranslation();
   const [showBreakdown, setShowBreakdown] = useState(false);
-  const cfg = OUTCOME_CONFIG[result.outcome];
+  const outcome = result.outcome;
+  const cfg = { emoji: OUTCOME_EMOJIS[outcome], color: OUTCOME_COLORS[outcome] };
   const isBoss = result.isBossWave;
   const isBlood = result.isBloodWave;
 
   const nextWaveHours = Math.floor(nextWaveIn / (1000 * 60 * 60));
 
-  // Boss-Header-Konfiguration
-  const bossWon = isBoss && (result.outcome === 'perfect' || result.outcome === 'defended');
-  const bossHeaderText = bossWon ? '🗿 BOSS BESIEGT! 🗿' : '💀 BOSS ÜBERWÄLTIGT!';
+  const bossWon = isBoss && (outcome === 'perfect' || outcome === 'defended');
+  const bossHeaderText = bossWon ? t('waves.bossDowned') : t('waves.bossDefeated');
   const bossHeaderColor = bossWon ? '#FFD700' : '#EF5350';
   const bossName = isBoss && wave.monsters.length > 0 ? MONSTER_CONFIGS[wave.monsters[0].type].name : '';
+
+  const outcomeLabel =
+    outcome === 'perfect' ? t('waves.resultPerfect') :
+    outcome === 'defended' ? t('waves.resultDefended') :
+    outcome === 'partial'  ? t('waves.resultPartial') :
+                             t('waves.resultOverrun');
+
+  const outcomeTip =
+    outcome === 'partial' ? t('waves.tipPartial') :
+    outcome === 'overrun' ? t('waves.tipOverrun') : null;
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -130,7 +131,7 @@ export default function WaveResultSheet({
             {/* Blutwellen-Banner */}
             {isBlood && (
               <View style={styles.bloodBanner}>
-                <Text style={styles.bloodBannerText}>🩸 BLUTWELLE</Text>
+                <Text style={styles.bloodBannerText}>{t('waves.bloodWaveBanner')}</Text>
               </View>
             )}
 
@@ -145,7 +146,7 @@ export default function WaveResultSheet({
             ) : (
               <View style={styles.header}>
                 <Text style={styles.headerEmoji}>{cfg.emoji}</Text>
-                <Text style={[styles.headerLabel, { color: cfg.color }]}>{cfg.label}</Text>
+                <Text style={[styles.headerLabel, { color: cfg.color }]}>{outcomeLabel}</Text>
               </View>
             )}
 
@@ -153,23 +154,23 @@ export default function WaveResultSheet({
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
                 <Text style={[styles.statValue, { color: isBoss ? '#FFD700' : cfg.color }]}>{defenseVP}</Text>
-                <Text style={styles.statLabel}>Deine VP</Text>
+                <Text style={styles.statLabel}>{t('waves.yourVP')}</Text>
               </View>
               <Text style={styles.statSeparator}>vs</Text>
               <View style={styles.statBox}>
                 <Text style={[styles.statValue, { color: '#EF5350' }]}>{effectiveAK}</Text>
-                <Text style={styles.statLabel}>Monster AK</Text>
+                <Text style={styles.statLabel}>{t('waves.monsterAK')}</Text>
               </View>
             </View>
 
             {/* Boss-Phasen */}
             {isBoss && result.bossPhases && result.bossPhases.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: '#FFD700' }]}>Kampfphasen</Text>
+                <Text style={[styles.sectionTitle, { color: '#FFD700' }]}>{t('waves.combatPhases')}</Text>
                 {result.bossPhases.map((phase: BossPhaseResult) => (
                   <View key={phase.phase} style={styles.phaseRow}>
                     <Text style={styles.phaseIcon}>{phase.passed ? '✅' : '❌'}</Text>
-                    <Text style={styles.phaseLabel}>Phase {phase.phase}</Text>
+                    <Text style={styles.phaseLabel}>{t('waves.phase', { n: phase.phase })}</Text>
                     <Text style={styles.phaseStats}>
                       {phase.vpUsed} VP vs {Math.round(phase.akFaced)} AK
                     </Text>
@@ -186,18 +187,18 @@ export default function WaveResultSheet({
                   onPress={() => setShowBreakdown(s => !s)}
                 >
                   <Text style={styles.breakdownToggleText}>
-                    {showBreakdown ? 'VP-Aufschlüsselung verbergen ▲' : 'VP-Aufschlüsselung anzeigen ▼'}
+                    {showBreakdown ? t('waves.hideBreakdown') : t('waves.showBreakdown')}
                   </Text>
                 </TouchableOpacity>
 
                 {showBreakdown && (
                   <View style={styles.breakdownBox}>
-                    <BreakdownRow label="Gebäude-VP" value={result.playerVP} />
-                    <BreakdownRow label="Workout-VP" value={0} />
-                    <BreakdownRow label="Worker-VP" value={0} />
-                    <BreakdownRow label="Tier-VP" value={0} />
+                    <BreakdownRow label={t('waves.buildingVP')} value={result.playerVP} />
+                    <BreakdownRow label={t('waves.workoutVP')} value={0} />
+                    <BreakdownRow label={t('waves.workerVP')} value={0} />
+                    <BreakdownRow label={t('waves.animalVP')} value={0} />
                     <View style={styles.breakdownDivider} />
-                    <BreakdownRow label="Gesamt" value={defenseVP} bold />
+                    <BreakdownRow label={t('waves.total')} value={defenseVP} bold />
                   </View>
                 )}
               </>
@@ -207,7 +208,7 @@ export default function WaveResultSheet({
             {loot.length > 0 && (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, isBoss && { color: '#FFD700' }]}>
-                  {isBoss && bossWon ? 'LEGENDÄRE BEUTE' : isBlood ? 'Bonus-Loot' : 'Beute'}
+                  {isBoss && bossWon ? t('waves.legendaryLoot') : isBlood ? t('waves.bonusLoot') : t('waves.loot')}
                 </Text>
                 {loot.map((drop, i) => (
                   <LootItem key={i} drop={drop} index={i} />
@@ -218,7 +219,7 @@ export default function WaveResultSheet({
             {/* Damage section */}
             {damages.length > 0 && (
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: '#EF5350' }]}>Schaden</Text>
+                <Text style={[styles.sectionTitle, { color: '#EF5350' }]}>{t('waves.damage')}</Text>
                 {damages.map((dmg, i) => (
                   <DamageItem key={i} effect={dmg} />
                 ))}
@@ -227,7 +228,7 @@ export default function WaveResultSheet({
 
             {/* Monster info */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Monster</Text>
+              <Text style={styles.sectionTitle}>{t('waves.monsters')}</Text>
               {wave.monsters.map((m, i) => {
                 const mcfg = MONSTER_CONFIGS[m.type];
                 return (
@@ -242,15 +243,15 @@ export default function WaveResultSheet({
             </View>
 
             {/* Tip for loss */}
-            {cfg.tip && !isBoss && (
+            {outcomeTip && !isBoss && (
               <View style={styles.tipBox}>
-                <Text style={styles.tipText}>{cfg.tip}</Text>
+                <Text style={styles.tipText}>{outcomeTip}</Text>
               </View>
             )}
 
             {/* Next wave */}
             <Text style={styles.nextWave}>
-              Nächste Welle in ~{nextWaveHours}h
+              {t('waves.nextWaveIn', { hours: nextWaveHours })}
             </Text>
 
             {/* Close button */}
@@ -258,7 +259,7 @@ export default function WaveResultSheet({
               style={[styles.closeBtn, isBoss && { backgroundColor: '#FFD700' }]}
               onPress={onClose}
             >
-              <Text style={styles.closeBtnText}>Weiter</Text>
+              <Text style={styles.closeBtnText}>{t('common.continue')}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

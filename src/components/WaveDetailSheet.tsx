@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { MonsterWave, DefenseBreakdown, AppColors } from '../models/types';
 import { MONSTER_CONFIGS } from '../config/EntityConfig';
 
@@ -15,33 +16,34 @@ interface Props {
   onClose: () => void;
 }
 
-function getRecommendations(wave: MonsterWave, defense: DefenseBreakdown): string[] {
+function getRecommendations(wave: MonsterWave, defense: DefenseBreakdown, t: (k: string) => string): string[] {
   const tips: string[] = [];
   const gap = wave.totalAttackPower - defense.totalVP;
 
   if (gap > 0) {
-    tips.push('Weise Tiere der Verteidigung zu für mehr VP!');
+    tips.push(t('waves.tipAssignAnimals'));
   }
   if (defense.workoutVP < 20) {
-    tips.push('Trainiere heute noch — jede Trainingsstunde gibt dir VP!');
+    tips.push(t('waves.tipTrainToday'));
   }
-  const hasSpaehfalke = defense.animalVP > 0; // proxy check
+  const hasSpaehfalke = defense.animalVP > 0;
   if (!hasSpaehfalke) {
-    tips.push('Weise den Spähfalken der Verteidigung zu — er reduziert die Monster-AK um 10%!');
+    tips.push(t('waves.tipSpaehfalke'));
   }
   if (defense.basisVP < 30) {
-    tips.push('Baue Mauern und Wachtürme für mehr Basis-VP!');
+    tips.push(t('waves.tipBuildDefense'));
   }
   if (defense.streakBonus < 0.1) {
-    tips.push('Halte deinen Workout-Streak am Laufen für Bonus-VP!');
+    tips.push(t('waves.tipStreak'));
   }
 
   return tips.slice(0, 3);
 }
 
 export default function WaveDetailSheet({ visible, wave, defense, onClose }: Props) {
+  const { t } = useTranslation();
   const [showBreakdown, setShowBreakdown] = useState(false);
-  const tips = getRecommendations(wave, defense);
+  const tips = getRecommendations(wave, defense, t);
   const isDefended = defense.totalVP >= wave.totalAttackPower;
 
   return (
@@ -51,9 +53,9 @@ export default function WaveDetailSheet({ visible, wave, defense, onClose }: Pro
           <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.title}>Wellendetails</Text>
+              <Text style={styles.title}>{t('waves.detailTitle')}</Text>
               <TouchableOpacity onPress={onClose}>
-                <Text style={styles.closeText}>Schließen</Text>
+                <Text style={styles.closeText}>{t('common.close')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -61,14 +63,14 @@ export default function WaveDetailSheet({ visible, wave, defense, onClose }: Pro
             <View style={styles.summaryRow}>
               <View style={[styles.summaryBox, { borderColor: '#EF5350' }]}>
                 <Text style={[styles.summaryValue, { color: '#EF5350' }]}>{wave.totalAttackPower}</Text>
-                <Text style={styles.summaryLabel}>Monster AK</Text>
+                <Text style={styles.summaryLabel}>{t('waves.monsterAK')}</Text>
               </View>
               <Text style={styles.vsText}>vs</Text>
               <View style={[styles.summaryBox, { borderColor: isDefended ? '#66BB6A' : '#FFA726' }]}>
                 <Text style={[styles.summaryValue, { color: isDefended ? '#66BB6A' : '#FFA726' }]}>
                   {defense.totalVP}
                 </Text>
-                <Text style={styles.summaryLabel}>Deine VP</Text>
+                <Text style={styles.summaryLabel}>{t('waves.yourVP')}</Text>
               </View>
             </View>
 
@@ -77,17 +79,17 @@ export default function WaveDetailSheet({ visible, wave, defense, onClose }: Pro
               <Text style={[styles.predictionText, { color: isDefended ? '#66BB6A' : '#EF5350' }]}>
                 {isDefended
                   ? defense.totalVP >= wave.totalAttackPower * 1.5
-                    ? 'Vorhergesagt: PERFEKTER Sieg!'
-                    : 'Vorhergesagt: Sieg'
+                    ? t('waves.predictPerfect')
+                    : t('waves.predictWin')
                   : defense.totalVP >= wave.totalAttackPower * 0.5
-                    ? 'Vorhergesagt: Teilweise Niederlage'
-                    : 'Vorhergesagt: NIEDERLAGE'}
+                    ? t('waves.predictPartial')
+                    : t('waves.predictLoss')}
               </Text>
             </View>
 
             {/* Monster list */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Monster in dieser Welle</Text>
+              <Text style={styles.sectionTitle}>{t('waves.monstersInWave')}</Text>
               {wave.monsters.map((m, i) => {
                 const cfg = MONSTER_CONFIGS[m.type];
                 return (
@@ -95,11 +97,11 @@ export default function WaveDetailSheet({ visible, wave, defense, onClose }: Pro
                     <Text style={styles.monsterEmoji}>{cfg.emoji}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.monsterName}>{cfg.name}</Text>
-                      <Text style={styles.monsterTarget}>Ziel: {cfg.target}</Text>
+                      <Text style={styles.monsterTarget}>{t('waves.target')}: {cfg.target}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={styles.monsterCount}>{m.count} Einheiten</Text>
-                      <Text style={styles.monsterAK}>AK: {m.attackPower} / Einheit</Text>
+                      <Text style={styles.monsterCount}>{t('waves.unitCount', { count: m.count })}</Text>
+                      <Text style={styles.monsterAK}>{t('waves.akPerUnit', { ak: m.attackPower })}</Text>
                     </View>
                   </View>
                 );
@@ -112,26 +114,26 @@ export default function WaveDetailSheet({ visible, wave, defense, onClose }: Pro
               onPress={() => setShowBreakdown(s => !s)}
             >
               <Text style={styles.breakdownToggleText}>
-                {showBreakdown ? 'VP-Aufschlüsselung verbergen ▲' : 'VP-Aufschlüsselung anzeigen ▼'}
+                {showBreakdown ? t('waves.hideBreakdown') : t('waves.showBreakdown')}
               </Text>
             </TouchableOpacity>
 
             {showBreakdown && (
               <View style={styles.breakdownBox}>
-                <BRow label="Gebäude-VP" value={defense.basisVP} />
-                <BRow label="Workout-VP (24h)" value={defense.workoutVP} />
-                <BRow label="Worker-VP" value={defense.workerVP} />
-                <BRow label="Tier-VP" value={defense.animalVP} />
-                <BRow label={`Streak-Bonus (+${Math.round(defense.streakBonus * 100)}%)`} value={0} />
+                <BRow label={t('waves.buildingVP')} value={defense.basisVP} />
+                <BRow label={t('waves.workoutVP')} value={defense.workoutVP} />
+                <BRow label={t('waves.workerVP')} value={defense.workerVP} />
+                <BRow label={t('waves.animalVP')} value={defense.animalVP} />
+                <BRow label={t('waves.streakBonusRow', { pct: Math.round(defense.streakBonus * 100) })} value={0} />
                 <View style={styles.breakdownDivider} />
-                <BRow label="Gesamt" value={defense.totalVP} bold />
+                <BRow label={t('waves.total')} value={defense.totalVP} bold />
               </View>
             )}
 
             {/* Recommendations */}
             {tips.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Empfehlungen</Text>
+                <Text style={styles.sectionTitle}>{t('waves.recommendations')}</Text>
                 {tips.map((tip, i) => (
                   <View key={i} style={styles.tipRow}>
                     <Text style={styles.tipBullet}>•</Text>
