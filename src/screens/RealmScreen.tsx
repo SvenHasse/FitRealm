@@ -408,8 +408,8 @@ export default function RealmScreen() {
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: CANVAS_W + 200,
-          height: CANVAS_H + 400,
+          width: CANVAS_W + 400,
+          height: CANVAS_H + 800,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -419,7 +419,7 @@ export default function RealmScreen() {
         showsVerticalScrollIndicator={false}
         contentOffset={{ x: initialScrollX, y: initialScrollY }}
         maximumZoomScale={2.5}
-        minimumZoomScale={0.4}
+        minimumZoomScale={0.25}
         bouncesZoom
         bounces
         scrollEnabled
