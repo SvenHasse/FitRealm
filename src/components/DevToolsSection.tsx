@@ -695,6 +695,16 @@ export default function DevToolsSection() {
         </View>
       </TouchableOpacity>
 
+      {/* ── 3D TEST ──────────────────────────────────────────── */}
+      <SectionLabel text="3D RENDERING" />
+      <TouchableOpacity style={s.minigameBtn} onPress={() => nav.navigate('GLBTest' as any)} activeOpacity={0.75}>
+        <MaterialCommunityIcons name="cube-outline" size={16} color="#4CAF50" />
+        <View style={{ flex: 1 }}>
+          <Text style={[s.minigameBtnTitle, { color: '#4CAF50' }]}>🌲 3D Forest PoC</Text>
+          <Text style={s.minigameBtnSub}>GLB-Modell Test (expo-gl + three.js)</Text>
+        </View>
+      </TouchableOpacity>
+
       {/* ── SCHADENSEFFEKTE ───────────────────────────────────── */}
       <SectionLabel text="SCHADENSEFFEKTE" />
       <View style={s.grid}>
