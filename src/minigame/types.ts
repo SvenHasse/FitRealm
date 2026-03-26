@@ -127,9 +127,13 @@ export interface GameState {
   floatingTexts: FloatingText[];
   tutorialStep: number;
 
+  // Movement
+  isMoving: boolean;
+
   // Meta
   gameActive: boolean;
   tickCount: number;
+  lastFullWarningTick: number;
 }
 
 // ─── Action Types für useReducer ─────────────────────────────────────────────

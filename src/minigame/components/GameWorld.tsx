@@ -1,34 +1,36 @@
 // GameWorld.tsx — SVG-basierte Spielwelt mit Kamera-System
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Dimensions } from 'react-native';
-import Svg, { Rect, Ellipse, Line, G, Circle, Text as SvgText } from 'react-native-svg';
-import { GameState } from '../types';
+import Svg, { Rect, Ellipse, Line, G, Circle, Text as SvgText, Path } from 'react-native-svg';
+import { GameState, ItemType } from '../types';
 import {
   WORLD_WIDTH, WORLD_HEIGHT, SNOW_COLOR_LIGHT, SNOW_COLOR_DARK,
   SAND_COLOR, SAND_COLOR_DARK, FENCE_WOOD, FENCE_TIP_RED,
-  GATE_WOOD_DARK, GATE_GOLD,
+  GATE_WOOD_DARK, GATE_GOLD, RAW_MEAT_COLOR, STEAK_COLOR,
+  GRILLED_STEAK_COLOR, MONEY_COLOR,
   BEAR_PEN, BEAR_PEN_GATE,
   CONVEYOR_TABLE, SHREDDER, STEAK_OUTPUT,
   GRILL, GRILL_OUTPUT, SALES_COUNTER, MONEY_PILE, CUSTOMER_ROW_Y,
 } from '../constants';
 import Player from './Player';
+import PolarBearSVG from './PolarBear';
+import FloatingTextLayer from './FloatingText';
 import Snowflakes from './Snowflakes';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Aspect-ratio-aware view dimensions in world units
-const HEADER_HEIGHT = 50; // approximate header height in screen pixels
+const HEADER_HEIGHT = 50;
 const USABLE_HEIGHT = SCREEN_HEIGHT - HEADER_HEIGHT;
 const VIEW_ASPECT = SCREEN_WIDTH / USABLE_HEIGHT;
-const VIEW_WIDTH_UNITS = 500; // how many world units we see horizontally
+const VIEW_WIDTH_UNITS = 500;
 const VIEW_HEIGHT_UNITS = VIEW_WIDTH_UNITS / VIEW_ASPECT;
 
 interface Props {
   state: GameState;
 }
 
-// ─── Fence drawing helpers ───────────────────────────────────────────────────
+// ─── Fence helpers ───────────────────────────────────────────────────────────
 
 function FenceH({ x, y, width }: { x: number; y: number; width: number }) {
   const posts: React.ReactNode[] = [];
@@ -43,7 +45,6 @@ function FenceH({ x, y, width }: { x: number; y: number; width: number }) {
       </G>
     );
   }
-  // Horizontal rails
   return (
     <G>
       <Rect x={x} y={y - 12} width={width} height={3} rx={1} fill={FENCE_WOOD} opacity={0.7} />
@@ -69,30 +70,25 @@ function FenceV({ x, y, height }: { x: number; y: number; height: number }) {
   return <G>{posts}</G>;
 }
 
-// ─── Gate ────────────────────────────────────────────────────────────────────
-
 function Gate({ x, y, width }: { x: number; y: number; width: number }) {
   const halfW = width / 2;
   return (
     <G>
-      {/* Gate posts */}
-      <Rect x={x - 8} y={y - 30} width={12} height={35} rx={2} fill={GATE_WOOD_DARK} />
-      <Circle cx={x - 2} cy={y - 30} r={6} fill={GATE_GOLD} />
-      <Rect x={x + width - 4} y={y - 30} width={12} height={35} rx={2} fill={GATE_WOOD_DARK} />
-      <Circle cx={x + width + 2} cy={y - 30} r={6} fill={GATE_GOLD} />
-      {/* Gate X-pattern (left door) */}
-      <Rect x={x + 4} y={y - 25} width={halfW - 8} height={25} rx={1} fill={GATE_WOOD_DARK} opacity={0.7} />
-      <Line x1={x + 4} y1={y - 25} x2={x + halfW - 4} y2={y} stroke={GATE_GOLD} strokeWidth={1.5} />
-      <Line x1={x + halfW - 4} y1={y - 25} x2={x + 4} y2={y} stroke={GATE_GOLD} strokeWidth={1.5} />
-      {/* Gate X-pattern (right door) */}
-      <Rect x={x + halfW + 4} y={y - 25} width={halfW - 8} height={25} rx={1} fill={GATE_WOOD_DARK} opacity={0.7} />
-      <Line x1={x + halfW + 4} y1={y - 25} x2={x + width - 4} y2={y} stroke={GATE_GOLD} strokeWidth={1.5} />
-      <Line x1={x + width - 4} y1={y - 25} x2={x + halfW + 4} y2={y} stroke={GATE_GOLD} strokeWidth={1.5} />
+      <Rect x={x - 5} y={y - 14} width={10} height={26} fill={GATE_WOOD_DARK} rx={1} />
+      <Circle cx={x} cy={y - 14} r={6} fill={GATE_GOLD} />
+      <Rect x={x + width - 5} y={y - 14} width={10} height={26} fill={GATE_WOOD_DARK} rx={1} />
+      <Circle cx={x + width} cy={y - 14} r={6} fill={GATE_GOLD} />
+      {/* Left door X */}
+      <Rect x={x + 8} y={y - 10} width={halfW - 16} height={20} rx={1} fill={GATE_WOOD_DARK} opacity={0.7} />
+      <Line x1={x + 8} y1={y - 10} x2={x + halfW - 8} y2={y + 10} stroke="#a0784a" strokeWidth={2.5} />
+      <Line x1={x + halfW - 8} y1={y - 10} x2={x + 8} y2={y + 10} stroke="#a0784a" strokeWidth={2.5} />
+      {/* Right door X */}
+      <Rect x={x + halfW + 8} y={y - 10} width={halfW - 16} height={20} rx={1} fill={GATE_WOOD_DARK} opacity={0.7} />
+      <Line x1={x + halfW + 8} y1={y - 10} x2={x + width - 8} y2={y + 10} stroke="#a0784a" strokeWidth={2.5} />
+      <Line x1={x + width - 8} y1={y - 10} x2={x + halfW + 8} y2={y + 10} stroke="#a0784a" strokeWidth={2.5} />
     </G>
   );
 }
-
-// ─── Station placeholders ────────────────────────────────────────────────────
 
 function StationPlaceholder({ x, y, w, h, label, color }: { x: number; y: number; w: number; h: number; label: string; color: string }) {
   return (
@@ -101,6 +97,17 @@ function StationPlaceholder({ x, y, w, h, label, color }: { x: number; y: number
       <SvgText x={x} y={y + 3} fill="white" fontSize={8} fontWeight="bold" textAnchor="middle">{label}</SvgText>
     </G>
   );
+}
+
+// ─── Dropped item color ──────────────────────────────────────────────────────
+
+function itemColor(type: ItemType): string {
+  switch (type) {
+    case ItemType.RAW_MEAT: return RAW_MEAT_COLOR;
+    case ItemType.STEAK: return STEAK_COLOR;
+    case ItemType.GRILLED_STEAK: return GRILLED_STEAK_COLOR;
+    case ItemType.MONEY: return MONEY_COLOR;
+  }
 }
 
 // ─── Snow hills ──────────────────────────────────────────────────────────────
@@ -120,72 +127,52 @@ const snowHills = [
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function GameWorld({ state }: Props) {
-  const { playerPosition, backpack, isAttacking, tickCount } = state;
-  const isMoving = state.playerSpeed > 0 && (
-    // We detect "moving" if position changed — simplified: if joystick is active
-    // This is passed from the tick logic; for now approximate
-    true // will be refined when movement vector is available
-  );
+  const { playerPosition, backpack, isAttacking, isMoving, tickCount, attackTarget,
+          bears, droppedItems, floatingTexts } = state;
 
-  // Camera calculation
+  // Camera
   const camX = playerPosition.x - VIEW_WIDTH_UNITS / 2;
   const camY = playerPosition.y - VIEW_HEIGHT_UNITS / 2;
-
-  // Clamp camera to world bounds
   const clampedCamX = Math.max(0, Math.min(WORLD_WIDTH - VIEW_WIDTH_UNITS, camX));
   const clampedCamY = Math.max(0, Math.min(WORLD_HEIGHT - VIEW_HEIGHT_UNITS, camY));
-
   const viewBox = `${clampedCamX} ${clampedCamY} ${VIEW_WIDTH_UNITS} ${VIEW_HEIGHT_UNITS}`;
 
-  // Work area bounds
-  const workX = 50;
-  const workY = 420;
-  const workW = 900;
-  const workH = 660;
+  const workX = 50, workY = 420, workW = 900, workH = 660;
+
+  // Sort bears + player by Y for depth
+  const sortedBears = [...bears].filter(b => b.alive || b.respawnTimer > 140).sort((a, b) => a.position.y - b.position.y);
+
+  // Pulse scale for dropped items (simple sin-based, per tick)
+  const pulseFactor = 0.95 + 0.1 * Math.sin(tickCount * 0.06);
 
   return (
     <Svg width="100%" height="100%" viewBox={viewBox}>
-      {/* 1. Snow background */}
+      {/* Background */}
       <Rect x={0} y={0} width={WORLD_WIDTH} height={WORLD_HEIGHT} fill={SNOW_COLOR_LIGHT} />
-
-      {/* 2. Snow hills */}
       {snowHills.map((h, i) => (
         <Ellipse key={`hill-${i}`} cx={h.cx} cy={h.cy} rx={h.rx} ry={h.ry} fill={SNOW_COLOR_DARK} opacity={0.5} />
       ))}
 
-      {/* 3. Work area floor */}
+      {/* Work area */}
       <Rect x={workX} y={workY} width={workW} height={workH} rx={8} fill={SAND_COLOR} />
       <Rect x={workX + 4} y={workY + 4} width={workW - 8} height={workH - 8} rx={6} fill={SAND_COLOR_DARK} opacity={0.3} />
-
-      {/* 4. Fence around work area */}
       <FenceH x={workX} y={workY} width={workW} />
       <FenceH x={workX} y={workY + workH} width={workW} />
       <FenceV x={workX} y={workY} height={workH} />
       <FenceV x={workX + workW} y={workY} height={workH} />
 
-      {/* 5. Bear pen */}
+      {/* Bear pen */}
       <G>
-        {/* Pen floor (snow) */}
-        <Rect
-          x={BEAR_PEN.x}
-          y={BEAR_PEN.y}
-          width={BEAR_PEN.width}
-          height={BEAR_PEN.height}
-          rx={6}
-          fill={SNOW_COLOR_DARK}
-          opacity={0.6}
-        />
-        {/* Pen fences */}
+        <Rect x={BEAR_PEN.x} y={BEAR_PEN.y} width={BEAR_PEN.width} height={BEAR_PEN.height} rx={6} fill="#f0f5f8" />
         <FenceH x={BEAR_PEN.x} y={BEAR_PEN.y} width={BEAR_PEN.width} />
         <FenceH x={BEAR_PEN.x} y={BEAR_PEN.y + BEAR_PEN.height} width={BEAR_PEN_GATE.x - BEAR_PEN.x} />
         <FenceH x={BEAR_PEN_GATE.x + BEAR_PEN_GATE.width} y={BEAR_PEN.y + BEAR_PEN.height} width={(BEAR_PEN.x + BEAR_PEN.width) - (BEAR_PEN_GATE.x + BEAR_PEN_GATE.width)} />
         <FenceV x={BEAR_PEN.x} y={BEAR_PEN.y} height={BEAR_PEN.height} />
         <FenceV x={BEAR_PEN.x + BEAR_PEN.width} y={BEAR_PEN.y} height={BEAR_PEN.height} />
-        {/* Gate */}
         <Gate x={BEAR_PEN_GATE.x} y={BEAR_PEN.y + BEAR_PEN.height} width={BEAR_PEN_GATE.width} />
       </G>
 
-      {/* 6. Station placeholders (will be replaced with full SVGs in Phase 2+) */}
+      {/* Station placeholders */}
       <StationPlaceholder x={CONVEYOR_TABLE.x} y={CONVEYOR_TABLE.y} w={60} h={30} label="Ablage" color="#a1887f" />
       <StationPlaceholder x={SHREDDER.x + SHREDDER.width / 2} y={SHREDDER.y + SHREDDER.height / 2} w={SHREDDER.width} h={SHREDDER.height} label="Schredder" color="#78909c" />
       <StationPlaceholder x={STEAK_OUTPUT.x} y={STEAK_OUTPUT.y} w={40} h={25} label="Steaks" color="#8d6e63" />
@@ -194,7 +181,7 @@ export default function GameWorld({ state }: Props) {
       <StationPlaceholder x={SALES_COUNTER.x + SALES_COUNTER.width / 2} y={SALES_COUNTER.y} w={SALES_COUNTER.width} h={30} label="Verkaufstheke" color="#6d4c41" />
       <StationPlaceholder x={MONEY_PILE.x} y={MONEY_PILE.y} w={35} h={25} label="$" color="#388e3c" />
 
-      {/* 7. Customer row placeholder */}
+      {/* Customer row placeholder */}
       <G>
         {[0, 1, 2, 3, 4, 5].map(i => (
           <G key={`cust-${i}`}>
@@ -204,7 +191,37 @@ export default function GameWorld({ state }: Props) {
         ))}
       </G>
 
-      {/* 8. Player */}
+      {/* Dropped items */}
+      {droppedItems.map(item => (
+        <G key={item.id}>
+          <Ellipse cx={item.position.x} cy={item.position.y + 5} rx={4} ry={2} fill="rgba(0,0,0,0.15)" />
+          <Circle
+            cx={item.position.x}
+            cy={item.position.y}
+            r={6 * pulseFactor}
+            fill={itemColor(item.type)}
+            stroke="rgba(255,255,255,0.5)"
+            strokeWidth={1}
+          />
+          {/* Pickup arrow indicator */}
+          <Path
+            d={`M${item.position.x},${item.position.y - 14} L${item.position.x - 3},${item.position.y - 10} L${item.position.x + 3},${item.position.y - 10} Z`}
+            fill="rgba(255,255,255,0.6)"
+          />
+        </G>
+      ))}
+
+      {/* Bears (depth-sorted) */}
+      {sortedBears.map(bear => (
+        <PolarBearSVG
+          key={bear.id}
+          bear={bear}
+          isBeingAttacked={attackTarget === bear.id && isAttacking}
+          showHpBadge={attackTarget === bear.id || bear.hp < bear.maxHp}
+        />
+      ))}
+
+      {/* Player */}
       <Player
         x={playerPosition.x}
         y={playerPosition.y}
@@ -213,7 +230,10 @@ export default function GameWorld({ state }: Props) {
         isMoving={isMoving}
       />
 
-      {/* 9. Snowflakes (top layer) */}
+      {/* Floating texts */}
+      <FloatingTextLayer texts={floatingTexts} />
+
+      {/* Snowflakes */}
       <Snowflakes
         tick={tickCount}
         cameraX={clampedCamX}
