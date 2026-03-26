@@ -34,6 +34,7 @@ import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, T
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding from '../components/IsometricBuilding';
 import IsometricForest from '../components/IsometricForest';
+import ForestSprites from '../components/ForestSprites';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
 import WorkerSheet from '../components/WorkerSheet';
@@ -424,16 +425,18 @@ export default function RealmScreen() {
         >
           <View
             ref={svgContainerRef}
-            style={{ width: CANVAS_W, height: CANVAS_H }}
+            style={{ width: CANVAS_W, height: CANVAS_H, position: 'relative' }}
             onStartShouldSetResponder={() => true}
             onResponderRelease={handleMapPress}
           >
             <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}>
-              {/* Forest border (behind everything) */}
+              {/* Forest border ground tiles (SVG) */}
               <IsometricForest gridSize={GRID_SIZE} borderSize={BORDER_SIZE} />
               {/* Game grid tiles, buildings, obstacles */}
               {renderGridTiles}
             </Svg>
+            {/* Pre-rendered 3D forest sprites (React Native Images, outside SVG) */}
+            <ForestSprites gridSize={GRID_SIZE} borderSize={BORDER_SIZE} />
           </View>
         </ScrollView>
       </ScrollView>
