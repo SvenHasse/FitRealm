@@ -39,10 +39,10 @@ function getSpriteSource(type: BuildingType, level: number): any | null {
 
 // Sprite display size relative to tile
 const SPRITE_SCALE: Partial<Record<BuildingType, number>> = {
-  [BuildingType.rathaus]: 1.6,     // burg fills ~1.6 tiles
-  [BuildingType.holzfaeller]: 1.4, // schmiede proportional to burg
+  [BuildingType.rathaus]: 1.15,     // burg fits within one tile
+  [BuildingType.holzfaeller]: 1.0,  // schmiede fits within one tile
 };
-const DEFAULT_SCALE = 1.2;
+const DEFAULT_SCALE = 0.95;
 
 function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffsetY }: Props) {
   const sprites = useMemo(() => {
