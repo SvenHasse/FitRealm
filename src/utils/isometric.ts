@@ -1,8 +1,8 @@
 // isometric.ts
 // FitRealm - Isometric coordinate utilities for the 2.5D realm map
 
-export const TILE_W = 96;
-export const TILE_H = 48;
+export const TILE_W = 140;
+export const TILE_H = 70;
 export const TILE_DEPTH = 0;  // flat tiles — no side faces
 
 /**
