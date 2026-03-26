@@ -25,7 +25,8 @@
     "stein": "Stone",
     "nahrung": "Food",
     "streak": "Streak",
-    "registry": "Village"
+    "registry": "Village",
+    "defense": "Defense"
   },
   "dashboard": {
     "vitacoins": "VITACOINS",
@@ -262,6 +263,30 @@
     "noWorkers": "Build Kaserne for workers",
     "buildKaserne": "Build a Kaserne to train workers",
     "allBusyLong": "All workers are currently busy"
+  },
+  "defense": {
+    "title": "Defense",
+    "totalVP": "{{vp}} VP",
+    "subtitle": "Your Total Defense",
+    "vsNextWave": "vs. next wave: ~{{ak}} AP",
+    "statusPerfect": "Perfectly defended ✅",
+    "statusGood": "Well prepared",
+    "statusWarning": "Close — train today!",
+    "statusDanger": "At risk — train urgently!",
+    "buildingVP": "Buildings",
+    "workoutVP": "Workout",
+    "workerVP": "Workers",
+    "animalVP": "Animals",
+    "streakBonus": "Streak Bonus: +{{pct}}%",
+    "nextWave": "Next Wave",
+    "waveIn": "In: {{time}}",
+    "estimatedStrength": "Estimated strength: ~{{ak}} AP",
+    "tips": "How to improve",
+    "assignment": "Assignment",
+    "toDefense": "To Defense",
+    "toProduction": "To Production",
+    "vpGain": "+{{vp}} VP",
+    "last24h": "last 24h"
   },
   "resources": {
     "muskelmasse": "Muskelmasse",
