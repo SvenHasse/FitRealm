@@ -11,6 +11,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle,
   withSequence, withTiming, withRepeat, withDelay, Easing,
 } from 'react-native-reanimated';
+import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Polygon, G, Text as SvgText, Rect, Circle } from 'react-native-svg';
 
 // Enable LayoutAnimation on Android
@@ -32,8 +33,7 @@ import { canBuild } from '../engines/GameEngine';
 import { formatDuration } from '../utils/formatDuration';
 import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
 import IsometricTile from '../components/IsometricTile';
-import IsometricBuilding from '../components/IsometricBuilding';
-// IsometricForest SVG removed — replaced by pre-rendered ForestParallax PNG
+import IsometricBuilding, { getBuildingHeight } from '../components/IsometricBuilding';
 import { ForestParallax } from '../components/village/ForestParallax';
 import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
 import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
@@ -63,6 +63,11 @@ const CANVAS_SIZE = getGridPixelSize(GRID_SIZE);
 const CANVAS_W = CANVAS_SIZE.width;
 const CANVAS_H = CANVAS_SIZE.height;
 
+// Zoom scale constants
+const MIN_SCALE = 0.35;
+const MAX_SCALE = 1.5;
+const INITIAL_SCALE = 0.55;
+
 // ── Per-building visual config for the map cells ──────────────────────────────
 const CELL_CFG: Record<string, { icon: string; color: string }> = {
   rathaus:      { icon: 'home-city',      color: '#7B68EE' },
@@ -80,6 +85,8 @@ const CELL_CFG: Record<string, { icon: string; color: string }> = {
   marktplatz:   { icon: 'store',         color: '#FF7043' },
   stammeshaus:  { icon: 'account-group', color: '#2196F3' },
   stall:        { icon: 'paw',           color: '#C4934A' },
+  wachturm:     { icon: 'tower-fire',    color: '#795548' },
+  mauer:        { icon: 'wall',          color: '#78909C' },
 };
 
 // ── Obstacle SVG rendering ──────────────────────────────────────────────────
@@ -181,6 +188,61 @@ function PlacementIndicator({ x, y }: { x: number; y: number }) {
   );
 }
 
+// ── Building icon overlay (MaterialCommunityIcons on top of SVG buildings) ───
+const SPRITE_BUILDINGS: string[] = ['rathaus', 'holzfaeller'];
+
+interface IconOverlayProps {
+  buildings: Building[];
+  gridSize: number;
+  svgOffsetX: number;
+  svgOffsetY: number;
+}
+
+function BuildingIconOverlay({ buildings, gridSize, svgOffsetX, svgOffsetY }: IconOverlayProps) {
+  const icons = useMemo(() => {
+    const result: { key: string; iconName: string; color: string; x: number; y: number }[] = [];
+    for (const b of buildings) {
+      if (SPRITE_BUILDINGS.includes(b.type) || b.isUnderConstruction) continue;
+      const cfg = CELL_CFG[b.type as string];
+      if (!cfg) continue;
+      const { x, y } = gridToScreen(b.position.row, b.position.col, gridSize);
+      const H = getBuildingHeight(b.type as BuildingType);
+      result.push({
+        key: `icon-${b.position.row}-${b.position.col}`,
+        iconName: cfg.icon,
+        color: '#ffffff',
+        x: svgOffsetX + x + TILE_W / 2,
+        y: svgOffsetY + y + TILE_H / 2 - H,
+      });
+    }
+    return result;
+  }, [buildings, gridSize, svgOffsetX, svgOffsetY]);
+
+  if (icons.length === 0) return null;
+  const ICON_SIZE = 20;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {icons.map((ic) => (
+        <View
+          key={ic.key}
+          style={{
+            position: 'absolute',
+            left: ic.x - ICON_SIZE / 2,
+            top: ic.y - ICON_SIZE / 2,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <MaterialCommunityIcons name={ic.iconName as any} size={ICON_SIZE} color={ic.color} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function RealmScreen() {
   const store = useGameStore();
   const { gameState, obstacles } = store;
@@ -211,13 +273,46 @@ export default function RealmScreen() {
 
   // Scroll ref for map navigation
   const scrollRef = useRef<ScrollView>(null);
+  // Initial scroll position (set by Rathaus-centering useEffect, used for parallax delta)
+  const initialScrollPos = useRef({ x: 0, y: 0 });
   // Track the SVG container layout position for touch conversion
   const svgLayoutRef = useRef({ pageX: 0, pageY: 0 });
-  const svgContainerRef = useRef<View>(null);
+  const svgContainerRef = useRef<Animated.View>(null);
 
   useEffect(() => {
     store.processTick();
     store.checkObstacleCompletion();
+  }, []);
+
+  // Centre camera on Rathaus at startup
+  // transform:scale pivots around the Animated.View centre, not the origin.
+  // Visual position of a point (animX, animY) within the Animated.View:
+  //   visualX = padX + containerW/2 + (animX - containerW/2) * INITIAL_SCALE
+  //   visualY = padY + containerH/2 + (animY - containerH/2) * INITIAL_SCALE
+  // where padX/padY = half the extra content padding (200w → 100, 400h → 200).
+  useEffect(() => {
+    const rathaus = gameState.buildings.find(b => b.type === BuildingType.rathaus);
+    if (!rathaus) return;
+    const { x, y } = gridToScreen(rathaus.position.row, rathaus.position.col, GRID_SIZE);
+    const containerW = Math.round(CANVAS_W * 25 / 15);
+    const containerH = Math.round(CANVAS_H * 25 / 15);
+    const sOffX = Math.round((containerW - CANVAS_W) / 2); // svgOffsetX
+    const sOffY = Math.round((containerH - CANVAS_H) / 2); // svgOffsetY
+    // Rathaus tile centre in Animated.View space
+    const animX = sOffX + x + TILE_W / 2;
+    const animY = sOffY + y + TILE_H / 2;
+    // Content padding: contentContainerStyle adds 200 extra width + 400 extra height
+    const padX = 100;
+    const padY = 200;
+    // Visual position in content coordinate space
+    const visualX = padX + containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
+    const visualY = padY + containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
+    const targetX = Math.max(0, visualX - SCREEN_W / 2);
+    const targetY = Math.max(0, visualY - SCREEN_H / 2);
+    initialScrollPos.current = { x: targetX, y: targetY };
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: targetX, y: targetY, animated: false });
+    }, 50);
   }, []);
 
   // Clear highlight after 1.5 s
@@ -280,7 +375,7 @@ export default function RealmScreen() {
         store.buildBuilding(buildPlacementMode, { row, col });
         setBuildPlacementMode(null);
         if (isFirstStall) {
-          setToastMessage('Ein Erntehuhn hat sich in deinem Stall niedergelassen!');
+          setToastMessage(t('realm.stallFirstAnimal'));
           setTimeout(() => setToastMessage(null), 3500);
         }
       }
@@ -408,16 +503,31 @@ export default function RealmScreen() {
   const svgOffsetX = Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2);
   const svgOffsetY = Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2);
 
-  // Centre the scroll on initial mount
-  const initialScrollX = Math.max(0, (CANVAS_W - SCREEN_W) / 2);
-  const initialScrollY = Math.max(0, (CANVAS_H - SCREEN_H) / 2);
-
   // Shared values for parallax scroll tracking
   const parallaxScrollX = useSharedValue(0);
   const parallaxScrollY = useSharedValue(0);
 
+  // Pinch-to-zoom
+  const scale = useSharedValue(INITIAL_SCALE);
+  const savedScale = useSharedValue(INITIAL_SCALE);
+
+  const pinchGesture = Gesture.Pinch()
+    .onStart(() => {
+      savedScale.value = scale.value;
+    })
+    .onUpdate((e) => {
+      scale.value = Math.min(MAX_SCALE, Math.max(MIN_SCALE, savedScale.value * e.scale));
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+    });
+
+  const zoomStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
-    <View style={styles.container}>
+    <GestureHandlerRootView style={styles.container}>
       {/* World Map — Single ScrollView for smooth bidirectional pan + zoom */}
       <ScrollView
         ref={scrollRef}
@@ -432,75 +542,84 @@ export default function RealmScreen() {
         directionalLockEnabled={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        contentOffset={{ x: initialScrollX, y: initialScrollY }}
-        maximumZoomScale={2.5}
-        minimumZoomScale={0.25}
-        bouncesZoom
         bounces
         scrollEnabled
         decelerationRate="fast"
         scrollEventThrottle={16}
         onScroll={(e) => {
           const { contentOffset } = e.nativeEvent;
-          parallaxScrollX.value = contentOffset.x - initialScrollX;
-          parallaxScrollY.value = contentOffset.y - initialScrollY;
+          parallaxScrollX.value = contentOffset.x - initialScrollPos.current.x;
+          parallaxScrollY.value = contentOffset.y - initialScrollPos.current.y;
         }}
       >
-        <View
-          ref={svgContainerRef}
-          style={{
-            width: Math.round(CANVAS_W * 25 / 15),
-            height: Math.round(CANVAS_H * 25 / 15),
-            position: 'relative',
-          }}
-        >
-          {/* SVG wrapper — tap handler is HERE so locationX/Y = SVG coordinates directly */}
-          <View
-            style={{
-              position: 'absolute',
-              top: Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2),
-              left: Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2),
-              width: CANVAS_W,
-              height: CANVAS_H,
-            }}
-            onStartShouldSetResponder={() => true}
-            onMoveShouldSetResponder={() => false}
-            onResponderRelease={handleSvgPress}
+        <GestureDetector gesture={pinchGesture}>
+          <Animated.View
+            ref={svgContainerRef}
+            style={[
+              {
+                width: Math.round(CANVAS_W * 25 / 15),
+                height: Math.round(CANVAS_H * 25 / 15),
+                position: 'relative',
+              },
+              zoomStyle,
+            ]}
           >
-          <Svg
-            width={CANVAS_W}
-            height={CANVAS_H}
-            viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
-          >
-            {renderGridTiles}
-          </Svg>
-          </View>
+            {/* SVG wrapper — tap handler is HERE so locationX/Y = SVG coordinates directly */}
+            <View
+              style={{
+                position: 'absolute',
+                top: Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2),
+                left: Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2),
+                width: CANVAS_W,
+                height: CANVAS_H,
+              }}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => false}
+              onResponderRelease={handleSvgPress}
+            >
+              <Svg
+                width={CANVAS_W}
+                height={CANVAS_H}
+                viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+              >
+                {renderGridTiles}
+              </Svg>
+            </View>
 
-          {/* Layer 2: Pre-rendered 3D building sprites (rathaus, holzfaeller) */}
-          <BuildingSpriteOverlay
-            buildings={gameState.buildings}
-            gridSize={GRID_SIZE}
-            svgOffsetX={svgOffsetX}
-            svgOffsetY={svgOffsetY}
-          />
+            {/* Layer 2: Pre-rendered 3D building sprites (rathaus, holzfaeller) */}
+            <BuildingSpriteOverlay
+              buildings={gameState.buildings}
+              gridSize={GRID_SIZE}
+              svgOffsetX={svgOffsetX}
+              svgOffsetY={svgOffsetY}
+            />
 
-          {/* Layer 3: Animated farm animals roaming the playfield */}
-          <PlayfieldAnimals
-            gridSize={GRID_SIZE}
-            occupiedTiles={occupiedTiles}
-            svgOffsetX={svgOffsetX}
-            svgOffsetY={svgOffsetY}
-          />
+            {/* Layer 3: MaterialCommunityIcons on top of SVG cuboid buildings */}
+            <BuildingIconOverlay
+              buildings={gameState.buildings}
+              gridSize={GRID_SIZE}
+              svgOffsetX={svgOffsetX}
+              svgOffsetY={svgOffsetY}
+            />
 
-          {/* Layer 4: Forest PNG ON TOP — transparent center shows tiles through,
-              tree edges naturally overlap the playfield border = correct depth */}
-          <ForestParallax
-            canvasWidth={CANVAS_W}
-            canvasHeight={CANVAS_H}
-            scrollX={parallaxScrollX}
-            scrollY={parallaxScrollY}
-          />
-        </View>
+            {/* Layer 4: Animated farm animals roaming the playfield */}
+            <PlayfieldAnimals
+              gridSize={GRID_SIZE}
+              occupiedTiles={occupiedTiles}
+              svgOffsetX={svgOffsetX}
+              svgOffsetY={svgOffsetY}
+            />
+
+            {/* Layer 5: Forest PNG ON TOP — transparent center shows tiles through,
+                tree edges naturally overlap the playfield border = correct depth */}
+            <ForestParallax
+              canvasWidth={CANVAS_W}
+              canvasHeight={CANVAS_H}
+              scrollX={parallaxScrollX}
+              scrollY={parallaxScrollY}
+            />
+          </Animated.View>
+        </GestureDetector>
       </ScrollView>
 
       {/* Danger overlay — red border when wave approaching */}
@@ -523,7 +642,7 @@ export default function RealmScreen() {
       {placingTrophy && (
         <View style={styles.placementBanner}>
           <Text style={styles.placementText}>
-            {placingTrophy.emoji} Trophäe platzieren — tippe auf ein leeres Feld
+            {t('realm.trophyPlaceHint', { emoji: placingTrophy.emoji })}
           </Text>
           <TouchableOpacity onPress={() => setPlacingTrophy(null)}>
             <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.7)" />
@@ -550,17 +669,17 @@ export default function RealmScreen() {
                 if (!mauerBuilding) return;
                 const repairCost = Math.ceil(missingHP * 20 / gameState.wallHP.max * mauerBuilding.level);
                 Alert.alert(
-                  'Mauer reparieren',
-                  `Reparaturkosten: ${repairCost} Holz\nAktuell: ${Math.floor(gameState.wood)} Holz`,
+                  t('wall.repairTitle'),
+                  t('wall.repairCostMessage', { cost: repairCost, wood: Math.floor(gameState.wood) }),
                   [
-                    { text: 'Abbrechen', style: 'cancel' },
+                    { text: t('common.cancel'), style: 'cancel' },
                     {
-                      text: `Reparieren (${repairCost} Holz)`,
+                      text: t('wall.repairButton', { cost: repairCost }),
                       onPress: () => {
                         if (gameState.wood >= repairCost) {
                           store.repairWall();
                         } else {
-                          Alert.alert('Nicht genug Holz', `Du brauchst ${repairCost} Holz.`);
+                          Alert.alert(t('wall.notEnoughTitle'), t('wall.notEnoughBody', { cost: repairCost }));
                         }
                       },
                     },
@@ -758,7 +877,7 @@ export default function RealmScreen() {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       )}
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
