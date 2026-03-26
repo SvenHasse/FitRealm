@@ -10,6 +10,7 @@ import Animated, {
   withRepeat, withSequence, withTiming, withDelay,
   interpolate,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { AnimalType, AnimalRarity } from '../models/types';
 import { ANIMAL_CONFIGS } from '../config/EntityConfig';
 import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
@@ -29,15 +30,8 @@ const RARITY_COLORS: Record<AnimalRarity, string> = {
   legendary: '#FFD700',
 };
 
-const RARITY_LABELS: Record<AnimalRarity, string> = {
-  common: 'Gewöhnlich',
-  uncommon: 'Ungewöhnlich',
-  rare: 'Selten',
-  epic: 'Episch',
-  legendary: 'Legendär',
-};
-
 export default function EggHatchModal({ visible, animalType, rarity, onClose }: Props) {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState<'egg' | 'hatching' | 'reveal'>('egg');
   const [showButton, setShowButton] = useState(false);
 
@@ -50,7 +44,7 @@ export default function EggHatchModal({ visible, animalType, rarity, onClose }: 
 
   const config = ANIMAL_CONFIGS[animalType];
   const rarityColor = RARITY_COLORS[rarity];
-  const rarityLabel = RARITY_LABELS[rarity];
+  const rarityLabel = t(`animals.rarity${rarity.charAt(0).toUpperCase() + rarity.slice(1)}`);
 
   useEffect(() => {
     if (!visible) {
@@ -118,7 +112,7 @@ export default function EggHatchModal({ visible, animalType, rarity, onClose }: 
       <View style={styles.overlay}>
         <View style={styles.container}>
           {/* Titel */}
-          <Text style={styles.titleText}>Ein Ei schlüpft!</Text>
+          <Text style={styles.titleText}>{t('eggs.hatching')}</Text>
 
           {/* Animations-Bereich */}
           <View style={styles.animArea}>
@@ -139,7 +133,7 @@ export default function EggHatchModal({ visible, animalType, rarity, onClose }: 
           {/* Tier-Info */}
           <Animated.View style={[{ opacity: animalOpacity }, styles.infoContainer]}>
             <Text style={[styles.animalName, { color: rarityColor }]}>
-              {config?.name ?? animalType} ist geschlüpft!
+              {t('eggs.hatched', { name: config?.name ?? animalType })}
             </Text>
             <View style={[styles.rarityBanner, { backgroundColor: rarityColor + '25', borderColor: rarityColor }]}>
               <Text style={[styles.rarityBannerText, { color: rarityColor }]}>
@@ -154,7 +148,7 @@ export default function EggHatchModal({ visible, animalType, rarity, onClose }: 
           {/* Weiter-Button */}
           {showButton && (
             <TouchableOpacity style={[styles.continueBtn, { backgroundColor: rarityColor }]} onPress={onClose}>
-              <Text style={styles.continueBtnText}>Weiter</Text>
+              <Text style={styles.continueBtnText}>{t('common.continue')}</Text>
             </TouchableOpacity>
           )}
         </View>

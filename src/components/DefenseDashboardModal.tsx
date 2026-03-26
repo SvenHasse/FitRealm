@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
-import { AppColors, AnimalAssignment } from '../models/types';
+import { AppColors } from '../models/types';
 import { ANIMAL_CONFIGS, DEFENSE_CONFIG } from '../config/EntityConfig';
 import { formatDuration } from '../utils/formatDuration';
 
@@ -89,16 +89,14 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
   const tips: string[] = [];
   if (workoutMinutesToday < 30) {
     const vpGain = (30 - workoutMinutesToday) * DEFENSE_CONFIG.vpPerWorkoutMinute;
-    tips.push(`💪 Trainiere 30 Min für +${vpGain} VP`);
+    tips.push(t('defense.tipTrain', { minutes: 30, vp: vpGain }));
   }
   if (idleAnimals.length > 0) {
-    tips.push(`🐾 ${idleAnimals.length} Tier${idleAnimals.length > 1 ? 'e' : ''} können der Verteidigung zugewiesen werden`);
+    tips.push(t('defense.tipIdleAnimals', { count: idleAnimals.length }));
   }
   if (!hasWachturm && rathausLevel >= 2) {
-    tips.push(`🗼 Baue einen Wachturm für +${DEFENSE_CONFIG.buildingVP.wachturm} VP`);
+    tips.push(t('defense.tipBuildWachturm', { vp: DEFENSE_CONFIG.buildingVP.wachturm }));
   }
-
-  const allAnimals = gameState.animals;
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -163,7 +161,7 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
                   <Text style={styles.breakdownEmoji}>👷</Text>
                   <Text style={styles.breakdownLabel}>{t('defense.workerVP')}</Text>
                   <Text style={styles.breakdownVP}>{workerVP} VP</Text>
-                  <Text style={styles.breakdownDetail}>Kommt bald</Text>
+                  <Text style={styles.breakdownDetail}>{t('defense.comingSoon')}</Text>
                 </View>
               </View>
               <View style={{ flex: 1, gap: 10 }}>
@@ -219,14 +217,14 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
                     <View style={styles.waveWarning}>
                       <Ionicons name={'warning' as any} size={14} color="#FF6B6B" />
                       <Text style={{ fontSize: 12, color: '#FF6B6B', fontWeight: '600' }}>
-                        Angriff in weniger als 2 Stunden!
+                        {t('defense.waveImminent')}
                       </Text>
                     </View>
                   )}
                 </>
               ) : (
                 <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
-                  Noch keine Welle angekündigt.
+                  {t('defense.noWave')}
                 </Text>
               )}
             </View>
@@ -247,59 +245,42 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
               </View>
             )}
 
-            {/* ── Section 5: Schnelle Zuweisung ── */}
-            {allAnimals.length > 0 && (
-              <View style={styles.card}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <Ionicons name={'shuffle-outline' as any} size={16} color="#00B4D8" />
-                  <Text style={styles.sectionLabel}>{t('defense.assignment').toUpperCase()}</Text>
-                </View>
+            {/* ── Section 5: Tiere in der Verteidigung (read-only) ── */}
+            <View style={styles.card}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Ionicons name={'shield-checkmark-outline' as any} size={16} color="#00B4D8" />
+                <Text style={styles.sectionLabel}>{t('animalSection.defenseTitle').toUpperCase()}</Text>
+              </View>
 
-                {allAnimals.map((animal, i) => {
-                  const cfg       = ANIMAL_CONFIGS[animal.type];
-                  const inDefense = animal.assignment.type === 'defense';
-                  const isLast    = i === allAnimals.length - 1;
-
+              {animalsInDefense.length === 0 ? (
+                <>
+                  <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
+                    {t('animalSection.defenseEmpty')}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>
+                    {t('animalSection.defenseHint')}
+                  </Text>
+                </>
+              ) : (
+                animalsInDefense.map((animal, i) => {
+                  const isLast = i === animalsInDefense.length - 1;
                   return (
                     <View key={animal.id} style={[styles.animalRow, !isLast && styles.animalRowDivider]}>
-                      <Text style={{ fontSize: 22 }}>{cfg.emoji}</Text>
+                      <Text style={{ fontSize: 22 }}>{animal.emoji}</Text>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>{cfg.name}</Text>
-                        <Text style={{
-                          fontSize: 10,
-                          color: inDefense ? DEFENSE_COLOR
-                            : animal.assignment.type === 'building' ? '#00B4D8'
-                            : 'rgba(255,255,255,0.35)',
-                        }}>
-                          {inDefense
-                            ? `⚔️ ${t('defense.assignment')} · ${cfg.defenseVP} VP`
-                            : animal.assignment.type === 'building'
-                              ? `🏗️ Produktion`
-                              : `💤 Untätig`}
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>{animal.name}</Text>
+                        <Text style={{ fontSize: 10, color: DEFENSE_COLOR }}>
+                          ⚔️ {t('defense.assignment')} · {animal.vp} VP
                         </Text>
                       </View>
-                      {cfg.defenseVP > 0 && (
-                        <TouchableOpacity
-                          style={[styles.assignBtn, inDefense && styles.assignBtnActive]}
-                          onPress={() => {
-                            const newAssignment: AnimalAssignment = inDefense
-                              ? { type: 'idle' }
-                              : { type: 'defense' };
-                            store.assignAnimal(animal.id, newAssignment);
-                          }}
-                        >
-                          <Text style={[styles.assignBtnText, inDefense && { color: DEFENSE_COLOR }]}>
-                            {inDefense
-                              ? t('defense.toProduction')
-                              : `${t('defense.toDefense')} ${t('defense.vpGain', { vp: cfg.defenseVP })}`}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
+                      <View style={styles.vpBadge}>
+                        <Text style={styles.vpBadgeText}>+{animal.vp} VP</Text>
+                      </View>
                     </View>
                   );
-                })}
-              </View>
-            )}
+                })
+              )}
+            </View>
 
             <View style={{ height: 24 }} />
           </ScrollView>
@@ -360,4 +341,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(232,121,249,0.45)',
   },
   assignBtnText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.5)' },
+  vpBadge: {
+    paddingHorizontal: 8, paddingVertical: 4,
+    backgroundColor: 'rgba(0,180,216,0.15)',
+    borderRadius: 8, borderWidth: 1,
+    borderColor: 'rgba(0,180,216,0.35)',
+  },
+  vpBadgeText: { fontSize: 11, fontWeight: '700', color: '#00B4D8' },
 });
