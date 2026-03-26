@@ -4,6 +4,7 @@
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { BuildingType, buildingDisplayName } from '../../models/types';
 import { formatDuration } from '../../utils/formatDuration';
 import type { CardStatus, CostLine, BenefitLine } from './BuildingCard';
@@ -26,6 +27,7 @@ function BuildingCardFront({
   type, status, costLines, benefitLines, rathausReq, iconName, iconColor,
   buildTimeSecs, hasIdleWorker, onFlip, onBuild,
 }: Props) {
+  const { t } = useTranslation();
   const canBuild      = status === 'canBuild';
   const rathausLocked = status === 'rathausLocked';
   const atMax         = status === 'atMax';
@@ -39,14 +41,14 @@ function BuildingCardFront({
                    'rgba(255,255,255,0.07)';
 
   // Button
-  let btnLabel    = 'Bauen';
+  let btnLabel    = t('hud.build');
   let btnDisabled = false;
   let btnOpacity  = 1.0;
   let btnIcon: string = 'hammer';
-  if (tooExpensive)  { btnLabel = 'Zu teuer';      btnIcon = 'close-circle-outline'; btnDisabled = true; btnOpacity = 0.4; }
-  if (rathausLocked) { btnLabel = 'Gesperrt';      btnIcon = 'lock-outline';         btnDisabled = true; btnOpacity = 0.35; }
-  if (atMax)         { btnLabel = 'Max erreicht';  btnIcon = 'check-circle-outline'; btnDisabled = true; btnOpacity = 0.4; }
-  if (slotLocked)    { btnLabel = 'Slot gesperrt'; btnIcon = 'lock-outline';         btnDisabled = true; btnOpacity = 0.4; }
+  if (tooExpensive)  { btnLabel = t('buildMenu.tooExpensive'); btnIcon = 'close-circle-outline'; btnDisabled = true; btnOpacity = 0.4; }
+  if (rathausLocked) { btnLabel = t('buildCard.locked');       btnIcon = 'lock-outline';         btnDisabled = true; btnOpacity = 0.35; }
+  if (atMax)         { btnLabel = t('buildMenu.maxReached');   btnIcon = 'check-circle-outline'; btnDisabled = true; btnOpacity = 0.4; }
+  if (slotLocked)    { btnLabel = t('buildCard.slotLocked');   btnIcon = 'lock-outline';         btnDisabled = true; btnOpacity = 0.4; }
 
   return (
     <View style={[styles.card, { borderColor: cardBorder }]}>
@@ -80,20 +82,20 @@ function BuildingCardFront({
       {rathausLocked ? (
         <View style={styles.lockedRow}>
           <MaterialCommunityIcons name="lock-outline" size={13} color="#F5A623" />
-          <Text style={styles.lockedText}> Rathaus L{rathausReq}</Text>
+          <Text style={styles.lockedText}> {t('buildMenu.rathausRequired', { level: rathausReq })}</Text>
         </View>
       ) : atMax ? (
         <View style={styles.lockedRow}>
           <MaterialCommunityIcons name="check-all" size={13} color="rgba(255,255,255,0.35)" />
-          <Text style={[styles.lockedText, { color: 'rgba(255,255,255,0.35)' }]}> Max erreicht</Text>
+          <Text style={[styles.lockedText, { color: 'rgba(255,255,255,0.35)' }]}> {t('buildMenu.maxReached')}</Text>
         </View>
       ) : slotLocked ? (
         <View style={styles.lockedRow}>
           <MaterialCommunityIcons name="lock-outline" size={13} color="#F5A623" />
-          <Text style={styles.lockedText}> Slot gesperrt</Text>
+          <Text style={styles.lockedText}> {t('buildCard.slotLocked')}</Text>
         </View>
       ) : costLines.length === 0 ? (
-        <Text style={styles.mutedText}>Kostenlos</Text>
+        <Text style={styles.mutedText}>{t('resources.free')}</Text>
       ) : (
         <View style={styles.costsWrap}>
           {costLines.map((line, i) => (

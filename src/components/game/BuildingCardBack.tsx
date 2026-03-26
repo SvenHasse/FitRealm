@@ -4,6 +4,7 @@
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { BuildingType, buildingDisplayName, buildingDescription } from '../../models/types';
 import { formatDuration } from '../../utils/formatDuration';
 import type { CardStatus, CostLine } from './BuildingCard';
@@ -25,6 +26,7 @@ function BuildingCardBack({
   type, status, rathausLevel, rathausReq,
   existing, totalMax, buildTimeSecs, nextSlotLevel, onFlip,
 }: Props) {
+  const { t } = useTranslation();
   const slotLocked = status === 'slotLocked';
 
   return (
@@ -52,33 +54,33 @@ function BuildingCardBack({
         {buildTimeSecs > 0 && (
           <Row
             iconName="clock-outline" iconColor="#9E9E9E"
-            label="Bauzeit"
+            label={t('buildCard.buildTimeLabel')}
             value={formatDuration(buildTimeSecs)}
           />
         )}
         {buildTimeSecs > 0 && (
           <Row
             iconName="account-hard-hat" iconColor="#4CAF50"
-            label="Mit Worker"
+            label={t('buildCard.withWorkerLabel')}
             value={formatDuration(Math.floor(buildTimeSecs / 2))}
           />
         )}
         <Row
           iconName="castle" iconColor="#F5A623"
-          label="Rathaus"
-          value={`L${rathausReq} nötig`}
+          label={t('buildings.rathaus')}
+          value={t('buildCard.rathausNeeded', { level: rathausReq })}
           valueHighlight={rathausLevel < rathausReq}
         />
         <Row
           iconName="counter" iconColor="#607D8B"
-          label="Gebaut / Max"
+          label={t('buildCard.builtMax')}
           value={`${existing} / ${totalMax}`}
         />
         {slotLocked && nextSlotLevel !== null && (
           <Row
             iconName="lock-open-outline" iconColor="#F5A623"
-            label="Nächster Slot"
-            value={`Rathaus L${nextSlotLevel}`}
+            label={t('buildCard.nextSlot')}
+            value={t('buildMenu.rathausRequired', { level: nextSlotLevel })}
           />
         )}
       </View>

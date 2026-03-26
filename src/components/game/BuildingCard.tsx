@@ -7,6 +7,7 @@ import { View, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, interpolate, Easing,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { BuildingType, GameState } from '../../models/types';
 import {
   buildCost, rathausRequirement, allowedInstances, maxInstances,
@@ -86,30 +87,30 @@ export function computeCostLines(cost: ResourceCost, gs: GameState): CostLine[] 
 
 // ─── Benefit Lines ────────────────────────────────────────────────────────────
 
-export function computeBenefitLines(type: BuildingType): BenefitLine[] {
+export function computeBenefitLines(type: BuildingType, t: (key: string) => string): BenefitLine[] {
   switch (type) {
-    case BuildingType.rathaus:       return [{ iconName: 'lock-open-outline', iconColor: '#F5A623', text: 'Neue Gebäude' }];
+    case BuildingType.rathaus:       return [{ iconName: 'lock-open-outline', iconColor: '#F5A623', text: t('buildCard.newBuildings') }];
     case BuildingType.kornkammer:    return [{ iconName: 'dumbbell',          iconColor: '#F5A623', text: `+${Production.kornkammer}g/h` }];
-    case BuildingType.proteinfarm:   return [{ iconName: 'diamond',           iconColor: '#9B59B6', text: '+1.0/Tag' }];
+    case BuildingType.proteinfarm:   return [{ iconName: 'diamond',           iconColor: '#9B59B6', text: t('buildCard.proteinPerDay') }];
     case BuildingType.holzfaeller:   return [{ iconName: 'tree',              iconColor: '#8B7355', text: `+${Production.holzfaeller}/h` }];
     case BuildingType.steinbruch:    return [{ iconName: 'cube-outline',       iconColor: '#9E9E9E', text: `+${Production.steinbruch}/h` }];
     case BuildingType.feld:          return [{ iconName: 'leaf',               iconColor: '#4CAF50', text: `+${Production.feld}/h` }];
-    case BuildingType.holzlager:     return [{ iconName: 'package-variant',    iconColor: '#607D8B', text: `+${HOLZLAGER_STORAGE[0]} Holz` }];
-    case BuildingType.steinlager:    return [{ iconName: 'package-variant',    iconColor: '#78909C', text: `+${STEINLAGER_STORAGE[0]} Stein` }];
-    case BuildingType.nahrungslager: return [{ iconName: 'package-variant',    iconColor: '#8D6E63', text: `+${NAHRUNGSLAGER_STORAGE[0]} Nahr.` }];
-    case BuildingType.kaserne:       return [{ iconName: 'account-hard-hat',   iconColor: '#4CAF50', text: '+1 Worker' }];
-    case BuildingType.tempel:        return [{ iconName: 'lightning-bolt',     iconColor: '#E8C948', text: 'Streak-Boost' }];
-    case BuildingType.bibliothek:    return [{ iconName: 'school',             iconColor: '#5C8A6A', text: 'Forschung' }];
-    case BuildingType.marktplatz:    return [{ iconName: 'swap-horizontal',    iconColor: '#FF7043', text: 'Tauschen' }];
-    case BuildingType.stammeshaus:   return [{ iconName: 'home-group',         iconColor: '#2196F3', text: 'Stammesbonus' }];
-    case BuildingType.stall:         return [{ iconName: 'paw',                iconColor: '#C4934A', text: '1-5 Tier-Slots' }];
+    case BuildingType.holzlager:     return [{ iconName: 'package-variant',    iconColor: '#607D8B', text: `+${HOLZLAGER_STORAGE[0]} ${t('resources.wood')}` }];
+    case BuildingType.steinlager:    return [{ iconName: 'package-variant',    iconColor: '#78909C', text: `+${STEINLAGER_STORAGE[0]} ${t('resources.stone')}` }];
+    case BuildingType.nahrungslager: return [{ iconName: 'package-variant',    iconColor: '#8D6E63', text: `+${NAHRUNGSLAGER_STORAGE[0]} ${t('resources.food')}` }];
+    case BuildingType.kaserne:       return [{ iconName: 'account-hard-hat',   iconColor: '#4CAF50', text: t('buildCard.workerPlus') }];
+    case BuildingType.tempel:        return [{ iconName: 'lightning-bolt',     iconColor: '#E8C948', text: t('buildCard.streakBoost') }];
+    case BuildingType.bibliothek:    return [{ iconName: 'school',             iconColor: '#5C8A6A', text: t('buildCard.research') }];
+    case BuildingType.marktplatz:    return [{ iconName: 'swap-horizontal',    iconColor: '#FF7043', text: t('buildCard.trade') }];
+    case BuildingType.stammeshaus:   return [{ iconName: 'home-group',         iconColor: '#2196F3', text: t('buildCard.tribeBonus') }];
+    case BuildingType.stall:         return [{ iconName: 'paw',                iconColor: '#C4934A', text: t('buildCard.animalSlots') }];
     case BuildingType.wachturm:      return [
-      { iconName: 'shield',          iconColor: '#2196F3', text: '20 VP/Level' },
-      { iconName: 'clock-outline',   iconColor: '#FF9800', text: '+3h Vorwarnung/Level' },
+      { iconName: 'shield',          iconColor: '#2196F3', text: t('buildCard.vpPerLevel') },
+      { iconName: 'clock-outline',   iconColor: '#FF9800', text: t('buildCard.warningPerLevel') },
     ];
     case BuildingType.mauer:         return [
-      { iconName: 'wall',            iconColor: '#9E8E70', text: '50-300 HP Schadensabsorption' },
-      { iconName: 'hammer',          iconColor: '#78909C', text: 'Absorbiert Gebäudeschaden' },
+      { iconName: 'wall',            iconColor: '#9E8E70', text: t('buildCard.hpAbsorption') },
+      { iconName: 'hammer',          iconColor: '#78909C', text: t('buildCard.absorbsDamage') },
     ];
     default:                         return [];
   }
@@ -131,6 +132,7 @@ interface Props {
 function BuildingCard({
   type, gameState, rathausLevel, existing, allowed, onBuild, hasIdleWorker, hasAnyWorker,
 }: Props) {
+  const { t } = useTranslation();
   const [showingBack, setShowingBack] = useState(false);
   const rotation = useSharedValue(0);
 
@@ -152,7 +154,7 @@ function BuildingCard({
     'canBuild';
 
   const costLines    = computeCostLines(cost, gameState);
-  const benefitLines = computeBenefitLines(type);
+  const benefitLines = computeBenefitLines(type, t);
   const icon         = buildingMCIcon(type);
 
   const flip = (toBack: boolean) => {
