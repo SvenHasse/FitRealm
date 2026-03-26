@@ -106,8 +106,14 @@ export default function Player({ x, y, backpackItems, isAttacking, isMoving }: P
 
   const count = backpackItems.length;
 
+  // Adaptive sizing for large backpacks
+  const isLargeStack = count > 10;
+  const itemW = isLargeStack ? 8 : BACKPACK_ITEM_WIDTH;
+  const itemH = isLargeStack ? 6 : BACKPACK_ITEM_HEIGHT;
+  const stackOffset = isLargeStack ? -5 : BACKPACK_STACK_OFFSET_Y;
+
   // Pseudo-random offsets for stack (deterministic per index)
-  const offsets = [0, 1, -1, 0.5, -0.5, 1.5, -1.5, 0, 1, -1];
+  const offsets = [0, 1, -1, 0.5, -0.5, 1.5, -1.5, 0, 1, -1, 0.5, -0.5, 1, -1, 0.5];
 
   return (
     <G x={x} y={y}>
@@ -153,9 +159,9 @@ export default function Player({ x, y, backpackItems, isAttacking, isMoving }: P
           <G>
             {backpackItems.map((item, i) => {
               const bx = offsets[i % offsets.length];
-              const by = -20 + i * BACKPACK_STACK_OFFSET_Y;
-              const w = BACKPACK_ITEM_WIDTH;
-              const h = BACKPACK_ITEM_HEIGHT;
+              const by = -20 + i * stackOffset;
+              const w = itemW;
+              const h = itemH;
               return (
                 <G key={item.id}>
                   <Rect
@@ -195,7 +201,7 @@ export default function Player({ x, y, backpackItems, isAttacking, isMoving }: P
                       x={bx}
                       y={by - h / 2 + 1}
                       fill="#fff"
-                      fontSize={6}
+                      fontSize={isLargeStack ? 4 : 6}
                       fontWeight="bold"
                       textAnchor="middle"
                       alignmentBaseline="central"
@@ -206,10 +212,10 @@ export default function Player({ x, y, backpackItems, isAttacking, isMoving }: P
                 </G>
               );
             })}
-            {/* Count label */}
+            {/* Count label — always above the topmost block */}
             <SvgText
               x={0}
-              y={-20 + count * BACKPACK_STACK_OFFSET_Y - 8}
+              y={-20 + count * stackOffset - itemH - 4}
               fill="white"
               fontSize={10}
               fontWeight="bold"

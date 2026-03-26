@@ -146,7 +146,7 @@ export default function GameWorld({ state }: Props) {
   const workX = 50, workY = 420, workW = 900, workH = 660;
 
   // Sort bears + player by Y for depth
-  const sortedBears = [...bears].filter(b => b.alive || b.respawnTimer > 140).sort((a, b) => a.position.y - b.position.y);
+  const sortedBears = [...bears].filter(b => b.alive || b.respawnTimer > 135).sort((a, b) => a.position.y - b.position.y);
 
   // Pulse scale for dropped items (simple sin-based, per tick)
   const pulseFactor = 0.95 + 0.1 * Math.sin(tickCount * 0.06);
