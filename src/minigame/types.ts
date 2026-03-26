@@ -130,6 +130,9 @@ export interface GameState {
   // Movement
   isMoving: boolean;
 
+  // Interaction cooldowns
+  lastStationInteractTick: number;
+
   // Meta
   gameActive: boolean;
   tickCount: number;

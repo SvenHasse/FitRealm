@@ -11,7 +11,8 @@ import {
 import {
   GAME_TICK_MS, PLAYER_START_X, PLAYER_START_Y, PLAYER_SPEED,
   MAX_BACKPACK_CAPACITY, WORLD_WIDTH, WORLD_HEIGHT,
-  BEAR_PEN, PICKUP_RADIUS,
+  BEAR_PEN, PICKUP_RADIUS, STATION_INTERACT_RADIUS,
+  CONVEYOR_TABLE, STEAK_OUTPUT, SHREDDER,
   UI_BG_PRIMARY, UI_BORDER, UI_TEXT, RAW_MEAT_COLOR,
 } from './constants';
 import GameWorld from './components/GameWorld';
@@ -115,6 +116,7 @@ function createInitialState(): GameState {
     floatingTexts: [],
     tutorialStep: 0,
 
+    lastStationInteractTick: -100,
     gameActive: true,
     tickCount: 0,
     lastFullWarningTick: -100,
@@ -351,6 +353,73 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // Filter out collected items
       const remainingDrops = allDrops.filter(d => !d.collected);
 
+      // ── Station Interactions ──
+      let conveyorItems = [...state.conveyorItems];
+      let shredderProcessing = [...state.shredderProcessing];
+      let steakOutputPile = state.steakOutputPile;
+      let lastStationInteractTick = state.lastStationInteractTick;
+      const stationCooldown = 6; // ticks between drops/pickups (0.3s)
+
+      // CONVEYOR_TABLE: Drop raw meat from backpack onto conveyor
+      const tablePos: Position = { x: CONVEYOR_TABLE.x, y: CONVEYOR_TABLE.y };
+      if (dist(playerPos, tablePos) < STATION_INTERACT_RADIUS &&
+          currentItemType === ItemType.RAW_MEAT &&
+          backpack.length > 0 &&
+          state.tickCount - lastStationInteractTick >= stationCooldown) {
+        // Remove one item from backpack
+        backpack = backpack.slice(0, -1);
+        if (backpack.length === 0) currentItemType = null;
+        // Add to conveyor
+        conveyorItems.push({ id: uid(), progress: 0 });
+        lastStationInteractTick = state.tickCount;
+        newFloats.push({
+          id: uid(), text: '-1', position: { x: playerPos.x, y: playerPos.y },
+          color: '#e53935', opacity: 1, offsetY: -20, fontSize: 11,
+        });
+      }
+
+      // STEAK_OUTPUT: Pick up steaks
+      const steakOutPos: Position = { x: STEAK_OUTPUT.x, y: STEAK_OUTPUT.y };
+      if (dist(playerPos, steakOutPos) < STATION_INTERACT_RADIUS &&
+          steakOutputPile > 0 &&
+          (currentItemType === null || currentItemType === ItemType.STEAK) &&
+          backpack.length < state.backpackCapacity &&
+          state.tickCount - lastStationInteractTick >= stationCooldown) {
+        steakOutputPile -= 1;
+        backpack.push({ id: uid(), type: ItemType.STEAK });
+        currentItemType = ItemType.STEAK;
+        lastStationInteractTick = state.tickCount;
+        newFloats.push({
+          id: uid(), text: '+1', position: { x: playerPos.x, y: playerPos.y },
+          color: '#8d6e63', opacity: 1, offsetY: -20, fontSize: 11,
+        });
+      }
+
+      // ── Conveyor Belt Movement ──
+      conveyorItems = conveyorItems.map(ci => ({ ...ci, progress: ci.progress + 0.008 }));
+
+      // Items reaching end of belt → into shredder
+      const arrivedItems = conveyorItems.filter(ci => ci.progress >= 1.0);
+      conveyorItems = conveyorItems.filter(ci => ci.progress < 1.0);
+      for (const _item of arrivedItems) {
+        shredderProcessing.push({ id: uid(), progress: 0 });
+      }
+
+      // ── Shredder Processing ──
+      shredderProcessing = shredderProcessing.map(sp => ({ ...sp, progress: sp.progress + 0.025 }));
+      const finishedSteaks = shredderProcessing.filter(sp => sp.progress >= 1.0);
+      shredderProcessing = shredderProcessing.filter(sp => sp.progress < 1.0);
+      if (finishedSteaks.length > 0) {
+        steakOutputPile += finishedSteaks.length;
+        for (const _s of finishedSteaks) {
+          newFloats.push({
+            id: uid(), text: '+1 Steak',
+            position: { x: SHREDDER.x + SHREDDER.width / 2, y: SHREDDER.y },
+            color: '#8d6e63', opacity: 1, offsetY: -10, fontSize: 10,
+          });
+        }
+      }
+
       // ── Floating texts decay ──
       const updatedFloats = [...state.floatingTexts, ...newFloats]
         .map(ft => ({
@@ -371,6 +440,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         attackCooldown,
         isAttacking,
         attackTarget,
+        conveyorItems,
+        shredderProcessing,
+        steakOutputPile,
+        lastStationInteractTick,
         floatingTexts: updatedFloats,
         tickCount: state.tickCount + 1,
         lastFullWarningTick,
