@@ -34,7 +34,7 @@ import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, T
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding from '../components/IsometricBuilding';
 import IsometricForest from '../components/IsometricForest';
-import ForestLandscape from '../components/village/ForestLandscape';
+import { ForestParallax } from '../components/village/ForestParallax';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
 import WorkerSheet from '../components/WorkerSheet';
@@ -397,6 +397,10 @@ export default function RealmScreen() {
   const initialScrollX = Math.max(0, (CANVAS_W - SCREEN_W) / 2);
   const initialScrollY = Math.max(0, (CANVAS_H - SCREEN_H) / 2);
 
+  // Shared values for parallax scroll tracking
+  const parallaxScrollX = useSharedValue(0);
+  const parallaxScrollY = useSharedValue(0);
+
   return (
     <View style={styles.container}>
       {/* World Map — Single ScrollView for smooth bidirectional pan + zoom */}
@@ -421,6 +425,11 @@ export default function RealmScreen() {
         scrollEnabled
         decelerationRate="fast"
         scrollEventThrottle={16}
+        onScroll={(e) => {
+          const { contentOffset } = e.nativeEvent;
+          parallaxScrollX.value = contentOffset.x - initialScrollX;
+          parallaxScrollY.value = contentOffset.y - initialScrollY;
+        }}
       >
         <View
           ref={svgContainerRef}
@@ -435,8 +444,15 @@ export default function RealmScreen() {
             {/* Game grid tiles, buildings, obstacles */}
             {renderGridTiles}
           </Svg>
-          {/* Zone-based forest landscape sprites (React Native Images, outside SVG) */}
-          <ForestLandscape gridSize={GRID_SIZE} borderSize={BORDER_SIZE} />
+          {/* Pre-rendered 3D forest with parallax effect */}
+          <ForestParallax
+            canvasWidth={CANVAS_W}
+            canvasHeight={CANVAS_H}
+            scrollX={parallaxScrollX}
+            scrollY={parallaxScrollY}
+            screenWidth={SCREEN_W}
+            screenHeight={SCREEN_H}
+          />
         </View>
       </ScrollView>
 

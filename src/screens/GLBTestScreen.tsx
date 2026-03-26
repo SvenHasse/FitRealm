@@ -15,32 +15,68 @@ import * as THREE from 'three';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
+// ─── Shared debug state (simple ref-based for cross-component access) ────────
+let _debugInfo = { loadInfo: 'Starte...', error: '' };
+let _debugListener: (() => void) | null = null;
+
 // ─── GLB Model Loader ───────────────────────────────────────────────────────
 
 function ForestModel() {
   const [scene, setScene] = useState<THREE.Group | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadInfo, setLoadInfoLocal] = useState('Starte...');
+
+  const setLoadInfo = (msg: string) => {
+    setLoadInfoLocal(msg);
+    _debugInfo.loadInfo = msg;
+    _debugListener?.();
+  };
+  const setErrorAndDebug = (msg: string) => {
+    setError(msg);
+    _debugInfo.error = msg;
+    _debugListener?.();
+  };
 
   React.useEffect(() => {
     let cancelled = false;
 
     async function loadModel() {
       try {
-        // Load the GLB asset via expo-asset
+        setLoadInfo('Asset laden...');
+        // Resolve asset to local file via expo-asset
         const asset = Asset.fromModule(require('../assets/terrain/forest_border.glb'));
         await asset.downloadAsync();
 
         if (cancelled) return;
 
+        // Get the actual local file URI
+        const uri = asset.localUri;
+        if (!uri) {
+          setErrorAndDebug('No localUri after download');
+          return;
+        }
+        setLoadInfo(`URI: ${uri.slice(-40)}`);
+
+        // Read as binary using XMLHttpRequest (more reliable than fetch for file:// URIs)
+        const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', uri, true);
+          xhr.responseType = 'arraybuffer';
+          xhr.onload = () => {
+            if (xhr.status === 200 || xhr.status === 0) {
+              resolve(xhr.response);
+            } else {
+              reject(new Error(`XHR status ${xhr.status}`));
+            }
+          };
+          xhr.onerror = () => reject(new Error('XHR error'));
+          xhr.send();
+        });
+
+        if (cancelled) return;
+        setLoadInfo(`Bytes: ${arrayBuffer.byteLength}`);
+
         const loader = new GLTFLoader();
-
-        // expo-three provides a file system bridge for Three.js loaders
-        const uri = asset.localUri || asset.uri;
-
-        // Fetch the GLB as array buffer
-        const response = await fetch(uri);
-        const arrayBuffer = await response.arrayBuffer();
-
         loader.parse(
           arrayBuffer,
           '',
@@ -57,16 +93,21 @@ function ForestModel() {
             const scale = 10 / maxDim;
             gltf.scene.scale.setScalar(scale);
 
+            // Count meshes for debug info
+            let meshCount = 0;
+            gltf.scene.traverse((child: any) => { if (child.isMesh) meshCount++; });
+            setLoadInfo(`OK! ${meshCount} meshes, scale=${scale.toFixed(2)}`);
+
             setScene(gltf.scene);
           },
           (err: any) => {
             if (cancelled) return;
-            setError(`GLB parse error: ${err}`);
+            setErrorAndDebug(`GLB parse: ${String(err).slice(0, 100)}`);
           }
         );
       } catch (e: any) {
         if (cancelled) return;
-        setError(`Load error: ${e.message}`);
+        setErrorAndDebug(`Load: ${e.message}`);
       }
     }
 
@@ -158,6 +199,15 @@ interface GLBTestScreenProps {
 export default function GLBTestScreen({ onBack }: GLBTestScreenProps) {
   const [fps, setFPS] = useState(0);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [debugStr, setDebugStr] = useState('Starte...');
+
+  React.useEffect(() => {
+    _debugListener = () => {
+      const s = _debugInfo.error || _debugInfo.loadInfo;
+      setDebugStr(s);
+    };
+    return () => { _debugListener = null; };
+  }, []);
 
   const handleFPS = useCallback((f: number) => setFPS(f), []);
 
@@ -231,10 +281,10 @@ export default function GLBTestScreen({ onBack }: GLBTestScreenProps) {
         <Text style={styles.infoText}>
           Modell: forest_border.glb (1.6 MB){'\n'}
           Renderer: expo-gl + three.js{'\n'}
-          Kamera: Orthographisch (Isometrisch)
+          Status: {debugStr}
         </Text>
-        <Text style={styles.infoHint}>
-          Das Modell rotiert automatisch. Grün = ≥30 FPS = brauchbar für Integration.
+        <Text style={[styles.infoHint, _debugInfo.error ? { color: '#F44336' } : null]}>
+          {_debugInfo.error ? `FEHLER: ${_debugInfo.error}` : 'Grün = ≥30 FPS = brauchbar.'}
         </Text>
       </View>
     </View>
