@@ -14,7 +14,7 @@ interface Props {
 }
 
 const TILE_COLORS: Record<TileVariant, { top: string; left: string; right: string; stroke?: string }> = {
-  grass:     { top: '#4c842d', left: '#38601e', right: '#427525' },
+  grass:     { top: '#6bb940', left: '#3d6e22', right: '#4e8a2e' },
   path:      { top: '#C4A96B', left: '#8B7044', right: '#A08050' },
   water:     { top: '#2C5F8A', left: '#1A3D5C', right: '#234E73' },
   highlight: { top: 'rgba(255,215,0,0.4)', left: 'rgba(255,215,0,0.2)', right: 'rgba(255,215,0,0.3)', stroke: '#FFD700' },

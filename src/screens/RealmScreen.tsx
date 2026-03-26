@@ -288,11 +288,16 @@ export default function RealmScreen() {
   };
 
   // Handle tap on the SVG canvas area — proper diamond hit-testing
+  // SVG is offset by 100px in both axes inside the container
+  const SVG_OFFSET = 100;
   const handleMapPress = useCallback((event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
+    // Subtract the SVG offset since the SVG sits at (100,100) within the container
+    const svgX = locationX - SVG_OFFSET;
+    const svgY = locationY - SVG_OFFSET;
 
     // First pass: use screenToGrid to get approximate cell
-    const { row: rawRow, col: rawCol } = screenToGrid(locationX, locationY, TOTAL_GRID);
+    const { row: rawRow, col: rawCol } = screenToGrid(svgX, svgY, TOTAL_GRID);
     const approxRow = rawRow - BORDER_SIZE;
     const approxCol = rawCol - BORDER_SIZE;
 
@@ -307,7 +312,7 @@ export default function RealmScreen() {
         const testCol = approxCol + dc;
         if (testRow < 0 || testRow >= GRID_SIZE || testCol < 0 || testCol >= GRID_SIZE) continue;
         const { x, y } = gridToScreen(testRow + BORDER_SIZE, testCol + BORDER_SIZE, TOTAL_GRID);
-        if (isTapInDiamond(locationX, locationY, x, y)) {
+        if (isTapInDiamond(svgX, svgY, x, y)) {
           bestRow = testRow;
           bestCol = testCol;
           found = true;
@@ -433,19 +438,19 @@ export default function RealmScreen() {
       >
         <View
           ref={svgContainerRef}
-          style={{ width: CANVAS_W, height: CANVAS_H, position: 'relative' }}
+          style={{ width: CANVAS_W + 200, height: CANVAS_H + 200, position: 'relative' }}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => false}
           onResponderRelease={handleMapPress}
         >
           {/* Pre-rendered 3D forest background (behind SVG grid) */}
           <ForestParallax
-            canvasWidth={CANVAS_W}
-            canvasHeight={CANVAS_H}
+            canvasWidth={CANVAS_W + 200}
+            canvasHeight={CANVAS_H + 200}
             scrollX={parallaxScrollX}
             scrollY={parallaxScrollY}
           />
-          <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} style={{ position: 'absolute', top: 0, left: 0 }}>
+          <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} style={{ position: 'absolute', top: 100, left: 100 }}>
             {/* Game grid tiles, buildings, obstacles — NO forest border tiles */}
             {renderGridTiles}
           </Svg>
