@@ -20,6 +20,7 @@ import GrillComponent from './Grill';
 import SalesCounterComponent from './SalesCounter';
 import FloatingTextLayer from './FloatingText';
 import Snowflakes from './Snowflakes';
+import UpgradeField from './UpgradeField';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -200,6 +201,11 @@ export default function GameWorld({ state }: Props) {
         customers={customers}
         tick={tickCount}
       />
+
+      {/* Upgrade fields */}
+      {state.upgrades.filter(u => u.currentLevel < u.maxLevel).map(upg => (
+        <UpgradeField key={upg.id} upgrade={upg} tick={tickCount} />
+      ))}
 
       {/* Dropped items */}
       {droppedItems.map(item => (
