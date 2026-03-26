@@ -41,6 +41,7 @@ import WaveResultSheet from '../components/WaveResultSheet';
 import WaveDetailSheet from '../components/WaveDetailSheet';
 import EggHatchModal from '../components/EggHatchModal';
 import DragonUnlockModal from '../components/DragonUnlockModal';
+import DefenseDashboardModal from '../components/DefenseDashboardModal';
 import { MONSTER_CONFIGS } from '../config/EntityConfig';
 import { waveService } from '../services/WaveService';
 import { Trophy } from '../models/types';
@@ -92,6 +93,7 @@ export default function RealmScreen() {
   const [showBuildMenu, setShowBuildMenu] = useState(false);
   const [showWorkers, setShowWorkers] = useState(false);
   const [showRegistry, setShowRegistry] = useState(false);
+  const [showDefense, setShowDefense] = useState(false);
   const [buildPlacementMode, setBuildPlacementMode] = useState<BuildingType | null>(null);
   const [selectedObstacle, setSelectedObstacle] = useState<Obstacle | null>(null);
   const [selectedResource, setSelectedResource] = useState<ResourceKey | null>(null);
@@ -359,6 +361,10 @@ export default function RealmScreen() {
             <Ionicons name="download-outline" size={28} color="#00C853" />
             <Text style={styles.hudBtnLabel}>{t('hud.collect')}</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.hudBtn} onPress={() => setShowDefense(true)}>
+            <Ionicons name="shield-checkmark" size={28} color="#E879F9" />
+            <Text style={styles.hudBtnLabel}>{t('hud.defense')}</Text>
+          </TouchableOpacity>
         </View>
         {activeZone && activeZone.explorationEndDate && (
           <ExplorationTimer endDate={activeZone.explorationEndDate} />
@@ -487,6 +493,12 @@ export default function RealmScreen() {
         onClose={clearPendingDragonUnlock}
       />
 
+      {/* Defense Dashboard Modal */}
+      <DefenseDashboardModal
+        visible={showDefense}
+        onClose={() => setShowDefense(false)}
+      />
+
       {/* Nothing-to-collect toast */}
       {toastMessage && (
         <View style={styles.toast} pointerEvents="none">
@@ -495,6 +507,19 @@ export default function RealmScreen() {
       )}
     </View>
   );
+}
+
+// MARK: - Color helpers
+/**
+ * Expands shorthand 3-digit hex (#RGB) to 6-digit (#RRGGBB).
+ * Required before appending a 2-char alpha suffix, because Reanimated
+ * only accepts #RRGGBB (7 chars) or #RRGGBBAA (9 chars) — never #RGBA (5/7 chars).
+ */
+function toFullHex(color: string): string {
+  if (/^#[0-9a-fA-F]{3}$/.test(color)) {
+    return '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
+  }
+  return color;
 }
 
 // MARK: - Construction countdown helper (uses shared formatDuration)
@@ -507,8 +532,9 @@ function fmtConstructionTime(endsAt: number | null): string | null {
 
 // MARK: - Building Cell
 function BuildingCell({ building, isHighlighted, idx, assignedAnimal }: { building: Building; isHighlighted?: boolean; idx: number; assignedAnimal?: import('../models/types').Animal | null }) {
-  const cfg   = CELL_CFG[building.type] ?? { icon: 'help-circle', color: '#888' };
-  const color = building.isDecayed ? '#555' : cfg.color;
+  const cfg      = CELL_CFG[building.type] ?? { icon: 'help-circle', color: '#888888' };
+  const rawColor = building.isDecayed ? '#555555' : cfg.color;
+  const color    = toFullHex(rawColor); // ensure 6-digit hex before appending alpha
   const LEVEL_COLORS: Record<number, string> = { 1:'#9E9E9E', 2:'#66BB6A', 3:'#42A5F5', 4:'#AB47BC', 5:'#FFD54F' };
   const damageEffects = useGameStore(s => s.gameState.damageEffects);
   const hasDamage = damageEffects.some(e => e.buildingId === building.id && e.endsAt > Date.now());
@@ -1058,7 +1084,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4, paddingHorizontal: 8,
     width: '100%',
   },
-  hudBtn: { alignItems: 'center', paddingVertical: 12, paddingHorizontal: 24 },
+  hudBtn: { alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14 },
   hudBtnLabel: { fontSize: 12, color: '#fff', marginTop: 4 },
   resourceBar: { gap: 6 },
 
