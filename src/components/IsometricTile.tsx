@@ -1,0 +1,52 @@
+// IsometricTile.tsx
+// FitRealm - A single isometric diamond tile rendered via react-native-svg
+
+import React from 'react';
+import { Polygon } from 'react-native-svg';
+import { TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
+
+type TileVariant = 'grass' | 'path' | 'water' | 'highlight';
+
+interface Props {
+  x: number;
+  y: number;
+  variant: TileVariant;
+}
+
+const TILE_COLORS: Record<TileVariant, { top: string; left: string; right: string; stroke?: string }> = {
+  grass:     { top: '#4A7C3F', left: '#2D5A1B', right: '#3A6B2A' },
+  path:      { top: '#C4A96B', left: '#8B7044', right: '#A08050' },
+  water:     { top: '#2C5F8A', left: '#1A3D5C', right: '#234E73' },
+  highlight: { top: 'rgba(255,215,0,0.4)', left: 'rgba(255,215,0,0.2)', right: 'rgba(255,215,0,0.3)', stroke: '#FFD700' },
+};
+
+function IsometricTileInner({ x, y, variant }: Props) {
+  const hw = TILE_W / 2; // 48
+  const hh = TILE_H / 2; // 24
+  const colors = TILE_COLORS[variant];
+
+  // Top face diamond: top, right, bottom, left
+  const topFace = `${x},${y + hh} ${x + hw},${y} ${x + TILE_W},${y + hh} ${x + hw},${y + TILE_H}`;
+
+  // Left side face
+  const leftFace = `${x},${y + hh} ${x + hw},${y + TILE_H} ${x + hw},${y + TILE_H + TILE_DEPTH} ${x},${y + hh + TILE_DEPTH}`;
+
+  // Right side face
+  const rightFace = `${x + hw},${y + TILE_H} ${x + TILE_W},${y + hh} ${x + TILE_W},${y + hh + TILE_DEPTH} ${x + hw},${y + TILE_H + TILE_DEPTH}`;
+
+  return (
+    <>
+      <Polygon points={leftFace} fill={colors.left} />
+      <Polygon points={rightFace} fill={colors.right} />
+      <Polygon
+        points={topFace}
+        fill={colors.top}
+        stroke={colors.stroke ?? 'rgba(0,0,0,0.1)'}
+        strokeWidth={colors.stroke ? 1.5 : 0.5}
+      />
+    </>
+  );
+}
+
+const IsometricTile = React.memo(IsometricTileInner);
+export default IsometricTile;

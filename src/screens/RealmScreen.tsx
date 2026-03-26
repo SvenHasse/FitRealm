@@ -1,15 +1,17 @@
 // RealmScreen.tsx
-// FitRealm - Realm tab: scrollable world map with HUD overlay and sheets
+// FitRealm - Realm tab: isometric 2.5D world map with HUD overlay and sheets
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal,
   Dimensions, LayoutAnimation, UIManager, Platform, Alert,
+  GestureResponderEvent,
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle,
   withSequence, withTiming, withRepeat, withDelay, Easing,
 } from 'react-native-reanimated';
+import Svg, { Polygon, G, Text as SvgText, Rect, Circle } from 'react-native-svg';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android') {
@@ -28,6 +30,10 @@ import {
 import { WorldConstants } from '../config/GameConfig';
 import { canBuild } from '../engines/GameEngine';
 import { formatDuration } from '../utils/formatDuration';
+import { gridToScreen, screenToGrid, getGridPixelSize, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
+import IsometricTile from '../components/IsometricTile';
+import IsometricBuilding from '../components/IsometricBuilding';
+import IsometricForest from '../components/IsometricForest';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
 import WorkerSheet from '../components/WorkerSheet';
@@ -46,23 +52,15 @@ import { MONSTER_CONFIGS } from '../config/EntityConfig';
 import { waveService } from '../services/WaveService';
 import { Trophy } from '../models/types';
 
-const CELL_SIZE = 70;
-const GRID_SIZE = WorldConstants.gridSize;
+const GRID_SIZE = WorldConstants.gridSize; // 15
+const BORDER_SIZE = 3;
+const TOTAL_GRID = GRID_SIZE + BORDER_SIZE * 2; // 21
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const PLAYFIELD_SIZE = GRID_SIZE * CELL_SIZE;
 
-// ── Seeded LCG for deterministic grass texture (doesn't change on re-render) ──
-function makeLCG(seed: number) {
-  let s = seed >>> 0;
-  return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0x100000000; };
-}
-interface GrassPatch { x: number; y: number; w: number; h: number; dark: boolean; rotation: number }
-const _gr = makeLCG(0xBEEFCAFE);
-const GRASS_PATCHES: GrassPatch[] = Array.from({ length: 36 }, () => ({
-  x: _gr() * PLAYFIELD_SIZE, y: _gr() * PLAYFIELD_SIZE,
-  w: 20 + _gr() * 40,        h: 10 + _gr() * 25,
-  dark: _gr() > 0.5,         rotation: _gr() * 360,
-}));
+// Total pixel dimensions of the isometric canvas
+const CANVAS_SIZE = getGridPixelSize(TOTAL_GRID);
+const CANVAS_W = CANVAS_SIZE.width;
+const CANVAS_H = CANVAS_SIZE.height;
 
 // ── Per-building visual config for the map cells ──────────────────────────────
 const CELL_CFG: Record<string, { icon: string; color: string }> = {
@@ -82,6 +80,105 @@ const CELL_CFG: Record<string, { icon: string; color: string }> = {
   stammeshaus:  { icon: 'account-group', color: '#2196F3' },
   stall:        { icon: 'paw',           color: '#C4934A' },
 };
+
+// ── Obstacle SVG rendering ──────────────────────────────────────────────────
+function ObstacleSvg({ x, y, type, isClearing }: { x: number; y: number; type: string; isClearing: boolean }) {
+  const hw = TILE_W / 2;
+  const hh = TILE_H / 2;
+  const cx = x + hw;
+  const baseY = y + hh;
+  const opacity = isClearing ? 0.5 : 1;
+
+  switch (type) {
+    case 'smallRock':
+      return (
+        <G opacity={opacity}>
+          <Polygon points={`${cx - 8},${baseY} ${cx},${baseY - 5} ${cx + 8},${baseY} ${cx},${baseY + 5}`} fill="#5A6050" />
+          <Polygon points={`${cx - 8},${baseY} ${cx},${baseY + 5} ${cx},${baseY + 9} ${cx - 8},${baseY + 4}`} fill="#3A4040" />
+          <Polygon points={`${cx},${baseY + 5} ${cx + 8},${baseY} ${cx + 8},${baseY + 4} ${cx},${baseY + 9}`} fill="#4A5048" />
+        </G>
+      );
+    case 'branch':
+      return (
+        <G opacity={opacity}>
+          <Rect x={cx - 14} y={baseY - 6} width={28} height={3} rx={1.5} fill="#6B4A22" transform={`rotate(-8,${cx},${baseY})`} />
+          <Rect x={cx - 10} y={baseY - 1} width={22} height={3} rx={1.5} fill="#7B5A32" transform={`rotate(5,${cx},${baseY})`} />
+          <Rect x={cx - 8} y={baseY + 4} width={18} height={3} rx={1.5} fill="#5C3D1E" transform={`rotate(-12,${cx},${baseY})`} />
+        </G>
+      );
+    case 'mushrooms':
+      return (
+        <G opacity={opacity}>
+          <Rect x={cx - 4} y={baseY - 6} width={4} height={6} fill="#EEE8D5" />
+          <Rect x={cx + 3} y={baseY - 4} width={3} height={5} fill="#EEE8D5" />
+          <Circle cx={cx - 2} cy={baseY - 10} r={6} fill="#CC3333" />
+          <Circle cx={cx + 5} cy={baseY - 8} r={5} fill="#E53935" />
+          <Circle cx={cx - 4} cy={baseY - 12} r={1.5} fill="rgba(255,255,255,0.5)" />
+        </G>
+      );
+    case 'largeTree':
+      return (
+        <G opacity={opacity}>
+          <Rect x={cx - 3} y={baseY - 12} width={6} height={12} fill="#4A2E10" />
+          <Circle cx={cx} cy={baseY - 22} r={14} fill="#1A5010" />
+          <Circle cx={cx} cy={baseY - 26} r={10} fill="#226A14" />
+          <Circle cx={cx} cy={baseY - 30} r={7} fill="#2A7A1A" />
+        </G>
+      );
+    case 'deadTree':
+      return (
+        <G opacity={opacity}>
+          <Rect x={cx - 2} y={baseY - 18} width={5} height={18} fill="#4A3A28" />
+          <Rect x={cx + 3} y={baseY - 14} width={8} height={3} rx={1.5} fill="#4A3A28" transform={`rotate(30,${cx + 3},${baseY - 14})`} />
+          <Circle cx={cx} cy={baseY - 22} r={8} fill="#3A3328" />
+          <Circle cx={cx} cy={baseY - 26} r={6} fill="#4A4038" />
+        </G>
+      );
+    case 'boulder':
+      return (
+        <G opacity={opacity}>
+          <Polygon points={`${cx - 12},${baseY} ${cx},${baseY - 8} ${cx + 12},${baseY} ${cx},${baseY + 8}`} fill="#607060" />
+          <Polygon points={`${cx - 12},${baseY} ${cx},${baseY + 8} ${cx},${baseY + 14} ${cx - 12},${baseY + 6}`} fill="#404840" />
+          <Polygon points={`${cx},${baseY + 8} ${cx + 12},${baseY} ${cx + 12},${baseY + 6} ${cx},${baseY + 14}`} fill="#506050" />
+        </G>
+      );
+    default:
+      return (
+        <Circle cx={cx} cy={baseY} r={8} fill="#888" opacity={opacity} />
+      );
+  }
+}
+
+// ── Trophy SVG ───────────────────────────────────────────────────────────────
+function TrophySvg({ x, y, emoji }: { x: number; y: number; emoji: string }) {
+  const hw = TILE_W / 2;
+  const hh = TILE_H / 2;
+  return (
+    <SvgText
+      x={x + hw}
+      y={y + hh}
+      fontSize={22}
+      textAnchor="middle"
+      alignmentBaseline="central"
+    >
+      {emoji}
+    </SvgText>
+  );
+}
+
+// ── Placement indicator (plus sign on empty tiles) ───────────────────────────
+function PlacementIndicator({ x, y }: { x: number; y: number }) {
+  const hw = TILE_W / 2;
+  const hh = TILE_H / 2;
+  const cx = x + hw;
+  const cy = y + hh;
+  return (
+    <G>
+      <Rect x={cx - 1} y={cy - 6} width={2} height={12} fill="rgba(76,175,80,0.6)" />
+      <Rect x={cx - 6} y={cy - 1} width={12} height={2} fill="rgba(76,175,80,0.6)" />
+    </G>
+  );
+}
 
 export default function RealmScreen() {
   const store = useGameStore();
@@ -111,9 +208,11 @@ export default function RealmScreen() {
   const activeWave = gameState.activeWave;
   const [placingTrophy, setPlacingTrophy] = useState<Trophy | null>(null);
 
-  // Scroll refs for map navigation
-  const hScrollRef = useRef<ScrollView>(null);
-  const vScrollRef = useRef<ScrollView>(null);
+  // Scroll ref for map navigation
+  const scrollRef = useRef<ScrollView>(null);
+  // Track the SVG container layout position for touch conversion
+  const svgLayoutRef = useRef({ pageX: 0, pageY: 0 });
+  const svgContainerRef = useRef<View>(null);
 
   useEffect(() => {
     store.processTick();
@@ -129,10 +228,10 @@ export default function RealmScreen() {
 
   // Scroll map so the building sits roughly at viewport centre
   const scrollToBuilding = useCallback((row: number, col: number) => {
-    const x = Math.max(0, col * CELL_SIZE + 20 - SCREEN_W / 2 + CELL_SIZE / 2);
-    const y = Math.max(0, row * CELL_SIZE + 20 - SCREEN_H / 2 + CELL_SIZE / 2);
-    hScrollRef.current?.scrollTo({ x, animated: true });
-    vScrollRef.current?.scrollTo({ y, animated: true });
+    const { x, y } = gridToScreen(row + BORDER_SIZE, col + BORDER_SIZE, TOTAL_GRID);
+    const scrollX = Math.max(0, x - SCREEN_W / 2);
+    const scrollY = Math.max(0, y - SCREEN_H / 2);
+    scrollRef.current?.scrollTo({ x: scrollX, y: scrollY, animated: true });
   }, []);
 
   // Called when a building is selected in the registry
@@ -143,6 +242,9 @@ export default function RealmScreen() {
   }, [scrollToBuilding]);
 
   const handleCellPress = (row: number, col: number) => {
+    // Bounds check
+    if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) return;
+
     const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
     if (building) {
       if (building.type === BuildingType.stall && building.level >= 1) {
@@ -156,11 +258,10 @@ export default function RealmScreen() {
     const obstacle = obstacles.find(o => o.row === row && o.col === col && !o.isCleared);
     if (obstacle) { setSelectedObstacle(obstacle); return; }
 
-    // Trophäen-Platzierungs-Modus
+    // Trophy placement mode
     if (placingTrophy) {
-      // Prüfe ob Zelle frei
       const hasTrophy = gameState.trophies.some(
-        t => t.gridPosition?.x === col && t.gridPosition?.y === row,
+        tr => tr.gridPosition?.x === col && tr.gridPosition?.y === row,
       );
       if (!hasTrophy) {
         store.placeTrophy(placingTrophy.id, { x: col, y: row });
@@ -185,67 +286,130 @@ export default function RealmScreen() {
     }
   };
 
+  // Handle tap on the SVG canvas area
+  const handleMapPress = useCallback((event: GestureResponderEvent) => {
+    const { locationX, locationY } = event.nativeEvent;
+    // Convert screen coords to grid coords, accounting for the border offset
+    const { row: rawRow, col: rawCol } = screenToGrid(locationX, locationY, TOTAL_GRID);
+    const row = rawRow - BORDER_SIZE;
+    const col = rawCol - BORDER_SIZE;
+    handleCellPress(row, col);
+  }, [gameState, obstacles, buildPlacementMode, placingTrophy, highlightedBuildingId]);
+
   const activeZone = gameState.zones.find(z => zoneIsExploring(z));
   const isWaveApproaching = activeWave != null && (activeWave.status === 'approaching' || activeWave.status === 'active');
   const currentDefenseVP = store.calculateDefense().totalVP;
   const stallBuilding = gameState.buildings.find(b => b.type === BuildingType.stall && b.level >= 1) ?? null;
 
+  // ── Render isometric grid rows (painter's algorithm: back to front) ─────
+  const renderGridTiles = useMemo(() => {
+    const elements: React.ReactElement[] = [];
+
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        const { x, y } = gridToScreen(row + BORDER_SIZE, col + BORDER_SIZE, TOTAL_GRID);
+        const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
+        const obstacle = obstacles.find(o => o.row === row && o.col === col && !o.isCleared);
+        const isPlacementTarget = (buildPlacementMode != null || placingTrophy != null) && !building && !obstacle;
+        const trophyHere = !building && gameState.trophies.find(
+          tr => tr.gridPosition?.x === col && tr.gridPosition?.y === row,
+        );
+        const isHighlighted = building != null && highlightedBuildingId === building.id;
+
+        // Base tile
+        elements.push(
+          <IsometricTile
+            key={`tile-${row}-${col}`}
+            x={x}
+            y={y}
+            variant={isHighlighted ? 'highlight' : isPlacementTarget ? 'highlight' : 'grass'}
+          />
+        );
+
+        // Building
+        if (building) {
+          elements.push(
+            <IsometricBuilding
+              key={`bld-${row}-${col}`}
+              x={x}
+              y={y}
+              buildingType={building.type}
+              level={building.level}
+              isUnderConstruction={building.isUnderConstruction}
+            />
+          );
+        } else if (obstacle) {
+          elements.push(
+            <ObstacleSvg
+              key={`obs-${row}-${col}`}
+              x={x}
+              y={y}
+              type={obstacle.type}
+              isClearing={obstacle.isClearing}
+            />
+          );
+        } else if (trophyHere) {
+          elements.push(
+            <TrophySvg
+              key={`trophy-${row}-${col}`}
+              x={x}
+              y={y}
+              emoji={trophyHere.emoji}
+            />
+          );
+        } else if (isPlacementTarget) {
+          elements.push(
+            <PlacementIndicator key={`place-${row}-${col}`} x={x} y={y} />
+          );
+        }
+      }
+    }
+
+    return elements;
+  }, [gameState.buildings, gameState.trophies, obstacles, buildPlacementMode, placingTrophy, highlightedBuildingId]);
+
+  // Centre the scroll on initial mount
+  const initialScrollX = Math.max(0, (CANVAS_W - SCREEN_W) / 2);
+  const initialScrollY = Math.max(0, (CANVAS_H - SCREEN_H) / 2);
+
   return (
     <View style={styles.container}>
-      {/* World Map Grid */}
+      {/* World Map — Isometric SVG Canvas */}
       <ScrollView
-        ref={hScrollRef}
+        ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: GRID_SIZE * CELL_SIZE + 40,
-          height: GRID_SIZE * CELL_SIZE + 40,
+          width: CANVAS_W + 40,
+          height: CANVAS_H + 40,
           padding: 20,
         }}
-        horizontal
+        horizontal={false}
         directionalLockEnabled={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        contentOffset={{ x: (GRID_SIZE * CELL_SIZE - SCREEN_W) / 2, y: (GRID_SIZE * CELL_SIZE - SCREEN_H) / 2 }}
+        contentOffset={{ x: initialScrollX, y: initialScrollY }}
+        maximumZoomScale={2}
+        minimumZoomScale={0.5}
+        bouncesZoom
       >
         <ScrollView
-          ref={vScrollRef}
+          horizontal
           nestedScrollEnabled
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE }}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ width: CANVAS_W, height: CANVAS_H }}
         >
-          <View style={[styles.gridContainer, { width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE }]}>
-            {/* Grass base */}
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1A4A0A' }]} />
-            {/* Organic grass texture patches */}
-            {GRASS_PATCHES.map((p, i) => (
-              <View key={`gp${i}`} style={{
-                position: 'absolute', left: p.x, top: p.y,
-                width: p.w, height: p.h,
-                backgroundColor: p.dark ? '#163808' : '#1E5210',
-                borderRadius: p.w / 2, opacity: 0.48,
-                transform: [{ rotate: `${p.rotation}deg` }],
-              }} />
-            ))}
-            {Array.from({ length: GRID_SIZE }, (_, row) =>
-              Array.from({ length: GRID_SIZE }, (_, col) => {
-                const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
-                const obstacle = obstacles.find(o => o.row === row && o.col === col && !o.isCleared);
-                const isPlacementTarget = (buildPlacementMode != null || placingTrophy != null) && !building && !obstacle;
-                const trophyHere = !building && gameState.trophies.find(
-                  t => t.gridPosition?.x === col && t.gridPosition?.y === row,
-                );
-                return (
-                  <TouchableOpacity
-                    key={`${row}-${col}`}
-                    style={[styles.cell, { left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }, isPlacementTarget && styles.placementCell]}
-                    onPress={() => handleCellPress(row, col)}
-                    activeOpacity={0.7}
-                  >
-                    {building ? <BuildingCell building={building} isHighlighted={highlightedBuildingId === building.id} idx={row * GRID_SIZE + col} assignedAnimal={gameState.animals.find(a => a.assignment.type === 'building' && (a.assignment as { type: 'building'; buildingId: string }).buildingId === building.id)} /> : obstacle ? <ObstacleCell obstacle={obstacle} /> : trophyHere ? <Text style={styles.trophyCell}>{trophyHere.emoji}</Text> : isPlacementTarget ? <Ionicons name="add" size={20} color="rgba(76,175,80,0.6)" /> : null}
-                  </TouchableOpacity>
-                );
-              })
-            )}
+          <View
+            ref={svgContainerRef}
+            style={{ width: CANVAS_W, height: CANVAS_H }}
+            onStartShouldSetResponder={() => true}
+            onResponderRelease={handleMapPress}
+          >
+            <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}>
+              {/* Forest border (behind everything) */}
+              <IsometricForest gridSize={GRID_SIZE} borderSize={BORDER_SIZE} />
+              {/* Game grid tiles, buildings, obstacles */}
+              {renderGridTiles}
+            </Svg>
           </View>
         </ScrollView>
       </ScrollView>
@@ -255,7 +419,7 @@ export default function RealmScreen() {
         <View style={styles.dangerOverlay} pointerEvents="none" />
       )}
 
-      {/* Monster-Silhouetten beim approaching */}
+      {/* Monster silhouettes when approaching */}
       {isWaveApproaching && activeWave && (
         <View style={styles.monsterRing} pointerEvents="none">
           {activeWave.monsters.slice(0, 3).map((m, i) => (
@@ -266,7 +430,7 @@ export default function RealmScreen() {
         </View>
       )}
 
-      {/* Trophäen-Platzierungs-Banner */}
+      {/* Trophy placement banner */}
       {placingTrophy && (
         <View style={styles.placementBanner}>
           <Text style={styles.placementText}>
@@ -282,7 +446,7 @@ export default function RealmScreen() {
       <View style={styles.hudTop}>
         <TopResourceBar onResourcePress={setSelectedResource} />
 
-        {/* Mauer-HP-Leiste */}
+        {/* Wall HP bar */}
         {gameState.wallHP && gameState.wallHP.max > 0 && (() => {
           const pct = gameState.wallHP.current / gameState.wallHP.max;
           const hpColor = pct > 0.5 ? '#4CAF50' : pct > 0.25 ? '#FF9800' : '#F44336';
@@ -296,8 +460,7 @@ export default function RealmScreen() {
                 const mauerBuilding = gameState.buildings.find(b => b.type === 'mauer' && b.level >= 1 && !b.isUnderConstruction);
                 if (!mauerBuilding) return;
                 const repairCost = Math.ceil(missingHP * 20 / gameState.wallHP.max * mauerBuilding.level);
-                const { Alert: RNAlert } = require('react-native');
-                RNAlert.alert(
+                Alert.alert(
                   'Mauer reparieren',
                   `Reparaturkosten: ${repairCost} Holz\nAktuell: ${Math.floor(gameState.wood)} Holz`,
                   [
@@ -308,7 +471,7 @@ export default function RealmScreen() {
                         if (gameState.wood >= repairCost) {
                           store.repairWall();
                         } else {
-                          RNAlert.alert('Nicht genug Holz', `Du brauchst ${repairCost} Holz.`);
+                          Alert.alert('Nicht genug Holz', `Du brauchst ${repairCost} Holz.`);
                         }
                       },
                     },
@@ -318,7 +481,7 @@ export default function RealmScreen() {
             >
               <Text style={styles.wallHPLabel}>🧱</Text>
               <View style={styles.wallHPTrack}>
-                <View style={[styles.wallHPFill, { width: `${pct * 100}%` as any, backgroundColor: hpColor }]} />
+                <View style={[styles.wallHPFill, { width: `${pct * 100}%` as unknown as number, backgroundColor: hpColor }]} />
               </View>
               <Text style={styles.wallHPText}>{gameState.wallHP.current}/{gameState.wallHP.max}</Text>
             </TouchableOpacity>
@@ -437,6 +600,7 @@ export default function RealmScreen() {
           </View>
         </View>
       </Modal>
+
       {/* Resource Info Modal */}
       <ResourceInfoModal resource={selectedResource} onClose={() => setSelectedResource(null)} />
 
@@ -510,11 +674,6 @@ export default function RealmScreen() {
 }
 
 // MARK: - Color helpers
-/**
- * Expands shorthand 3-digit hex (#RGB) to 6-digit (#RRGGBB).
- * Required before appending a 2-char alpha suffix, because Reanimated
- * only accepts #RRGGBB (7 chars) or #RRGGBBAA (9 chars) — never #RGBA (5/7 chars).
- */
 function toFullHex(color: string): string {
   if (/^#[0-9a-fA-F]{3}$/.test(color)) {
     return '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
@@ -522,229 +681,12 @@ function toFullHex(color: string): string {
   return color;
 }
 
-// MARK: - Construction countdown helper (uses shared formatDuration)
+// MARK: - Construction countdown helper
 function fmtConstructionTime(endsAt: number | null): string | null {
   if (!endsAt) return null;
   const rem = Math.max(0, (endsAt - Date.now()) / 1000);
   if (rem <= 0) return null;
   return formatDuration(Math.floor(rem));
-}
-
-// MARK: - Building Cell
-function BuildingCell({ building, isHighlighted, idx, assignedAnimal }: { building: Building; isHighlighted?: boolean; idx: number; assignedAnimal?: import('../models/types').Animal | null }) {
-  const cfg      = CELL_CFG[building.type] ?? { icon: 'help-circle', color: '#888888' };
-  const rawColor = building.isDecayed ? '#555555' : cfg.color;
-  const color    = toFullHex(rawColor); // ensure 6-digit hex before appending alpha
-  const LEVEL_COLORS: Record<number, string> = { 1:'#9E9E9E', 2:'#66BB6A', 3:'#42A5F5', 4:'#AB47BC', 5:'#FFD54F' };
-  const damageEffects = useGameStore(s => s.gameState.damageEffects);
-  const hasDamage = damageEffects.some(e => e.buildingId === building.id && e.endsAt > Date.now());
-  const damagePulse = useSharedValue(1);
-  useEffect(() => {
-    if (hasDamage) {
-      damagePulse.value = withRepeat(
-        withSequence(
-          withTiming(0.3, { duration: 600 }),
-          withTiming(1.0, { duration: 600 }),
-        ),
-        -1,
-        false,
-      );
-    } else {
-      damagePulse.value = 1;
-    }
-  }, [hasDamage]);
-  const damagePulseStyle = useAnimatedStyle(() => ({ opacity: damagePulse.value }));
-
-  // Highlight pulse
-  const hiScale = useSharedValue(1);
-  useEffect(() => {
-    if (isHighlighted) {
-      hiScale.value = withSequence(
-        withTiming(1.15, { duration: 370, easing: Easing.out(Easing.cubic) }),
-        withTiming(1.0,  { duration: 370, easing: Easing.in(Easing.cubic) }),
-        withTiming(1.15, { duration: 370 }),
-        withTiming(1.0,  { duration: 370 }),
-      );
-    }
-  }, [isHighlighted]);
-
-  // Idle breathing — staggered by position so buildings don't all pulse together
-  const breath = useSharedValue(1);
-  useEffect(() => {
-    breath.value = withDelay(
-      (idx % 12) * 300,
-      withRepeat(
-        withSequence(
-          withTiming(1.03, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.00, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1, false,
-      ),
-    );
-  }, []);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: hiScale.value * breath.value }],
-  }));
-
-  const bounce = useSharedValue(0);
-  useEffect(() => {
-    if (assignedAnimal) {
-      bounce.value = withRepeat(
-        withSequence(
-          withTiming(-2, { duration: 900, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0,  { duration: 900, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1, false,
-      );
-    }
-  }, [assignedAnimal?.id]);
-  const bounceStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: bounce.value }],
-  }));
-
-  // Construction countdown (updates every 10 s)
-  const [countdown, setCountdown] = useState(() => fmtConstructionTime(building.constructionEndsAt));
-  useEffect(() => {
-    if (!building.isUnderConstruction) return;
-    setCountdown(fmtConstructionTime(building.constructionEndsAt));
-    const id = setInterval(() => setCountdown(fmtConstructionTime(building.constructionEndsAt)), 10000);
-    return () => clearInterval(id);
-  }, [building.isUnderConstruction, building.constructionEndsAt]);
-
-  if (building.isUnderConstruction) {
-    return (
-      <Animated.View style={[styles.buildingCard, animStyle, {
-        backgroundColor: `${AppColors.gold}18`, borderColor: `${AppColors.gold}60`,
-        shadowColor: AppColors.gold,
-      }]}>
-        <MaterialCommunityIcons name={'hammer-wrench' as any} size={26} color={AppColors.gold} />
-        <View style={[styles.levelPill, { backgroundColor: AppColors.gold }]}>
-          <Text style={styles.levelPillText}>L{building.targetLevel}</Text>
-        </View>
-        {countdown !== null && (
-          <View style={[styles.resourceBubble, { backgroundColor: 'rgba(0,0,0,0.65)' }]}>
-            <Text style={[styles.resourceBubbleText, { color: AppColors.gold }]}>{countdown}</Text>
-          </View>
-        )}
-      </Animated.View>
-    );
-  }
-
-  return (
-    <Animated.View style={[
-      styles.buildingCard, animStyle,
-      { backgroundColor: `${color}20`, borderColor: `${color}55`, shadowColor: color },
-      isHighlighted && styles.highlightedCell,
-    ]}>
-      <MaterialCommunityIcons name={cfg.icon as any} size={28} color={color} />
-      {/* Level pill — bottom-right */}
-      <View style={[styles.levelPill, { backgroundColor: LEVEL_COLORS[building.level] ?? '#9E9E9E' }]}>
-        <Text style={styles.levelPillText}>L{building.level}</Text>
-      </View>
-      {/* Storage bubble — bottom-left */}
-      {building.currentStorage > 0 && (
-        <View style={styles.resourceBubble}>
-          <Text style={styles.resourceBubbleText}>{Math.floor(building.currentStorage)}</Text>
-        </View>
-      )}
-      {assignedAnimal && (
-        <Animated.View style={[styles.animalSprite, bounceStyle]} pointerEvents="none">
-          <AnimalRenderer type={assignedAnimal.type} size={20} />
-        </Animated.View>
-      )}
-      {hasDamage && (
-        <Animated.View style={[styles.damageIndicator, damagePulseStyle]} pointerEvents="none">
-          <Text style={styles.damageIndicatorText}>!</Text>
-        </Animated.View>
-      )}
-    </Animated.View>
-  );
-}
-
-// MARK: - Obstacle Cell
-function ObstacleCell({ obstacle }: { obstacle: Obstacle }) {
-  let visual: React.ReactElement;
-
-  switch (obstacle.type) {
-    case 'smallRock':
-      visual = (
-        <View style={{ width:28, height:20, backgroundColor:'#5A6050', borderRadius:6,
-          borderTopWidth:2, borderTopColor:'#7A8070', borderBottomWidth:2, borderBottomColor:'#3A4040' }}>
-          <View style={{ position:'absolute', top:4, left:6, width:10, height:6,
-            backgroundColor:'rgba(255,255,255,0.08)', borderRadius:3 }} />
-        </View>
-      );
-      break;
-    case 'branch':
-      visual = (
-        <View style={{ width:36, height:20 }}>
-          <View style={{ position:'absolute', width:28, height:3, backgroundColor:'#6B4A22',
-            borderRadius:2, top:4,  left:2, transform:[{rotate:'-8deg'}] }} />
-          <View style={{ position:'absolute', width:22, height:3, backgroundColor:'#7B5A32',
-            borderRadius:2, top:10, left:6, transform:[{rotate:'5deg'}] }} />
-          <View style={{ position:'absolute', width:18, height:3, backgroundColor:'#5C3D1E',
-            borderRadius:2, top:16, left:4, transform:[{rotate:'-12deg'}] }} />
-        </View>
-      );
-      break;
-    case 'mushrooms':
-      visual = (
-        <View style={{ alignItems:'center', width:30, height:26 }}>
-          <View style={{ position:'absolute', bottom:0, left:7,  width:5, height:8, backgroundColor:'#EEE8D5', borderRadius:2 }} />
-          <View style={{ position:'absolute', bottom:0, left:18, width:4, height:6, backgroundColor:'#EEE8D5', borderRadius:2 }} />
-          <View style={{ position:'absolute', top:2,  left:2,  width:16, height:12, borderRadius:8, backgroundColor:'#CC3333' }} />
-          <View style={{ position:'absolute', top:4,  left:16, width:13, height:10, borderRadius:7, backgroundColor:'#E53935' }} />
-          <View style={{ position:'absolute', top:1,  left:5,  width:3,  height:3,  borderRadius:2, backgroundColor:'rgba(255,255,255,0.5)' }} />
-        </View>
-      );
-      break;
-    case 'largeTree':
-      visual = (
-        <View style={{ alignItems:'center', width:34, height:38 }}>
-          <View style={{ position:'absolute', bottom:0, width:6, height:12, backgroundColor:'#4A2E10', borderRadius:2 }} />
-          <View style={{ position:'absolute', top:10, width:30, height:24, borderRadius:15, backgroundColor:'#1A5010' }} />
-          <View style={{ position:'absolute', top:4,  width:24, height:20, borderRadius:12, backgroundColor:'#226A14' }} />
-          <View style={{ position:'absolute', top:0,  width:18, height:16, borderRadius:9,  backgroundColor:'#2A7A1A' }} />
-        </View>
-      );
-      break;
-    case 'deadTree':
-      visual = (
-        <View style={{ alignItems:'center', width:30, height:38 }}>
-          <View style={{ position:'absolute', bottom:0, width:5, height:20, backgroundColor:'#4A3A28', borderRadius:2 }} />
-          <View style={{ position:'absolute', top:6,  width:22, height:16, borderRadius:8, backgroundColor:'#3A3328' }} />
-          <View style={{ position:'absolute', top:2,  width:16, height:13, borderRadius:6, backgroundColor:'#4A4038' }} />
-          <View style={{ position:'absolute', top:4, left:20, width:8, height:3, backgroundColor:'#4A3A28', borderRadius:2, transform:[{rotate:'30deg'}] }} />
-        </View>
-      );
-      break;
-    case 'boulder':
-      visual = (
-        <View>
-          <View style={{ width:32, height:26, backgroundColor:'#607060', borderRadius:10,
-            borderTopWidth:2, borderTopColor:'#808870', borderBottomWidth:2, borderBottomColor:'#404840' }} />
-          <View style={{ position:'absolute', top:5, left:6, width:12, height:7,
-            backgroundColor:'rgba(255,255,255,0.07)', borderRadius:4 }} />
-          <View style={{ position:'absolute', top:13, left:16, width:8, height:5,
-            backgroundColor:'rgba(0,0,0,0.15)', borderRadius:3 }} />
-        </View>
-      );
-      break;
-    default:
-      visual = <Ionicons name="help-circle" size={24} color="#888" />;
-  }
-
-  return (
-    <View style={{ alignItems:'center', justifyContent:'center', opacity: obstacle.isClearing ? 0.5 : 1 }}>
-      {visual}
-      {obstacle.isClearing && (
-        <View style={{ position:'absolute' }}>
-          <Ionicons name="cog" size={14} color="rgba(255,255,255,0.85)" />
-        </View>
-      )}
-    </View>
-  );
 }
 
 // MARK: - Number formatting
@@ -771,7 +713,6 @@ function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey)
     setCollapsed(c => !c);
   };
 
-  // Warning colours for collapsed icon strip
   const woodRatio  = cap.wood  > 0 && cap.wood  !== Infinity ? gs.wood  / cap.wood  : 0;
   const stoneRatio = cap.stone > 0 && cap.stone !== Infinity ? gs.stone / cap.stone : 0;
   const foodRatio  = cap.food  > 0 && cap.food  !== Infinity ? gs.food  / cap.food  : 0;
@@ -782,13 +723,11 @@ function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey)
   if (collapsed) {
     return (
       <TouchableOpacity style={styles.collapsedPill} onPress={toggle} activeOpacity={0.8}>
-        {/* Currencies */}
         <View style={styles.collapsedIconGroup}>
           <Ionicons name="barbell" size={18} color={AppColors.gold} />
           <MaterialCommunityIcons name="diamond-stone" size={18} color="#00BCD4" />
         </View>
         <View style={styles.collapsedSep} />
-        {/* Resources */}
         <View style={styles.collapsedIconGroup}>
           <Ionicons name="hammer" size={18} color={woodColor} />
           <Ionicons name="cube"   size={18} color={stoneColor} />
@@ -801,7 +740,6 @@ function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey)
 
   return (
     <View style={styles.resourceBar}>
-      {/* ── Currency Card: Muskelmasse + Protein ── */}
       <View style={styles.currencyCard}>
         <TouchableOpacity style={styles.currencySlot} onPress={() => onResourcePress('muskelmasse')} activeOpacity={0.75}>
           <View style={styles.currencyIconWrap}>
@@ -825,13 +763,11 @@ function TopResourceBar({ onResourcePress }: { onResourcePress: (r: ResourceKey)
           </View>
         </TouchableOpacity>
 
-        {/* Collapse button */}
         <TouchableOpacity onPress={toggle} style={styles.collapseBtn} activeOpacity={0.6}>
           <Ionicons name="chevron-up" size={14} color="rgba(255,255,255,0.35)" />
         </TouchableOpacity>
       </View>
 
-      {/* ── Resource Bars: Holz / Stein / Nahrung ── */}
       <View style={styles.resourceBarsCard}>
         <ResourceBarRow
           icon="hammer" iconColor="#A0826D" label={t('hud.holz')}
@@ -861,7 +797,7 @@ interface ResourceBarRowProps {
   iconColor: string;
   label: string;
   current: number;
-  max: number;      // 0 = uncapped / unknown
+  max: number;
   onPress: () => void;
   lang: string;
 }
@@ -872,7 +808,6 @@ function ResourceBarRow({ icon, iconColor, label, current, max, onPress, lang }:
   const isFull   = hasCap && ratio >= 1.0;
   const isAlmost = hasCap && ratio >= 0.8 && !isFull;
 
-  // Animate bar fill width via onLayout container width
   const [containerW, setContainerW] = useState(0);
   const fillAnim   = useSharedValue(0);
   const glowAnim   = useSharedValue(0);
@@ -881,7 +816,6 @@ function ResourceBarRow({ icon, iconColor, label, current, max, onPress, lang }:
     fillAnim.value = withTiming(ratio, { duration: 700, easing: Easing.out(Easing.cubic) });
   }, [ratio]);
 
-  // Pulse glow when almost full or full
   useEffect(() => {
     if (isFull || isAlmost) {
       glowAnim.value = withRepeat(
@@ -903,35 +837,25 @@ function ResourceBarRow({ icon, iconColor, label, current, max, onPress, lang }:
   }));
 
   const barColor   = isFull ? '#FF5252' : isAlmost ? '#FF9800' : iconColor;
-  const maxStr     = hasCap ? fmtNum(max, lang) : '∞';
+  const maxStr     = hasCap ? fmtNum(max, lang) : '\u221E';
   const currentStr = fmtNum(current, lang);
 
   return (
     <TouchableOpacity style={styles.barRow} onPress={onPress} activeOpacity={0.7}>
-      {/* Icon */}
       <View style={[styles.barIconWrap, { backgroundColor: `${iconColor}22` }]}>
-        <Ionicons name={icon as any} size={13} color={iconColor} />
+        <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={13} color={iconColor} />
       </View>
-
-      {/* Label */}
       <Text style={styles.barLabel}>{label}</Text>
-
-      {/* Progress track */}
       <View
         style={styles.barTrack}
         onLayout={e => setContainerW(e.nativeEvent.layout.width)}
       >
-        {/* Background shimmer */}
         <View style={[styles.barTrackBg]} />
-        {/* Fill */}
         <Animated.View style={[styles.barFill, { backgroundColor: barColor }, fillStyle]} />
-        {/* Glow overlay */}
         {(isFull || isAlmost) && (
           <Animated.View style={[styles.barGlow, { backgroundColor: barColor }, glowStyle]} />
         )}
       </View>
-
-      {/* Numbers */}
       <Text style={[styles.barNumbers, isFull && { color: '#FF5252' }, isAlmost && !isFull && { color: '#FF9800' }]}>
         {currentStr}<Text style={styles.barMax}>/{maxStr}</Text>
       </Text>
@@ -1019,62 +943,6 @@ const styles = StyleSheet.create({
     zIndex: 5,
     pointerEvents: 'none',
   },
-  gridContainer: {
-    position: 'relative',
-    borderRadius: 6,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.55, shadowRadius: 14, elevation: 10,
-    overflow: 'hidden',
-  },
-  cell: {
-    position: 'absolute', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.05)',
-  },
-  placementCell: { borderWidth: 1, borderColor: 'rgba(76,175,80,0.45)', borderStyle: 'dashed' },
-  // Building card
-  buildingCard: {
-    width: CELL_SIZE - 8, height: CELL_SIZE - 8,
-    borderRadius: 10, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 6,
-    elevation: 4,
-  },
-  highlightedCell: { borderWidth: 2, borderColor: '#F5A623', borderRadius: 10 },
-  levelPill: {
-    position: 'absolute', bottom: 3, right: 3,
-    borderRadius: 5, paddingHorizontal: 4, paddingVertical: 1,
-  },
-  levelPillText: { fontSize: 8, color: '#1A0800', fontWeight: 'bold' },
-  resourceBubble: {
-    position: 'absolute', bottom: 2, left: 3,
-    backgroundColor: 'rgba(30,200,80,0.75)',
-    borderRadius: 5, paddingHorizontal: 3, paddingVertical: 1,
-  },
-  resourceBubbleText: { fontSize: 7, fontWeight: 'bold', color: '#fff' },
-  animalSprite: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 10,
-    padding: 1,
-  },
-  damageIndicator: {
-    position: 'absolute',
-    top: 2,
-    left: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#EF5350',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  damageIndicatorText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
   hudTop: { position: 'absolute', top: 50, left: 12, right: 12 },
   hudBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, alignItems: 'center', gap: 6 },
   bottomBar: {
@@ -1088,7 +956,7 @@ const styles = StyleSheet.create({
   hudBtnLabel: { fontSize: 12, color: '#fff', marginTop: 4 },
   resourceBar: { gap: 6 },
 
-  // ── Collapsed pill ─────────────────────────────────────────────────────────
+  // Collapsed pill
   collapsedPill: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(20,20,40,0.95)',
@@ -1100,7 +968,7 @@ const styles = StyleSheet.create({
   collapsedIconGroup: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   collapsedSep: { width: 1, height: 18, backgroundColor: 'rgba(255,255,255,0.12)' },
 
-  // ── Currency card (Muskelmasse + Protein) ──────────────────────────────────
+  // Currency card
   currencyCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(20,20,40,0.95)',
@@ -1121,7 +989,7 @@ const styles = StyleSheet.create({
   currencyDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.1)' },
   collapseBtn: { paddingHorizontal: 8, paddingVertical: 4 },
 
-  // ── Resource bars card (Holz / Stein / Nahrung) ────────────────────────────
+  // Resource bars card
   resourceBarsCard: {
     backgroundColor: 'rgba(20,20,40,0.95)',
     borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12,
@@ -1153,7 +1021,6 @@ const styles = StyleSheet.create({
   },
   barMax: { fontSize: 9, color: 'rgba(255,255,255,0.4)', fontWeight: '400' },
 
-  divider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.1)' },
   explorationPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 7,
@@ -1205,7 +1072,6 @@ const styles = StyleSheet.create({
   },
   wallHPFill: { height: '100%', borderRadius: 4 },
   wallHPText: { fontSize: 11, color: 'rgba(255,255,255,0.6)', minWidth: 44, textAlign: 'right' },
-  // Monster-Ring (Silhouetten beim approaching)
   monsterRing: {
     position: 'absolute',
     bottom: 90,
@@ -1218,8 +1084,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     fontSize: 28,
     bottom: 0,
-  },
-  trophyCell: {
-    fontSize: 28,
   },
 });
