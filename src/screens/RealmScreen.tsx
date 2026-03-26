@@ -30,7 +30,7 @@ import {
 import { WorldConstants } from '../config/GameConfig';
 import { canBuild } from '../engines/GameEngine';
 import { formatDuration } from '../utils/formatDuration';
-import { gridToScreen, screenToGrid, getGridPixelSize, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
+import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding from '../components/IsometricBuilding';
 import IsometricForest from '../components/IsometricForest';
@@ -57,7 +57,7 @@ const BORDER_SIZE = 3;
 const TOTAL_GRID = GRID_SIZE + BORDER_SIZE * 2; // 21
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Total pixel dimensions of the isometric canvas
+// Total pixel dimensions of the isometric canvas (with extra margin to prevent clipping)
 const CANVAS_SIZE = getGridPixelSize(TOTAL_GRID);
 const CANVAS_W = CANVAS_SIZE.width;
 const CANVAS_H = CANVAS_SIZE.height;
@@ -286,13 +286,37 @@ export default function RealmScreen() {
     }
   };
 
-  // Handle tap on the SVG canvas area
+  // Handle tap on the SVG canvas area — proper diamond hit-testing
   const handleMapPress = useCallback((event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
-    // Convert screen coords to grid coords, accounting for the border offset
+
+    // First pass: use screenToGrid to get approximate cell
     const { row: rawRow, col: rawCol } = screenToGrid(locationX, locationY, TOTAL_GRID);
-    const row = rawRow - BORDER_SIZE;
-    const col = rawCol - BORDER_SIZE;
+    const approxRow = rawRow - BORDER_SIZE;
+    const approxCol = rawCol - BORDER_SIZE;
+
+    // Second pass: diamond hit-test the approximate cell and its neighbors
+    // (screenToGrid can be off by 1 near tile edges)
+    let bestRow = approxRow;
+    let bestCol = approxCol;
+    let found = false;
+    for (let dr = -1; dr <= 1 && !found; dr++) {
+      for (let dc = -1; dc <= 1 && !found; dc++) {
+        const testRow = approxRow + dr;
+        const testCol = approxCol + dc;
+        if (testRow < 0 || testRow >= GRID_SIZE || testCol < 0 || testCol >= GRID_SIZE) continue;
+        const { x, y } = gridToScreen(testRow + BORDER_SIZE, testCol + BORDER_SIZE, TOTAL_GRID);
+        if (isTapInDiamond(locationX, locationY, x, y)) {
+          bestRow = testRow;
+          bestCol = testCol;
+          found = true;
+        }
+      }
+    }
+
+    // Clamp to valid grid bounds
+    const row = Math.max(0, Math.min(GRID_SIZE - 1, bestRow));
+    const col = Math.max(0, Math.min(GRID_SIZE - 1, bestCol));
     handleCellPress(row, col);
   }, [gameState, obstacles, buildPlacementMode, placingTrophy, highlightedBuildingId]);
 
@@ -379,9 +403,9 @@ export default function RealmScreen() {
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: CANVAS_W + 40,
-          height: CANVAS_H + 40,
-          padding: 20,
+          width: CANVAS_W + 80,
+          height: CANVAS_H + 80,
+          padding: 40,
         }}
         horizontal={false}
         directionalLockEnabled={false}
@@ -396,7 +420,7 @@ export default function RealmScreen() {
           horizontal
           nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ width: CANVAS_W, height: CANVAS_H }}
+          contentContainerStyle={{ width: CANVAS_W + 40, height: CANVAS_H + 40 }}
         >
           <View
             ref={svgContainerRef}
