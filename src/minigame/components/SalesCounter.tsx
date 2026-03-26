@@ -19,7 +19,7 @@ interface Props {
 const CUSTOMER_COLORS = ['#1565c0', '#c62828', '#2e7d32', '#f9a825', '#6a1b9a', '#e65100'];
 const SPEECH_LINES = ['Lecker!', 'Yummy!', 'Mehr!', 'Mmh!', 'Wow!', 'Top!'];
 
-export default function SalesCounterComponent({ counterSteaks, moneyPileAmount, customers, tick }: Props) {
+function SalesCounterComponent({ counterSteaks, moneyPileAmount, customers, tick }: Props) {
   const counterX = SALES_COUNTER.x;
   const counterY = SALES_COUNTER.y;
   const counterW = SALES_COUNTER.width;
@@ -200,3 +200,5 @@ export default function SalesCounterComponent({ counterSteaks, moneyPileAmount, 
     </G>
   );
 }
+
+export default React.memo(SalesCounterComponent);

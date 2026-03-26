@@ -8,7 +8,7 @@ interface Props {
   texts: FloatingTextType[];
 }
 
-export default function FloatingTextLayer({ texts }: Props) {
+function FloatingTextLayer({ texts }: Props) {
   return (
     <G>
       {texts.map(ft => (
@@ -30,3 +30,5 @@ export default function FloatingTextLayer({ texts }: Props) {
     </G>
   );
 }
+
+export default React.memo(FloatingTextLayer);

@@ -52,14 +52,17 @@ export default function Player({ x, y, backpackItems, isAttacking, isMoving }: P
     r: ringPulse.value,
   }));
 
-  // Walk bob
+  // Walk bob — heavier load = more bounce, slower
   const walkBob = useSharedValue(0);
+  const heavyLoad = backpackItems.length > 3;
   React.useEffect(() => {
     if (isMoving) {
+      const amp = heavyLoad ? 3 : 2;
+      const dur = heavyLoad ? 175 : 125;
       walkBob.value = withRepeat(
         withSequence(
-          withTiming(-2, { duration: 125 }),
-          withTiming(2, { duration: 125 }),
+          withTiming(-amp, { duration: dur }),
+          withTiming(amp, { duration: dur }),
         ),
         -1,
         false,
@@ -67,7 +70,7 @@ export default function Player({ x, y, backpackItems, isAttacking, isMoving }: P
     } else {
       walkBob.value = withSpring(0, { damping: 12 });
     }
-  }, [isMoving]);
+  }, [isMoving, heavyLoad]);
 
   const bodyProps = useAnimatedProps(() => ({
     transform: [{ translateY: walkBob.value }],

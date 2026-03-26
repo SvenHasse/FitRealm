@@ -40,7 +40,7 @@ function createFlakes(): Flake[] {
   return flakes;
 }
 
-export default function Snowflakes({ tick, cameraX, cameraY, viewWidth, viewHeight }: Props) {
+function Snowflakes({ tick, cameraX, cameraY, viewWidth, viewHeight }: Props) {
   const flakesRef = useRef<Flake[]>(createFlakes());
   const flakes = flakesRef.current;
 
@@ -92,3 +92,5 @@ export default function Snowflakes({ tick, cameraX, cameraY, viewWidth, viewHeig
     </G>
   );
 }
+
+export default React.memo(Snowflakes);

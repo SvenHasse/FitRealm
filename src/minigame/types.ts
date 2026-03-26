@@ -126,6 +126,7 @@ export interface GameState {
   // UI / Effekte
   floatingTexts: FloatingText[];
   tutorialStep: number;
+  tutorialCompleteAt: number;
 
   // Movement
   isMoving: boolean;
@@ -144,4 +145,5 @@ export interface GameState {
 export type GameAction =
   | { type: 'TICK'; joystickDx: number; joystickDy: number }
   | { type: 'SET_PLAYER_POSITION'; position: Position }
+  | { type: 'SET_TUTORIAL_STEP'; step: number }
   | { type: 'RESET_GAME' };

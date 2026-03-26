@@ -19,7 +19,7 @@ function lerpColor(progress: number): string {
   return progress < 0.5 ? STEAK_COLOR : GRILLED_STEAK_COLOR;
 }
 
-export default function GrillComponent({ grillItems, grillOutputPile, tick, grillActive }: Props) {
+function GrillComponent({ grillItems, grillOutputPile, tick, grillActive }: Props) {
   const cx = GRILL.x + GRILL.width / 2;
   const cy = GRILL.y + GRILL.height / 2;
 
@@ -191,3 +191,5 @@ export default function GrillComponent({ grillItems, grillOutputPile, tick, gril
     </G>
   );
 }
+
+export default React.memo(GrillComponent);
