@@ -15,6 +15,7 @@ import {
 } from '../constants';
 import Player from './Player';
 import PolarBearSVG from './PolarBear';
+import ConveyorBeltComponent from './ConveyorBelt';
 import FloatingTextLayer from './FloatingText';
 import Snowflakes from './Snowflakes';
 
@@ -128,7 +129,8 @@ const snowHills = [
 
 export default function GameWorld({ state }: Props) {
   const { playerPosition, backpack, isAttacking, isMoving, tickCount, attackTarget,
-          bears, droppedItems, floatingTexts } = state;
+          bears, droppedItems, floatingTexts,
+          conveyorItems, shredderProcessing, steakOutputPile } = state;
 
   // Camera
   const camX = playerPosition.x - VIEW_WIDTH_UNITS / 2;
@@ -172,10 +174,14 @@ export default function GameWorld({ state }: Props) {
         <Gate x={BEAR_PEN_GATE.x} y={BEAR_PEN.y + BEAR_PEN.height} width={BEAR_PEN_GATE.width} />
       </G>
 
-      {/* Station placeholders */}
-      <StationPlaceholder x={CONVEYOR_TABLE.x} y={CONVEYOR_TABLE.y} w={60} h={30} label="Ablage" color="#a1887f" />
-      <StationPlaceholder x={SHREDDER.x + SHREDDER.width / 2} y={SHREDDER.y + SHREDDER.height / 2} w={SHREDDER.width} h={SHREDDER.height} label="Schredder" color="#78909c" />
-      <StationPlaceholder x={STEAK_OUTPUT.x} y={STEAK_OUTPUT.y} w={40} h={25} label="Steaks" color="#8d6e63" />
+      {/* Conveyor system (table + belt + shredder + steak output) */}
+      <ConveyorBeltComponent
+        conveyorItems={conveyorItems}
+        shredderProcessing={shredderProcessing}
+        steakOutputPile={steakOutputPile}
+        tick={tickCount}
+        machineActive={shredderProcessing.length > 0}
+      />
       <StationPlaceholder x={GRILL.x + GRILL.width / 2} y={GRILL.y + GRILL.height / 2} w={GRILL.width} h={GRILL.height} label="Grill" color="#d84315" />
       <StationPlaceholder x={GRILL_OUTPUT.x} y={GRILL_OUTPUT.y} w={40} h={25} label="Fertig" color="#5d4037" />
       <StationPlaceholder x={SALES_COUNTER.x + SALES_COUNTER.width / 2} y={SALES_COUNTER.y} w={SALES_COUNTER.width} h={30} label="Verkaufstheke" color="#6d4c41" />
