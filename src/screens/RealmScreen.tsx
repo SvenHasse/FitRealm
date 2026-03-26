@@ -286,18 +286,22 @@ export default function RealmScreen() {
   };
 
   // Handle tap on the SVG canvas area — proper diamond hit-testing
-  // SVG is centered in the larger container
+  // SVG is centered in the larger container — offset = (containerSize - canvasSize) / 2
   const SVG_OFFSET_X = Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2);
   const SVG_OFFSET_Y = Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2);
   const handleMapPress = useCallback((event: GestureResponderEvent) => {
-    // locationX/Y is relative to the View that captured the responder (the container)
+    // Use pageX/pageY and measure the container position for accurate hit detection
     const { locationX, locationY } = event.nativeEvent;
-    // Convert container coords to SVG coords by subtracting the SVG's position in the container
+    // locationX/Y is relative to the responder view (the container), which is correct
+    // Subtract SVG offset to get SVG-local coordinates
     const svgX = locationX - SVG_OFFSET_X;
     const svgY = locationY - SVG_OFFSET_Y;
 
-    // Debug tap positions
-    console.log(`[TAP] container(${Math.round(locationX)},${Math.round(locationY)}) → svg(${Math.round(svgX)},${Math.round(svgY)}) offset(${SVG_OFFSET_X},${SVG_OFFSET_Y})`);
+    // Ignore taps outside the SVG area
+    if (svgX < 0 || svgY < 0 || svgX > CANVAS_W || svgY > CANVAS_H) return;
+
+    // Debug: log tap coordinates (remove after hitbox fix confirmed)
+    console.log(`[TAP] loc(${Math.round(locationX)},${Math.round(locationY)}) svg(${Math.round(svgX)},${Math.round(svgY)})`);
 
     // First pass: use screenToGrid to get approximate cell
     const { row: rawRow, col: rawCol } = screenToGrid(svgX, svgY, GRID_SIZE);
