@@ -36,13 +36,13 @@ function IsometricTileInner({ x, y, variant }: Props) {
 
   return (
     <>
-      <Polygon points={leftFace} fill={colors.left} />
-      <Polygon points={rightFace} fill={colors.right} />
+      {TILE_DEPTH > 0 && <Polygon points={leftFace} fill={colors.left} />}
+      {TILE_DEPTH > 0 && <Polygon points={rightFace} fill={colors.right} />}
       <Polygon
         points={topFace}
         fill={colors.top}
-        stroke={colors.stroke ?? 'rgba(0,0,0,0.1)'}
-        strokeWidth={colors.stroke ? 1.5 : 0.5}
+        stroke={colors.stroke ?? 'rgba(0,0,0,0.06)'}
+        strokeWidth={colors.stroke ? 1.5 : 0.3}
       />
     </>
   );

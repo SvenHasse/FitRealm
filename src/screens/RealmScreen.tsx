@@ -289,7 +289,7 @@ export default function RealmScreen() {
 
   // Handle tap on the SVG canvas area — proper diamond hit-testing
   // SVG is offset by 100px in both axes inside the container
-  const SVG_OFFSET = 300;
+  const SVG_OFFSET = 250;
   const handleMapPress = useCallback((event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
     // Subtract the SVG offset since the SVG sits at (100,100) within the container
@@ -413,8 +413,8 @@ export default function RealmScreen() {
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: CANVAS_W + 800,
-          height: CANVAS_H + 1600,
+          width: CANVAS_W + 600,
+          height: CANVAS_H + 1200,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -438,19 +438,19 @@ export default function RealmScreen() {
       >
         <View
           ref={svgContainerRef}
-          style={{ width: CANVAS_W + 600, height: CANVAS_H + 600, position: 'relative' }}
+          style={{ width: CANVAS_W + 500, height: CANVAS_H + 500, position: 'relative' }}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => false}
           onResponderRelease={handleMapPress}
         >
           {/* Pre-rendered 3D forest background (behind SVG grid) */}
           <ForestParallax
-            canvasWidth={CANVAS_W + 600}
-            canvasHeight={CANVAS_H + 600}
+            canvasWidth={CANVAS_W + 500}
+            canvasHeight={CANVAS_H + 500}
             scrollX={parallaxScrollX}
             scrollY={parallaxScrollY}
           />
-          <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} style={{ position: 'absolute', top: 300, left: 300 }}>
+          <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} style={{ position: 'absolute', top: 250, left: 250 }}>
             {/* Game grid tiles, buildings, obstacles — NO forest border tiles */}
             {renderGridTiles}
           </Svg>
