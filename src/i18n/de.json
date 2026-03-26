@@ -25,7 +25,8 @@
     "stein": "Stein",
     "nahrung": "Nahrung",
     "streak": "Streak",
-    "registry": "Dorf"
+    "registry": "Dorf",
+    "defense": "Verteidigung"
   },
   "dashboard": {
     "vitacoins": "VITACOINS",
@@ -262,6 +263,30 @@
     "noWorkers": "Kaserne bauen für Worker",
     "buildKaserne": "Baue eine Kaserne um Worker zu trainieren",
     "allBusyLong": "Alle Worker sind gerade beschäftigt"
+  },
+  "defense": {
+    "title": "Verteidigung",
+    "totalVP": "{{vp}} VP",
+    "subtitle": "Deine Gesamt-Verteidigung",
+    "vsNextWave": "vs. nächste Welle: ~{{ak}} AK",
+    "statusPerfect": "Perfekt verteidigt ✅",
+    "statusGood": "Gut aufgestellt",
+    "statusWarning": "Knapp — trainiere heute!",
+    "statusDanger": "Gefährdet — dringend trainieren!",
+    "buildingVP": "Gebäude",
+    "workoutVP": "Workout",
+    "workerVP": "Worker",
+    "animalVP": "Tiere",
+    "streakBonus": "Streak-Bonus: +{{pct}}%",
+    "nextWave": "Nächste Welle",
+    "waveIn": "In: {{time}}",
+    "estimatedStrength": "Geschätzte Stärke: ~{{ak}} AK",
+    "tips": "So verbesserst du dich",
+    "assignment": "Zuweisung",
+    "toDefense": "Zur Verteidigung",
+    "toProduction": "Zur Produktion",
+    "vpGain": "+{{vp}} VP",
+    "last24h": "letzte 24h"
   },
   "resources": {
     "muskelmasse": "Muskelmasse",
