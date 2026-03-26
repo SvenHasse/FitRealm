@@ -54,8 +54,8 @@ import { waveService } from '../services/WaveService';
 import { Trophy } from '../models/types';
 
 const GRID_SIZE = WorldConstants.gridSize; // 15
-const BORDER_SIZE = 3;
-const TOTAL_GRID = GRID_SIZE + BORDER_SIZE * 2; // 21
+const BORDER_SIZE = 5;
+const TOTAL_GRID = GRID_SIZE + BORDER_SIZE * 2; // 25
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 // Total pixel dimensions of the isometric canvas (with extra margin to prevent clipping)
@@ -404,24 +404,27 @@ export default function RealmScreen() {
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: CANVAS_W + 80,
-          height: CANVAS_H + 80,
-          padding: 40,
+          width: CANVAS_W + 120,
+          height: CANVAS_H + 120,
+          padding: 60,
         }}
         horizontal={false}
         directionalLockEnabled={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
         contentOffset={{ x: initialScrollX, y: initialScrollY }}
-        maximumZoomScale={2}
-        minimumZoomScale={0.5}
+        maximumZoomScale={2.5}
+        minimumZoomScale={0.3}
         bouncesZoom
+        bounces
+        scrollEnabled
       >
         <ScrollView
           horizontal
           nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ width: CANVAS_W + 40, height: CANVAS_H + 40 }}
+          bounces
+          contentContainerStyle={{ width: CANVAS_W + 60, height: CANVAS_H + 60 }}
         >
           <View
             ref={svgContainerRef}
