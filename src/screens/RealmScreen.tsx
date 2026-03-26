@@ -286,22 +286,9 @@ export default function RealmScreen() {
   };
 
   // Handle tap on the SVG canvas area — proper diamond hit-testing
-  // SVG is centered in the larger container — offset = (containerSize - canvasSize) / 2
-  const SVG_OFFSET_X = Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2);
-  const SVG_OFFSET_Y = Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2);
-  const handleMapPress = useCallback((event: GestureResponderEvent) => {
-    // Use pageX/pageY and measure the container position for accurate hit detection
-    const { locationX, locationY } = event.nativeEvent;
-    // locationX/Y is relative to the responder view (the container), which is correct
-    // Subtract SVG offset to get SVG-local coordinates
-    const svgX = locationX - SVG_OFFSET_X;
-    const svgY = locationY - SVG_OFFSET_Y;
-
-    // Ignore taps outside the SVG area
-    if (svgX < 0 || svgY < 0 || svgX > CANVAS_W || svgY > CANVAS_H) return;
-
-    // Debug: log tap coordinates (remove after hitbox fix confirmed)
-    console.log(`[TAP] loc(${Math.round(locationX)},${Math.round(locationY)}) svg(${Math.round(svgX)},${Math.round(svgY)})`);
+  // Tap handler — placed directly on the SVG wrapper so locationX/Y = SVG coords
+  const handleSvgPress = useCallback((event: GestureResponderEvent) => {
+    const { locationX: svgX, locationY: svgY } = event.nativeEvent;
 
     // First pass: use screenToGrid to get approximate cell
     const { row: rawRow, col: rawCol } = screenToGrid(svgX, svgY, GRID_SIZE);
@@ -450,23 +437,28 @@ export default function RealmScreen() {
             height: Math.round(CANVAS_H * 25 / 15),
             position: 'relative',
           }}
-          onStartShouldSetResponder={() => true}
-          onMoveShouldSetResponder={() => false}
-          onResponderRelease={handleMapPress}
         >
-          {/* Layer 1: SVG grid tiles + buildings (bottom layer) */}
-          <Svg
-            width={CANVAS_W}
-            height={CANVAS_H}
-            viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
+          {/* SVG wrapper — tap handler is HERE so locationX/Y = SVG coordinates directly */}
+          <View
             style={{
               position: 'absolute',
               top: Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2),
               left: Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2),
+              width: CANVAS_W,
+              height: CANVAS_H,
             }}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => false}
+            onResponderRelease={handleSvgPress}
+          >
+          <Svg
+            width={CANVAS_W}
+            height={CANVAS_H}
+            viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
           >
             {renderGridTiles}
           </Svg>
+          </View>
 
           {/* Layer 2: Forest PNG ON TOP — transparent center shows tiles through,
               tree edges naturally overlap the playfield border = correct depth */}
