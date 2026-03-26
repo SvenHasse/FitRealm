@@ -35,6 +35,7 @@ import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding from '../components/IsometricBuilding';
 // IsometricForest SVG removed — replaced by pre-rendered ForestParallax PNG
 import { ForestParallax } from '../components/village/ForestParallax';
+import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
 import WorkerSheet from '../components/WorkerSheet';
@@ -350,8 +351,11 @@ export default function RealmScreen() {
           />
         );
 
-        // Building
-        if (building) {
+        // Building — skip SVG cuboid for types that have PNG sprites (unless under construction)
+        const hasPngSprite = !building?.isUnderConstruction && (
+          building?.type === BuildingType.rathaus || building?.type === BuildingType.holzfaeller
+        );
+        if (building && !hasPngSprite) {
           elements.push(
             <IsometricBuilding
               key={`bld-${row}-${col}`}
@@ -460,7 +464,15 @@ export default function RealmScreen() {
           </Svg>
           </View>
 
-          {/* Layer 2: Forest PNG ON TOP — transparent center shows tiles through,
+          {/* Layer 2: Pre-rendered 3D building sprites (rathaus, holzfaeller) */}
+          <BuildingSpriteOverlay
+            buildings={gameState.buildings}
+            gridSize={GRID_SIZE}
+            svgOffsetX={Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2)}
+            svgOffsetY={Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2)}
+          />
+
+          {/* Layer 3: Forest PNG ON TOP — transparent center shows tiles through,
               tree edges naturally overlap the playfield border = correct depth */}
           <ForestParallax
             canvasWidth={CANVAS_W}
