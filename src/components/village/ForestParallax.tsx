@@ -1,7 +1,8 @@
 // ForestParallax.tsx
-// Pre-rendered 3D forest border as parallax background.
-// The image is positioned to exactly align with the isometric grid canvas.
-// Background layer scrolls slightly slower for depth perception.
+// Pre-rendered 3D forest as parallax background.
+// The forest PNG covers the full 25x25 area (grid + border).
+// The SVG grid (15x15) sits centered within this larger image.
+// The container is sized to the forest image, not the grid.
 
 import React from 'react';
 import { Image, StyleSheet } from 'react-native';
@@ -12,11 +13,14 @@ const FOREST_BG = require('../../assets/terrain/forest_bg.png');
 const FOREST_FG = require('../../assets/terrain/forest_fg.png');
 
 interface ForestParallaxProps {
-  canvasWidth: number;
-  canvasHeight: number;
+  canvasWidth: number;   // SVG grid width (15 tiles)
+  canvasHeight: number;  // SVG grid height (15 tiles)
   scrollX: SharedValue<number>;
   scrollY: SharedValue<number>;
 }
+
+// Forest was rendered for 25x25 tiles, grid is 15x15
+const SCALE = 25 / 15;
 
 export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
   canvasWidth,
@@ -24,16 +28,14 @@ export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
   scrollX,
   scrollY,
 }) => {
-  // The rendered PNG matches the canvas aspect ratio (2:1 for isometric).
-  // Size it to exactly fill the canvas area.
-  const imgW = canvasWidth;
-  const imgH = canvasHeight;
+  // The container is already sized to the forest (25/15 * canvas).
+  // So the image fills the entire container at 100%.
+  const containerW = Math.round(canvasWidth * SCALE);
+  const containerH = Math.round(canvasHeight * SCALE);
 
-  // Background layer: shifts opposite to scroll for parallax
-  // When user scrolls right, bg moves slightly left relative to fg → depth
   const bgStyle = useAnimatedStyle(() => {
     'worklet';
-    const factor = 0.06; // 6% parallax offset — subtle but visible
+    const factor = 0.06;
     return {
       transform: [
         { translateX: scrollX.value * factor },
@@ -44,32 +46,18 @@ export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
 
   return (
     <>
-      {/* Background layer — moves slightly with parallax */}
       <Animated.View
-        style={[
-          styles.layer,
-          { width: imgW, height: imgH },
-          bgStyle,
-        ]}
+        style={[styles.layer, { width: containerW, height: containerH }, bgStyle]}
         pointerEvents="none"
       >
-        <Image
-          source={FOREST_BG}
-          style={{ width: imgW, height: imgH }}
-          resizeMode="cover"
-        />
+        <Image source={FOREST_BG} style={{ width: containerW, height: containerH }} resizeMode="contain" />
       </Animated.View>
 
-      {/* Foreground layer — fixed to canvas, no transform */}
       <Animated.View
-        style={[styles.layer, { width: imgW, height: imgH }]}
+        style={[styles.layer, { width: containerW, height: containerH }]}
         pointerEvents="none"
       >
-        <Image
-          source={FOREST_FG}
-          style={{ width: imgW, height: imgH }}
-          resizeMode="cover"
-        />
+        <Image source={FOREST_FG} style={{ width: containerW, height: containerH }} resizeMode="contain" />
       </Animated.View>
     </>
   );
