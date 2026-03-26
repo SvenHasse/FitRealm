@@ -1,7 +1,7 @@
-// HUD.tsx — Heads-Up-Display (Geld-Anzeige, Titel) — normale RN-Views, kein SVG
+// HUD.tsx — Heads-Up-Display (Geld-Anzeige, Titel, Belohnung) — normale RN-Views, kein SVG
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSequence, withTiming,
 } from 'react-native-reanimated';
@@ -13,6 +13,7 @@ interface Props {
   backpackCount: number;
   backpackCapacity: number;
   currentItemType: ItemType | null;
+  onClaimReward?: () => void;
 }
 
 const itemLabel: Record<ItemType, { label: string; color: string }> = {
@@ -22,7 +23,7 @@ const itemLabel: Record<ItemType, { label: string; color: string }> = {
   [ItemType.MONEY]: { label: 'Geld', color: '#4caf50' },
 };
 
-export default function HUD({ totalMoney, backpackCount, backpackCapacity, currentItemType }: Props) {
+export default function HUD({ totalMoney, backpackCount, backpackCapacity, currentItemType, onClaimReward }: Props) {
   const moneyScale = useSharedValue(1);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function HUD({ totalMoney, backpackCount, backpackCapacity, curre
     <View style={styles.container} pointerEvents="box-none">
       {/* Title */}
       <View style={styles.titleContainer}>
-        <Text style={styles.title}>EISBÄREN-FABRIK</Text>
+        <Text style={styles.title}>EISB\u00c4REN-FABRIK</Text>
       </View>
 
       {/* Money */}
@@ -61,6 +62,13 @@ export default function HUD({ totalMoney, backpackCount, backpackCapacity, curre
             {info.label}: {backpackCount}/{backpackCapacity}
           </Text>
         </View>
+      )}
+
+      {/* Reward claim button */}
+      {totalMoney > 0 && onClaimReward && (
+        <TouchableOpacity style={styles.rewardBtn} onPress={onClaimReward}>
+          <Text style={styles.rewardBtnText}>Einl\u00f6sen</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -132,5 +140,19 @@ const styles = StyleSheet.create({
     color: UI_TEXT,
     fontSize: 12,
     fontWeight: '600',
+  },
+  rewardBtn: {
+    position: 'absolute',
+    top: 70,
+    right: 12,
+    backgroundColor: '#d4a06a',
+    borderRadius: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+  },
+  rewardBtnText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 });

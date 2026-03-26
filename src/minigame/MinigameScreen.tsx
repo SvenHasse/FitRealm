@@ -1,8 +1,11 @@
 // MinigameScreen.tsx — Hauptscreen für das Idle-Tycoon Minigame
 
-import React, { useReducer, useEffect, useRef, useCallback } from 'react';
+import React, { useReducer, useEffect, useRef, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming, Easing,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import {
   GameState, GameAction, ItemType, PolarBear, DroppedItem,
@@ -14,13 +17,14 @@ import {
   BEAR_PEN, PICKUP_RADIUS, STATION_INTERACT_RADIUS,
   CONVEYOR_TABLE, STEAK_OUTPUT, SHREDDER,
   GRILL, GRILL_OUTPUT, SALES_COUNTER, MONEY_PILE,
-  UI_BG_PRIMARY, UI_BORDER, UI_TEXT, RAW_MEAT_COLOR,
+  UI_BG_PRIMARY, UI_BORDER, UI_TEXT, UI_TEAL, UI_TEXT_DIM, RAW_MEAT_COLOR,
   UPGRADE_DEFINITIONS,
 } from './constants';
 import GameWorld from './components/GameWorld';
 import VirtualJoystick from './components/VirtualJoystick';
 import HUD from './components/HUD';
 import DirectionArrow from './components/DirectionArrow';
+import TutorialOverlay from './components/TutorialOverlay';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -131,12 +135,32 @@ function createInitialState(): GameState {
 
     floatingTexts: [],
     tutorialStep: 0,
+    tutorialCompleteAt: 0,
 
     lastStationInteractTick: -100,
     gameActive: true,
     tickCount: 0,
     lastFullWarningTick: -100,
   };
+}
+
+// ─── Tutorial target positions (world coords) ──────────────────────────────
+
+function getTutorialTarget(step: number): Position | null {
+  switch (step) {
+    case 1: return { x: BEAR_PEN.x + BEAR_PEN.width / 2, y: BEAR_PEN.y + BEAR_PEN.height / 2 };
+    case 2: return { x: BEAR_PEN.x + BEAR_PEN.width / 2, y: BEAR_PEN.y + BEAR_PEN.height / 2 };
+    case 3: return { x: BEAR_PEN.x + BEAR_PEN.width / 2, y: BEAR_PEN.y + BEAR_PEN.height / 2 };
+    case 4: return { x: CONVEYOR_TABLE.x, y: CONVEYOR_TABLE.y };
+    case 5: return { x: SHREDDER.x + SHREDDER.width / 2, y: SHREDDER.y + SHREDDER.height / 2 };
+    case 6: return { x: STEAK_OUTPUT.x, y: STEAK_OUTPUT.y };
+    case 7: return { x: GRILL.x + GRILL.width / 2, y: GRILL.y + GRILL.height / 2 };
+    case 8: return { x: GRILL_OUTPUT.x, y: GRILL_OUTPUT.y };
+    case 9: return { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y };
+    case 10: return { x: MONEY_PILE.x, y: MONEY_PILE.y };
+    case 11: return { x: 500, y: 620 }; // Approximate upgrade area
+    default: return null;
+  }
 }
 
 // ─── Game Tick Reducer ───────────────────────────────────────────────────────
@@ -429,7 +453,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // ── Conveyor Belt Movement ──
       conveyorItems = conveyorItems.map(ci => ({ ...ci, progress: ci.progress + 0.008 * Math.pow(1.5, preConvLevel) }));
 
-      // Items reaching end of belt → into shredder
+      // Items reaching end of belt -> into shredder
       const arrivedItems = conveyorItems.filter(ci => ci.progress >= 1.0);
       conveyorItems = conveyorItems.filter(ci => ci.progress < 1.0);
       for (const _item of arrivedItems) {
@@ -615,7 +639,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const effectiveSpeed = 3.0 + (shoeUpg?.currentLevel ?? 0) * 0.8;
 
       const convUpg = upgrades.find(u => u.id === 'better_conveyor');
-      const convLevel = convUpg?.currentLevel ?? 0;
+      const _convLevel = convUpg?.currentLevel ?? 0;
 
       const grillUpg = upgrades.find(u => u.id === 'better_grill');
       const grillLevel = grillUpg?.currentLevel ?? 0;
@@ -623,12 +647,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       const custUpg = upgrades.find(u => u.id === 'more_customers');
       const custLevel = custUpg?.currentLevel ?? 0;
-      const buyTimerValues = [40, 30, 22];
 
       const autoConvUpg = upgrades.find(u => u.id === 'auto_conveyor');
       const hasAutoConveyor = (autoConvUpg?.currentLevel ?? 0) >= 1;
 
-      // ── Auto-Conveyor: steakOutputPile → grill ──
+      // ── Auto-Conveyor: steakOutputPile -> grill ──
       if (hasAutoConveyor && steakOutputPile > 0 && grillItems.length < effectiveGrillCap && state.tickCount % 10 === 0) {
         steakOutputPile -= 1;
         grillItems.push({ id: uid(), progress: 0 });
@@ -647,14 +670,68 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
-      // ── Floating texts decay ──
-      const updatedFloats = [...state.floatingTexts, ...newFloats]
+      // ── Floating texts decay + cap at 50 ──
+      let updatedFloats = [...state.floatingTexts, ...newFloats]
         .map(ft => ({
           ...ft,
           opacity: ft.opacity - 0.025,
           offsetY: ft.offsetY - 1.5,
         }))
         .filter(ft => ft.opacity > 0);
+      if (updatedFloats.length > 50) {
+        updatedFloats = updatedFloats.slice(-50);
+      }
+
+      // ── Tutorial Step Transitions ──
+      let tutorialStep = state.tutorialStep;
+      let tutorialCompleteAt = state.tutorialCompleteAt;
+      const finalCurrentItemType = backpack.length === 0 ? null : currentItemType;
+
+      if (tutorialStep > 0) {
+        switch (tutorialStep) {
+          case 1:
+            if (isInsideBearPen(playerPos)) tutorialStep = 2;
+            break;
+          case 2:
+            if (newBears.some(b => !b.alive)) tutorialStep = 3;
+            break;
+          case 3:
+            if (backpack.length > 0 && finalCurrentItemType === ItemType.RAW_MEAT) tutorialStep = 4;
+            break;
+          case 4:
+            if (conveyorItems.length > 0 && backpack.length === 0) tutorialStep = 5;
+            break;
+          case 5:
+            if (steakOutputPile > 0) tutorialStep = 6;
+            break;
+          case 6:
+            if (backpack.length > 0 && finalCurrentItemType === ItemType.STEAK) tutorialStep = 7;
+            break;
+          case 7:
+            if (grillItems.length > 0 && backpack.length === 0) tutorialStep = 8;
+            break;
+          case 8:
+            if (backpack.length > 0 && finalCurrentItemType === ItemType.GRILLED_STEAK) tutorialStep = 9;
+            break;
+          case 9:
+            if (counterSteaks > 0 && backpack.length === 0) tutorialStep = 10;
+            break;
+          case 10:
+            if (moneyPileAmount > 0 && backpack.length > 0 && finalCurrentItemType === ItemType.MONEY) tutorialStep = 11;
+            break;
+          case 11:
+            if (upgrades.some(u => u.currentLevel > 0)) tutorialStep = 12;
+            break;
+          case 12:
+            if (tutorialCompleteAt === 0) {
+              tutorialCompleteAt = state.tickCount;
+            } else if (state.tickCount - tutorialCompleteAt > 60) {
+              tutorialStep = 0;
+              tutorialCompleteAt = 0;
+            }
+            break;
+        }
+      }
 
       return {
         ...state,
@@ -666,7 +743,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         bears: newBears,
         droppedItems: remainingDrops,
         backpack,
-        currentItemType: backpack.length === 0 ? null : currentItemType,
+        currentItemType: finalCurrentItemType,
         attackCooldown,
         isAttacking,
         attackTarget,
@@ -683,6 +760,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         customers: newCustomers,
         lastStationInteractTick,
         floatingTexts: updatedFloats,
+        tutorialStep,
+        tutorialCompleteAt,
         tickCount: state.tickCount + 1,
         lastFullWarningTick,
       };
@@ -690,6 +769,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SET_PLAYER_POSITION':
       return { ...state, playerPosition: action.position };
+
+    case 'SET_TUTORIAL_STEP':
+      return { ...state, tutorialStep: action.step };
 
     case 'RESET_GAME':
       return createInitialState();
@@ -701,14 +783,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
-interface Props {
+interface MinigameScreenProps {
   navigation?: { goBack: () => void };
+  onExit?: () => void;
+  onEarnReward?: (reward: { muskelmasse: number; protein: number; nahrung: number }) => void;
 }
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-export default function MinigameScreen({ navigation }: Props) {
+export default function MinigameScreen({ navigation, onExit, onEarnReward }: MinigameScreenProps) {
   const [state, dispatch] = useReducer(gameReducer, undefined, createInitialState);
+  const [showStartScreen, setShowStartScreen] = useState(true);
 
   const joystickRef = useRef({ dx: 0, dy: 0 });
 
@@ -716,9 +801,19 @@ export default function MinigameScreen({ navigation }: Props) {
     joystickRef.current = { dx, dy };
   }, []);
 
-  // Game loop
+  // Start screen fade-in
+  const startFade = useSharedValue(0);
   useEffect(() => {
-    if (!state.gameActive) return;
+    startFade.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) });
+  }, []);
+
+  const startFadeStyle = useAnimatedStyle(() => ({
+    opacity: startFade.value,
+  }));
+
+  // Game loop - only run when not showing start screen
+  useEffect(() => {
+    if (!state.gameActive || showStartScreen) return;
     const interval = setInterval(() => {
       dispatch({
         type: 'TICK',
@@ -727,78 +822,142 @@ export default function MinigameScreen({ navigation }: Props) {
       });
     }, GAME_TICK_MS);
     return () => clearInterval(interval);
-  }, [state.gameActive]);
+  }, [state.gameActive, showStartScreen]);
+
+  // Claim reward handler
+  const handleClaimReward = useCallback(() => {
+    if (state.totalMoney <= 0 || !onEarnReward) return;
+    const muskelmasse = Math.floor(state.totalMoney / 100);
+    const protein = Math.floor(state.totalMoney / 100) * 2;
+    const nahrung = Math.floor(state.totalMoney / 100) * 5;
+    onEarnReward({ muskelmasse, protein, nahrung });
+    // Reset money - we'll handle this via a dispatch
+    // For now, call onEarnReward with calculated values
+  }, [state.totalMoney, onEarnReward]);
+
+  // Handle exit
+  const handleExit = useCallback(() => {
+    if (onExit) {
+      onExit();
+    } else if (navigation) {
+      navigation.goBack();
+    }
+  }, [onExit, navigation]);
+
+  // Tutorial target position (convert world coords to approximate screen coords)
+  const tutorialTargetWorld = getTutorialTarget(state.tutorialStep);
+  const tutorialTargetScreen = tutorialTargetWorld
+    ? { screenX: SCREEN_W / 2 + (tutorialTargetWorld.x - state.playerPosition.x) * 0.5, screenY: SCREEN_H / 2 + (tutorialTargetWorld.y - state.playerPosition.y) * 0.5 }
+    : null;
 
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation?.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={handleExit}>
             <Ionicons name="arrow-back" size={22} color={UI_TEXT} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Eisbären-Fabrik</Text>
-          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle}>Eisb\u00e4ren-Fabrik</Text>
+          {state.totalMoney > 0 && onEarnReward ? (
+            <TouchableOpacity style={styles.rewardBtn} onPress={handleClaimReward}>
+              <Text style={styles.rewardBtnText}>Einl\u00f6sen</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
         </View>
 
         {/* Game area */}
         <View style={styles.gameContainer}>
-          <GameWorld state={state} />
-          <HUD
-            totalMoney={state.totalMoney}
-            backpackCount={state.backpack.length}
-            backpackCapacity={state.backpackCapacity}
-            currentItemType={state.currentItemType}
-          />
-          {/* Direction Arrows */}
-          {(() => {
-            const it = state.currentItemType;
-            let arrowTarget: Position | null = null;
-            let arrowColor = '#ffffff';
+          <View style={showStartScreen ? styles.gameWorldDimmed : styles.gameWorldFull}>
+            <GameWorld state={state} />
+          </View>
 
-            if (it === ItemType.RAW_MEAT) {
-              arrowTarget = { x: CONVEYOR_TABLE.x, y: CONVEYOR_TABLE.y };
-              arrowColor = RAW_MEAT_COLOR;
-            } else if (it === ItemType.STEAK) {
-              arrowTarget = { x: GRILL.x + GRILL.width / 2, y: GRILL.y + GRILL.height / 2 };
-              arrowColor = '#8d6e63';
-            } else if (it === ItemType.GRILLED_STEAK) {
-              arrowTarget = { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y };
-              arrowColor = '#5d4037';
-            } else if (it === ItemType.MONEY) {
-              // Find nearest unpaid upgrade
-              let nearest: Position | null = null;
-              let nearestDist = Infinity;
-              for (const upg of state.upgrades) {
-                if (upg.currentLevel >= upg.maxLevel) continue;
-                const d = dist(state.playerPosition, upg.position);
-                if (d < nearestDist) {
-                  nearestDist = d;
-                  nearest = upg.position;
-                }
-              }
-              if (nearest) {
-                arrowTarget = nearest;
-                arrowColor = '#4caf50';
-              }
-            }
+          {/* Start Screen Overlay */}
+          {showStartScreen && (
+            <Animated.View style={[styles.startOverlay, startFadeStyle]}>
+              <Text style={styles.startTitle}>EISB\u00c4REN-FABRIK</Text>
+              <Text style={styles.startSubtitle}>Jage \u00b7 Verarbeite \u00b7 Verkaufe</Text>
+              <TouchableOpacity
+                style={styles.playButton}
+                onPress={() => {
+                  setShowStartScreen(false);
+                  dispatch({ type: 'RESET_GAME' });
+                  dispatch({ type: 'SET_TUTORIAL_STEP', step: 1 });
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.playButtonText}>SPIELEN</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
 
-            if (!arrowTarget) return null;
-            return (
-              <DirectionArrow
-                targetX={arrowTarget.x}
-                targetY={arrowTarget.y}
-                playerX={state.playerPosition.x}
-                playerY={state.playerPosition.y}
-                color={arrowColor}
-                visible={true}
-                screenWidth={SCREEN_W}
-                screenHeight={SCREEN_H}
-                tick={state.tickCount}
+          {!showStartScreen && (
+            <>
+              <HUD
+                totalMoney={state.totalMoney}
+                backpackCount={state.backpack.length}
+                backpackCapacity={state.backpackCapacity}
+                currentItemType={state.currentItemType}
+                onClaimReward={onEarnReward ? handleClaimReward : undefined}
               />
-            );
-          })()}
-          <VirtualJoystick onJoystickMove={handleJoystickMove} />
+              {/* Direction Arrows */}
+              {(() => {
+                const it = state.currentItemType;
+                let arrowTarget: Position | null = null;
+                let arrowColor = '#ffffff';
+
+                if (it === ItemType.RAW_MEAT) {
+                  arrowTarget = { x: CONVEYOR_TABLE.x, y: CONVEYOR_TABLE.y };
+                  arrowColor = RAW_MEAT_COLOR;
+                } else if (it === ItemType.STEAK) {
+                  arrowTarget = { x: GRILL.x + GRILL.width / 2, y: GRILL.y + GRILL.height / 2 };
+                  arrowColor = '#8d6e63';
+                } else if (it === ItemType.GRILLED_STEAK) {
+                  arrowTarget = { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y };
+                  arrowColor = '#5d4037';
+                } else if (it === ItemType.MONEY) {
+                  // Find nearest unpaid upgrade
+                  let nearest: Position | null = null;
+                  let nearestDist = Infinity;
+                  for (const upg of state.upgrades) {
+                    if (upg.currentLevel >= upg.maxLevel) continue;
+                    const d = dist(state.playerPosition, upg.position);
+                    if (d < nearestDist) {
+                      nearestDist = d;
+                      nearest = upg.position;
+                    }
+                  }
+                  if (nearest) {
+                    arrowTarget = nearest;
+                    arrowColor = '#4caf50';
+                  }
+                }
+
+                if (!arrowTarget) return null;
+                return (
+                  <DirectionArrow
+                    targetX={arrowTarget.x}
+                    targetY={arrowTarget.y}
+                    playerX={state.playerPosition.x}
+                    playerY={state.playerPosition.y}
+                    color={arrowColor}
+                    visible={true}
+                    screenWidth={SCREEN_W}
+                    screenHeight={SCREEN_H}
+                    tick={state.tickCount}
+                  />
+                );
+              })()}
+              {/* Tutorial Overlay */}
+              <TutorialOverlay
+                step={state.tutorialStep}
+                targetPosition={tutorialTargetScreen}
+              />
+              <VirtualJoystick onJoystickMove={handleJoystickMove} />
+            </>
+          )}
         </View>
       </SafeAreaView>
     </GestureHandlerRootView>
@@ -817,5 +976,51 @@ const styles = StyleSheet.create({
   backButton: { padding: 6 },
   headerTitle: { flex: 1, textAlign: 'center', color: UI_TEXT, fontSize: 16, fontWeight: 'bold' },
   headerSpacer: { width: 34 },
+  rewardBtn: {
+    backgroundColor: '#d4a06a',
+    borderRadius: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+  },
+  rewardBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   gameContainer: { flex: 1, position: 'relative' },
+  gameWorldDimmed: { flex: 1, opacity: 0.3 },
+  gameWorldFull: { flex: 1 },
+  // Start screen overlay
+  startOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(14,16,22,0.6)',
+  },
+  startTitle: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    textShadowColor: '#000',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 6,
+    marginBottom: 8,
+  },
+  startSubtitle: {
+    color: UI_TEXT_DIM,
+    fontSize: 14,
+    marginBottom: 30,
+  },
+  playButton: {
+    backgroundColor: UI_TEAL,
+    borderRadius: 25,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+  },
+  playButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
 });

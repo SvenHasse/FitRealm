@@ -30,7 +30,7 @@ const beltAngle = Math.atan2(beltDy, beltDx) * (180 / Math.PI);
 const beltMidX = (CONVEYOR_BELT.startX + CONVEYOR_BELT.endX) / 2;
 const beltMidY = (CONVEYOR_BELT.startY + CONVEYOR_BELT.endY) / 2;
 
-export default function ConveyorBeltComponent({
+function ConveyorBeltComponent({
   conveyorItems, shredderProcessing, steakOutputPile, tick, machineActive,
 }: Props) {
   const halfW = CONVEYOR_BELT.width / 2;
@@ -258,3 +258,5 @@ export default function ConveyorBeltComponent({
     </G>
   );
 }
+
+export default React.memo(ConveyorBeltComponent);

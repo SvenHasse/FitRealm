@@ -116,7 +116,7 @@ function UpgradeIcon({ icon, cx, cy }: { icon: string; cx: number; cy: number })
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function UpgradeField({ upgrade, tick }: Props) {
+function UpgradeField({ upgrade, tick }: Props) {
   if (upgrade.currentLevel >= upgrade.maxLevel) return null;
 
   const { position, costs, currentLevel, paidAmount, icon, name } = upgrade;
@@ -203,3 +203,5 @@ export default function UpgradeField({ upgrade, tick }: Props) {
     </G>
   );
 }
+
+export default React.memo(UpgradeField);
