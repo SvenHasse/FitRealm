@@ -399,49 +399,45 @@ export default function RealmScreen() {
 
   return (
     <View style={styles.container}>
-      {/* World Map — Isometric SVG Canvas */}
+      {/* World Map — Single ScrollView for smooth bidirectional pan + zoom */}
       <ScrollView
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: CANVAS_W + 120,
-          height: CANVAS_H + 120,
-          padding: 60,
+          width: CANVAS_W + 80,
+          height: CANVAS_H + 80,
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
-        horizontal={false}
+        horizontal
         directionalLockEnabled={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
         contentOffset={{ x: initialScrollX, y: initialScrollY }}
         maximumZoomScale={2.5}
-        minimumZoomScale={0.3}
+        minimumZoomScale={0.4}
         bouncesZoom
         bounces
         scrollEnabled
+        decelerationRate="fast"
+        scrollEventThrottle={16}
       >
-        <ScrollView
-          horizontal
-          nestedScrollEnabled
-          showsHorizontalScrollIndicator={false}
-          bounces
-          contentContainerStyle={{ width: CANVAS_W + 60, height: CANVAS_H + 60 }}
+        <View
+          ref={svgContainerRef}
+          style={{ width: CANVAS_W, height: CANVAS_H, position: 'relative' }}
+          onStartShouldSetResponder={() => true}
+          onMoveShouldSetResponder={() => false}
+          onResponderRelease={handleMapPress}
         >
-          <View
-            ref={svgContainerRef}
-            style={{ width: CANVAS_W, height: CANVAS_H, position: 'relative' }}
-            onStartShouldSetResponder={() => true}
-            onResponderRelease={handleMapPress}
-          >
-            <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}>
-              {/* Forest border ground tiles (SVG) */}
-              <IsometricForest gridSize={GRID_SIZE} borderSize={BORDER_SIZE} />
-              {/* Game grid tiles, buildings, obstacles */}
-              {renderGridTiles}
-            </Svg>
-            {/* Zone-based forest landscape sprites (React Native Images, outside SVG) */}
-            <ForestLandscape gridSize={GRID_SIZE} borderSize={BORDER_SIZE} />
-          </View>
-        </ScrollView>
+          <Svg width={CANVAS_W} height={CANVAS_H} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}>
+            {/* Forest border ground tiles (SVG) */}
+            <IsometricForest gridSize={GRID_SIZE} borderSize={BORDER_SIZE} />
+            {/* Game grid tiles, buildings, obstacles */}
+            {renderGridTiles}
+          </Svg>
+          {/* Zone-based forest landscape sprites (React Native Images, outside SVG) */}
+          <ForestLandscape gridSize={GRID_SIZE} borderSize={BORDER_SIZE} />
+        </View>
       </ScrollView>
 
       {/* Danger overlay — red border when wave approaching */}
