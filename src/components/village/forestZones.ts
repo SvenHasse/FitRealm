@@ -2,6 +2,80 @@ import { NatureSpriteKey } from '../../assets/nature-sprites';
 import { gridToScreen, TILE_W, TILE_H } from '../../utils/isometric';
 import { ForestElement, ForestZone, RockCluster } from './forestTypes';
 
+// ── Hand-placed element interface ──────────────────────────────────────────
+
+export interface HandPlacedElement {
+  sprite: NatureSpriteKey;
+  row: number;
+  col: number;
+  size: number;
+  flipX?: boolean;
+}
+
+// ── NE Corner detection ────────────────────────────────────────────────────
+
+export function isNECorner(row: number, col: number): boolean {
+  return row >= -5 && row <= 1 && col >= 9 && col <= 19;
+}
+
+// ── NE Corner hand-placed clusters ─────────────────────────────────────────
+
+export const NE_CORNER_CLUSTERS: HandPlacedElement[] = [
+  // Cluster 1: Two tall birches + rock at base
+  { sprite: 'BirchTree_1', row: -4.0, col: 16.0, size: 95 },
+  { sprite: 'BirchTree_3', row: -3.5, col: 16.8, size: 85 },
+  { sprite: 'Rock_Moss_1', row: -3.2, col: 16.3, size: 35 },
+  { sprite: 'Grass_Short', row: -3.8, col: 15.5, size: 25 },
+
+  // Cluster 2: Single large pine (focal point)
+  { sprite: 'PineTree_1', row: -2.0, col: 17.5, size: 100 },
+  { sprite: 'Bush_1', row: -1.5, col: 17.8, size: 40 },
+  { sprite: 'Plant_3', row: -1.8, col: 17.0, size: 25 },
+
+  // Cluster 3: Three common trees — main grove
+  { sprite: 'CommonTree_2', row: -3.0, col: 12.0, size: 90 },
+  { sprite: 'CommonTree_1', row: -3.8, col: 12.8, size: 100, flipX: true },
+  { sprite: 'CommonTree_4', row: -2.5, col: 13.2, size: 80 },
+  { sprite: 'Bush_2', row: -2.0, col: 12.5, size: 35 },
+  { sprite: 'BushBerries_1', row: -2.8, col: 11.5, size: 30 },
+  { sprite: 'Flowers', row: -2.2, col: 13.5, size: 20 },
+
+  // Cluster 4: Rock formation
+  { sprite: 'Rock_2', row: -4.0, col: 13.5, size: 55 },
+  { sprite: 'Rock_3', row: -4.5, col: 14.0, size: 65 },
+  { sprite: 'Rock_Moss_2', row: -3.5, col: 14.2, size: 45 },
+  { sprite: 'Grass', row: -4.2, col: 13.0, size: 22 },
+  { sprite: 'Plant_1', row: -3.8, col: 14.5, size: 25 },
+
+  // Cluster 5: Edge trees — smaller, near playfield
+  { sprite: 'BirchTree_5', row: -0.5, col: 15.5, size: 65 },
+  { sprite: 'Bush_1', row: 0.2, col: 16.0, size: 30 },
+  { sprite: 'Grass_Short', row: 0.0, col: 15.0, size: 20 },
+
+  // Cluster 6: Far corner — dense background
+  { sprite: 'PineTree_3', row: -5.0, col: 18.0, size: 95, flipX: true },
+  { sprite: 'PineTree_2', row: -4.5, col: 19.0, size: 90 },
+  { sprite: 'CommonTree_5', row: -5.0, col: 17.0, size: 85 },
+  { sprite: 'BirchTree_2', row: -4.0, col: 18.5, size: 80, flipX: true },
+
+  // Cluster 7: Scattered ground detail (NO trees — open space)
+  { sprite: 'Grass_Short', row: -1.5, col: 14.0, size: 22 },
+  { sprite: 'Plant_1', row: -2.5, col: 15.0, size: 20 },
+  { sprite: 'Grass', row: -1.0, col: 16.0, size: 18 },
+  { sprite: 'Flowers', row: -3.0, col: 15.5, size: 20 },
+
+  // Cluster 8: Stump + log — storytelling
+  { sprite: 'TreeStump_Moss', row: -2.0, col: 10.5, size: 35 },
+  { sprite: 'WoodLog', row: -2.3, col: 11.0, size: 40 },
+  { sprite: 'Grass', row: -1.8, col: 10.2, size: 20 },
+
+  // Additional edge detail
+  { sprite: 'BirchTree_4', row: -1.0, col: 11.0, size: 60 },
+  { sprite: 'Grass_2', row: -0.5, col: 12.0, size: 18 },
+  { sprite: 'CommonTree_3', row: -1.5, col: 9.5, size: 70 },
+  { sprite: 'Plant_5', row: -0.8, col: 10.0, size: 22 },
+];
+
 // ── Zone definitions ────────────────────────────────────────────────────────
 
 const ZONES: ForestZone[] = [
@@ -263,10 +337,27 @@ export function generateAllForestElements(
   const allElements: ForestElement[] = [];
   const totalSize = gridSize + borderSize * 2;
 
+  // ── NE Corner — hand-placed clusters ──
+  for (const el of NE_CORNER_CLUSTERS) {
+    const { x, y } = gridToScreen(el.row + borderSize, el.col + borderSize, totalSize);
+    allElements.push({
+      sprite: el.sprite,
+      x: x + TILE_W / 2 - el.size / 2,
+      y: y + TILE_H - el.size, // bottom-anchored
+      width: el.size,
+      height: el.size,
+      zIndex: Math.round(y + TILE_H),
+      flipX: el.flipX,
+    });
+  }
+
+  // ── All other zones — zone-based generation ──
   for (let row = -borderSize; row < gridSize + borderSize; row++) {
     for (let col = -borderSize; col < gridSize + borderSize; col++) {
       // Skip playable grid
       if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) continue;
+      // Skip NE corner — handled above by hand-placed clusters
+      if (isNECorner(row, col)) continue;
 
       const zone = getZoneForTile(row, col);
       if (!zone) continue;
