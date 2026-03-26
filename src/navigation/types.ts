@@ -19,6 +19,7 @@ export type RootStackParamList = {
     queueIndex?: number;
   };
   Minigame: undefined;
+  GLBTest: undefined;
 };
 
 // Mock workout used when tapping "Auswerten" on Dashboard

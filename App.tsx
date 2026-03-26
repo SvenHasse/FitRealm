@@ -26,6 +26,7 @@ import GoalsScreen from './src/screens/GoalsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import WorkoutRewardScreen from './src/screens/WorkoutRewardScreen';
 import MinigameScreen from './src/minigame/MinigameScreen';
+import GLBTestScreen from './src/screens/GLBTestScreen';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -114,6 +115,11 @@ export default function App() {
           name="Minigame"
           component={MinigameScreen}
           options={{ presentation: 'fullScreenModal' }}
+        />
+        <RootStack.Screen
+          name="GLBTest"
+          component={GLBTestScreen}
+          options={{ presentation: 'fullScreenModal', headerShown: false }}
         />
       </RootStack.Navigator>
     </NavigationContainer>
