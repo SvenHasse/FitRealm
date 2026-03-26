@@ -450,8 +450,6 @@ export default function RealmScreen() {
             canvasHeight={CANVAS_H}
             scrollX={parallaxScrollX}
             scrollY={parallaxScrollY}
-            screenWidth={SCREEN_W}
-            screenHeight={SCREEN_H}
           />
         </View>
       </ScrollView>
