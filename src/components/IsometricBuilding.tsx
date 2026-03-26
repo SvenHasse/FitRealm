@@ -27,7 +27,7 @@ const BUILDING_HEIGHT: Partial<Record<BuildingType, number>> = {
 };
 const DEFAULT_HEIGHT = 32;
 
-function getHeight(type: BuildingType): number {
+export function getBuildingHeight(type: BuildingType): number {
   return BUILDING_HEIGHT[type] ?? DEFAULT_HEIGHT;
 }
 
@@ -40,28 +40,8 @@ function darkenHex(hex: string, factor: number): string {
   return `#${toH(r)}${toH(g)}${toH(b)}`;
 }
 
-const BUILDING_LABELS: Record<BuildingType, string> = {
-  [BuildingType.rathaus]: 'R',
-  [BuildingType.kornkammer]: 'K',
-  [BuildingType.proteinfarm]: 'P',
-  [BuildingType.holzfaeller]: 'H',
-  [BuildingType.steinbruch]: 'S',
-  [BuildingType.feld]: 'F',
-  [BuildingType.holzlager]: 'HL',
-  [BuildingType.steinlager]: 'SL',
-  [BuildingType.nahrungslager]: 'NL',
-  [BuildingType.kaserne]: 'Ka',
-  [BuildingType.tempel]: 'T',
-  [BuildingType.bibliothek]: 'B',
-  [BuildingType.marktplatz]: 'M',
-  [BuildingType.stammeshaus]: 'St',
-  [BuildingType.stall]: 'Sl',
-  [BuildingType.wachturm]: 'W',
-  [BuildingType.mauer]: 'Ma',
-};
-
 function IsometricBuildingInner({ x, y, buildingType, level, isUnderConstruction }: Props) {
-  const H = getHeight(buildingType);
+  const H = getBuildingHeight(buildingType);
   const accent = isUnderConstruction ? '#F5A623' : buildingAccentColor(buildingType);
   const topColor = accent;
   const leftColor = darkenHex(accent, 0.75);
@@ -97,10 +77,6 @@ function IsometricBuildingInner({ x, y, buildingType, level, isUnderConstruction
     `${right.x},${right.y - H}`,
   ].join(' ');
 
-  // Centre of roof for label
-  const roofCx = x + TILE_W / 2;
-  const roofCy = y + TILE_H / 2 - H;
-
   return (
     <G>
       {/* Left face */}
@@ -125,18 +101,6 @@ function IsometricBuildingInner({ x, y, buildingType, level, isUnderConstruction
           />
         </>
       )}
-
-      {/* Building label on roof */}
-      <SvgText
-        x={roofCx}
-        y={roofCy + 5}
-        fontSize={14}
-        fontWeight="bold"
-        fill="rgba(255,255,255,0.9)"
-        textAnchor="middle"
-      >
-        {BUILDING_LABELS[buildingType] ?? '?'}
-      </SvgText>
 
       {/* Level indicator */}
       {level > 0 && !isUnderConstruction && (

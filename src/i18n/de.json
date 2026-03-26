@@ -49,7 +49,16 @@
     "syncHealthData": "Gesundheitsdaten synchronisieren"
   },
   "realm": {
-    "tapToPlace": "Tippe auf ein freies Feld: {{building}}"
+    "tapToPlace": "Tippe auf ein freies Feld: {{building}}",
+    "stallFirstAnimal": "Ein Erntehuhn hat sich in deinem Stall niedergelassen!",
+    "trophyPlaceHint": "{{emoji}} Trophäe platzieren — tippe auf ein leeres Feld"
+  },
+  "wall": {
+    "repairTitle": "Mauer reparieren",
+    "repairCostMessage": "Reparaturkosten: {{cost}} Holz\nAktuell: {{wood}} Holz",
+    "repairButton": "Reparieren ({{cost}} Holz)",
+    "notEnoughTitle": "Nicht genug Holz",
+    "notEnoughBody": "Du brauchst {{cost}} Holz."
   },
   "building": {
     "sell": "Verkaufen",
