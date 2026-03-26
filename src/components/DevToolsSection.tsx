@@ -10,6 +10,9 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import * as Crypto from 'expo-crypto';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 import { AppColors, WorkoutRecord, Animal, AnimalType, AnimalEgg, AnimalRarity, DamageEffect, BuildingType, Trophy } from '../models/types';
 import { useGameStore } from '../store/gameStore';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
@@ -45,6 +48,7 @@ function SectionLabel({ text }: { text: string }) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function DevToolsSection() {
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {
     muskelmasse, protein, streakTokens, holz, nahrung, stein, currentStreak,
     devAddMuskelmasse, devAddProtein, devAddStreakTokens, devAddStreak,
@@ -681,6 +685,16 @@ export default function DevToolsSection() {
         <DevBtn label="🔥 Streak → 30d" onPress={handleSimulateStreak30} />
       </View>
 
+      {/* ── MINIGAME ─────────────────────────────────────────── */}
+      <SectionLabel text="MINIGAME" />
+      <TouchableOpacity style={s.minigameBtn} onPress={() => nav.navigate('Minigame')} activeOpacity={0.75}>
+        <MaterialCommunityIcons name="gamepad-variant" size={16} color="#42a5f5" />
+        <View style={{ flex: 1 }}>
+          <Text style={s.minigameBtnTitle}>🐻‍❄️ Eisbären-Fabrik öffnen</Text>
+          <Text style={s.minigameBtnSub}>Idle-Tycoon Minigame (Feature-Branch)</Text>
+        </View>
+      </TouchableOpacity>
+
       {/* ── SCHADENSEFFEKTE ───────────────────────────────────── */}
       <SectionLabel text="SCHADENSEFFEKTE" />
       <View style={s.grid}>
@@ -764,6 +778,13 @@ const s = StyleSheet.create({
     fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 18,
     fontVariant: ['tabular-nums'],
   },
+  minigameBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12,
+    backgroundColor: 'rgba(66,165,245,0.15)', borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(66,165,245,0.4)',
+  },
+  minigameBtnTitle: { fontSize: 13, fontWeight: '600', color: '#42a5f5' },
+  minigameBtnSub: { fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
   animalBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12,
     backgroundColor: 'rgba(196,147,74,0.15)', borderRadius: 12,
