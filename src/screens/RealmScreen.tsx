@@ -423,9 +423,38 @@ export default function RealmScreen() {
   const stallBuilding = gameState.buildings.find(b => b.type === BuildingType.stall && b.level >= 1) ?? null;
 
   // ── Render isometric grid rows (painter's algorithm: back to front) ─────
-  const renderGridTiles = useMemo(() => {
-    const elements: React.ReactElement[] = [];
+  // Tile layer — re-renders when highlights or placement mode changes.
+  // Tiles are transparent so separating them from buildings causes no z-order issues.
+  // showGrid: grid lines hidden by default, shown only in build/trophy placement mode.
+  const showGrid = buildPlacementMode !== null || placingTrophy !== null;
 
+  const tileLayer = useMemo(() => {
+    const elements: React.ReactElement[] = [];
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        const { x, y } = gridToScreen(row, col, GRID_SIZE);
+        const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
+        const obstacle = obstacles.find(o => o.row === row && o.col === col && !o.isCleared);
+        const isPlacementTarget = (buildPlacementMode != null || placingTrophy != null) && !building && !obstacle;
+        const isHighlighted = building != null && highlightedBuildingId === building.id;
+        elements.push(
+          <IsometricTile
+            key={`tile-${row}-${col}`}
+            x={x}
+            y={y}
+            variant={isHighlighted ? 'highlight' : isPlacementTarget ? 'highlight' : 'grass'}
+            showGrid={showGrid}
+          />
+        );
+      }
+    }
+    return elements;
+  }, [gameState.buildings, obstacles, buildPlacementMode, placingTrophy, highlightedBuildingId, showGrid]);
+
+  // Building/obstacle/trophy layer — re-renders when game content changes.
+  // Does NOT depend on showGrid so the tile memo fires independently.
+  const buildingLayer = useMemo(() => {
+    const elements: React.ReactElement[] = [];
     for (let row = 0; row < GRID_SIZE; row++) {
       for (let col = 0; col < GRID_SIZE; col++) {
         const { x, y } = gridToScreen(row, col, GRID_SIZE);
@@ -435,19 +464,7 @@ export default function RealmScreen() {
         const trophyHere = !building && gameState.trophies.find(
           tr => tr.gridPosition?.x === col && tr.gridPosition?.y === row,
         );
-        const isHighlighted = building != null && highlightedBuildingId === building.id;
-
-        // Base tile
-        elements.push(
-          <IsometricTile
-            key={`tile-${row}-${col}`}
-            x={x}
-            y={y}
-            variant={isHighlighted ? 'highlight' : isPlacementTarget ? 'highlight' : 'grass'}
-          />
-        );
-
-        // Building — skip SVG cuboid for types that have PNG sprites (unless under construction)
+        // Skip SVG cuboid for building types that have PNG sprites (unless under construction)
         const hasPngSprite = !building?.isUnderConstruction && (
           building?.type === BuildingType.rathaus || building?.type === BuildingType.holzfaeller
         );
@@ -488,7 +505,6 @@ export default function RealmScreen() {
         }
       }
     }
-
     return elements;
   }, [gameState.buildings, gameState.trophies, obstacles, buildPlacementMode, placingTrophy, highlightedBuildingId]);
 
@@ -582,7 +598,8 @@ export default function RealmScreen() {
                 height={CANVAS_H}
                 viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
               >
-                {renderGridTiles}
+                {tileLayer}
+                {buildingLayer}
               </Svg>
             </View>
 
