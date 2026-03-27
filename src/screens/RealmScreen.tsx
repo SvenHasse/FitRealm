@@ -34,7 +34,7 @@ import { formatDuration } from '../utils/formatDuration';
 import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding, { getBuildingHeight } from '../components/IsometricBuilding';
-import { ForestBorderSprites } from '../components/village/ForestBorderSprites';
+import { ForestParallax } from '../components/village/ForestParallax';
 import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
 import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
@@ -610,10 +610,11 @@ export default function RealmScreen() {
               svgOffsetY={svgOffsetY}
             />
 
-            {/* Layer 5: 996 individual sprites with depth-based parallax */}
-            <ForestBorderSprites
-              containerWidth={Math.round(CANVAS_W * 25 / 15)}
-              containerHeight={Math.round(CANVAS_H * 25 / 15)}
+            {/* Layer 5: Forest PNG ON TOP — transparent center shows tiles through,
+                tree edges naturally overlap the playfield border = correct depth */}
+            <ForestParallax
+              canvasWidth={CANVAS_W}
+              canvasHeight={CANVAS_H}
               scrollX={parallaxScrollX}
               scrollY={parallaxScrollY}
             />
