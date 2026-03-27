@@ -70,26 +70,55 @@ export const emptyHealthSnapshot: HealthSnapshot = {
   lastUpdated: new Date().toISOString(),
 };
 
-// MARK: - Goal
+// MARK: - Goal System
+export type GoalCategory   = 'fitness' | 'village' | 'seasonal';
+export type GoalDifficulty = 'easy' | 'medium' | 'hard' | 'legendary';
+export type GoalStatus     = 'active' | 'claimable' | 'claimed' | 'locked';
+
+export interface GoalReward {
+  muskelmasse?: number;
+  holz?: number;
+  nahrung?: number;
+  stein?: number;
+  protein?: number;
+  streakShield?: boolean;
+  skin?: string;
+  profileFrame?: string;
+}
+
 export interface Goal {
   id: string;
-  title: string;
-  description: string;
-  rewardVitacoins: number;
+  category: GoalCategory;
+  difficulty: GoalDifficulty;
+  status: GoalStatus;
+  titleKey: string;
+  descriptionKey: string;
   currentValue: number;
-  startValue: number;
   targetValue: number;
-  isAchieved: boolean;
+  unit: string;
+  deadline?: string;
+  reward: GoalReward;
+  icon: string;
+  completedAt?: string;
 }
 
-export function goalProgressFraction(goal: Goal): number {
-  if (goal.targetValue === goal.startValue) return 0;
-  const progress = (goal.currentValue - goal.startValue) / (goal.targetValue - goal.startValue);
-  return Math.min(Math.max(progress, 0), 1);
+export interface SeasonalGoalTier {
+  tier: 'bronze' | 'silver' | 'gold';
+  targetValue: number;
+  currentValue: number;
+  status: GoalStatus;
+  reward: GoalReward;
 }
 
-export function goalProgressPercent(goal: Goal): number {
-  return Math.floor(goalProgressFraction(goal) * 100);
+export interface SeasonalGoal {
+  id: string;
+  titleKey: string;
+  descriptionKey: string;
+  month: number;
+  year: number;
+  icon: string;
+  tiers: SeasonalGoalTier[];
+  deadline: string;
 }
 
 // MARK: - ResourceType

@@ -183,18 +183,34 @@
     "levelLabel": "Stufe {{level}}"
   },
   "goals": {
-    "lowerRHR": "Ruhe-HF senken",
-    "lowerRHRDesc": "Senke deine Ruhe-Herzfrequenz um 5 bpm in 60 Tagen",
-    "improveVO2": "VO2 Max verbessern",
-    "improveVO2Desc": "Steigere deinen VO2 Max um 2 Punkte in 60 Tagen",
-    "complete20": "20 Workouts absolvieren",
-    "complete20Desc": "Absolviere 20 Workouts diesen Monat",
-    "workoutsCount": "{{count}}/20 Workouts",
-    "workoutsThisMonth": "{{count}} Workouts diesen Monat",
-    "bpmImprovement": "{{value}} bpm Verbesserung",
-    "pointsImprovement": "{{value}} Punkte Verbesserung",
+    "tabs": { "fitness": "Fitness", "village": "Dorf", "seasonal": "Saisonal" },
+    "difficulty": { "easy": "Leicht", "medium": "Mittel", "hard": "Schwer", "legendary": "Legendär" },
+    "claimButton": "Belohnung abholen",
+    "claimed": "Abgeholt ✓",
     "progress": "Fortschritt",
-    "goalAchieved": "Ziel erreicht! Belohnung abholen."
+    "daysLeft": "Noch {{days}} Tage",
+    "allDone": "Alle Ziele abgeschlossen!",
+    "allDoneDesc": "Neue Ziele erscheinen bald.",
+    "fitness": {
+      "weeklyWorkouts": { "title": "Ausdauer-Krieger", "desc": "Schließe 12 Workouts in 30 Tagen ab" },
+      "steps":          { "title": "Schrittmeister",   "desc": "150.000 Schritte in 30 Tagen" },
+      "intense":        { "title": "Intensivtrainer",  "desc": "5 intensive Workouts (≥70% HRmax, 20+ Min)" }
+    },
+    "village": {
+      "builder":   { "title": "Baumeister",       "desc": "3 Gebäude auf Level 2 upgraden" },
+      "workers":   { "title": "Arbeitgeber",       "desc": "2 Worker trainieren und einsetzen" },
+      "resources": { "title": "Ressourcen-Baron", "desc": "1.000 Holz sammeln" }
+    },
+    "seasonal": {
+      "warrior": { "title": "Monat des Kriegers", "desc": "Beweise deine Stärke im März" }
+    },
+    "units": {
+      "workouts":  "Workouts",
+      "steps":     "Schritte",
+      "buildings": "Gebäude",
+      "workers":   "Worker",
+      "holz":      "Holz"
+    }
   },
   "settings": {
     "healthPermissions": "HealthKit Berechtigungen",
