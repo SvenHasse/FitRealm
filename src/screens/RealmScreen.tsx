@@ -58,10 +58,22 @@ import { Trophy } from '../models/types';
 const GRID_SIZE = WorldConstants.gridSize; // 15
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Canvas = just the 15x15 playfield. Forest PNG extends beyond.
+// Canvas = just the 15x15 playfield SVG grid.
 const CANVAS_SIZE = getGridPixelSize(GRID_SIZE);
 const CANVAS_W = CANVAS_SIZE.width;
 const CANVAS_H = CANVAS_SIZE.height;
+
+// World PNG sizing: world_full.png is 4096x2673 (aspect 1.532:1).
+// The world spans ~150 Blender units; the 15-tile grid covers 24 units centered.
+// So the grid occupies 24/150 = 16% of the total world width.
+const WORLD_ASPECT = 4096 / 2673;               // ~1.532
+const WORLD_GRID_RATIO = 150 / 24;              // ~6.25 — world width / grid width
+const CONTAINER_W = Math.round(CANVAS_W * WORLD_GRID_RATIO);
+const CONTAINER_H = Math.round(CONTAINER_W / WORLD_ASPECT);
+
+// SVG grid offset within the world container (centered)
+const SVG_OFFSET_X = Math.round((CONTAINER_W - CANVAS_W) / 2);
+const SVG_OFFSET_Y = Math.round((CONTAINER_H - CANVAS_H) / 2);
 
 // Zoom scale constants
 const MIN_SCALE = 0.35;
@@ -294,16 +306,12 @@ export default function RealmScreen() {
     const rathaus = gameState.buildings.find(b => b.type === BuildingType.rathaus);
     if (!rathaus) return;
     const { x, y } = gridToScreen(rathaus.position.row, rathaus.position.col, GRID_SIZE);
-    const containerW = Math.round(CANVAS_W * 25 / 15);
-    const containerH = Math.round(CANVAS_H * 25 / 15);
-    const sOffX = Math.round((containerW - CANVAS_W) / 2);
-    const sOffY = Math.round((containerH - CANVAS_H) / 2);
     // Rathaus tile centre in Animated.View space
-    const animX = sOffX + x + TILE_W / 2;
-    const animY = sOffY + y + TILE_H / 2;
+    const animX = SVG_OFFSET_X + x + TILE_W / 2;
+    const animY = SVG_OFFSET_Y + y + TILE_H / 2;
     // Visual position in content space — scale pivots on Animated.View centre
-    const visualX = containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
-    const visualY = containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
+    const visualX = CONTAINER_W / 2 + (animX - CONTAINER_W / 2) * INITIAL_SCALE;
+    const visualY = CONTAINER_H / 2 + (animY - CONTAINER_H / 2) * INITIAL_SCALE;
     const targetX = Math.max(0, visualX - SCREEN_W / 2);
     const targetY = Math.max(0, visualY - SCREEN_H / 2);
     initialScrollPos.current = { x: targetX, y: targetY };
@@ -344,20 +352,15 @@ export default function RealmScreen() {
   // sees the building body rather than just its base tile.
   const scrollToBuilding = useCallback((row: number, col: number, buildingType: BuildingType) => {
     const { x, y } = gridToScreen(row, col, GRID_SIZE);
-    const containerW = Math.round(CANVAS_W * 25 / 15);
-    const containerH = Math.round(CANVAS_H * 25 / 15);
-    // SVG offset within the Animated.View
-    const sOffX = Math.round((containerW - CANVAS_W) / 2);
-    const sOffY = Math.round((containerH - CANVAS_H) / 2);
     // Building visual centre in Animated.View space (Y shifted up to show sprite body)
     const spriteOffset = getSpriteVerticalOffset(buildingType);
-    const animX = sOffX + x + TILE_W / 2;
-    const animY = sOffY + y + TILE_H / 2 + spriteOffset;
+    const animX = SVG_OFFSET_X + x + TILE_W / 2;
+    const animY = SVG_OFFSET_Y + y + TILE_H / 2 + spriteOffset;
     // Use current zoom level — correct even if user has pinched before opening registry
     const currentScale = scale.value;
     // Visual position in content space — scale pivots on Animated.View centre
-    const visualX = containerW / 2 + (animX - containerW / 2) * currentScale;
-    const visualY = containerH / 2 + (animY - containerH / 2) * currentScale;
+    const visualX = CONTAINER_W / 2 + (animX - CONTAINER_W / 2) * currentScale;
+    const visualY = CONTAINER_H / 2 + (animY - CONTAINER_H / 2) * currentScale;
     scrollRef.current?.scrollTo({
       x: Math.max(0, visualX - SCREEN_W / 2),
       y: Math.max(0, visualY - SCREEN_H / 2),
@@ -551,8 +554,8 @@ export default function RealmScreen() {
   }, [gameState.buildings]);
 
   // SVG offset within the container (for positioning overlays)
-  const svgOffsetX = Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2);
-  const svgOffsetY = Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2);
+  const svgOffsetX = SVG_OFFSET_X;
+  const svgOffsetY = SVG_OFFSET_Y;
 
   // Shared values for parallax scroll tracking
   const parallaxScrollX = useSharedValue(0);
@@ -580,8 +583,8 @@ export default function RealmScreen() {
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: Math.round(CANVAS_W * 25 / 15),
-          height: Math.round(CANVAS_H * 25 / 15),
+          width: CONTAINER_W,
+          height: CONTAINER_H,
         }}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
@@ -604,8 +607,8 @@ export default function RealmScreen() {
               ref={svgContainerRef}
               style={[
                 {
-                  width: Math.round(CANVAS_W * 25 / 15),
-                  height: Math.round(CANVAS_H * 25 / 15),
+                  width: CONTAINER_W,
+                  height: CONTAINER_H,
                   position: 'relative',
                 },
                 zoomStyle,
@@ -615,8 +618,8 @@ export default function RealmScreen() {
             <View
               style={{
                 position: 'absolute',
-                top: Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2),
-                left: Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2),
+                top: SVG_OFFSET_Y,
+                left: SVG_OFFSET_X,
                 width: CANVAS_W,
                 height: CANVAS_H,
               }}
@@ -661,8 +664,8 @@ export default function RealmScreen() {
             {/* Layer 5: Forest PNG ON TOP — transparent center shows tiles through,
                 tree edges naturally overlap the playfield border = correct depth */}
             <ForestParallax
-              canvasWidth={CANVAS_W}
-              canvasHeight={CANVAS_H}
+              containerWidth={CONTAINER_W}
+              containerHeight={CONTAINER_H}
               scrollX={parallaxScrollX}
               scrollY={parallaxScrollY}
             />
