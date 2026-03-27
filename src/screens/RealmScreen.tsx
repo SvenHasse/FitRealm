@@ -105,6 +105,43 @@ const CELL_CFG: Record<string, { icon: string; color: string }> = {
   mauer:        { icon: 'wall',          color: '#78909C' },
 };
 
+// ── Biome Lock Icon ────────────────────────────────────────────────────────
+function BiomeLockIcon({ left, top, emoji, label, onPress }: {
+  left: number; top: number; emoji: string; label: string; onPress: () => void;
+}) {
+  const pulse = useSharedValue(1);
+  React.useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.12, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+      ), -1, false
+    );
+  }, []);
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+
+  return (
+    <Animated.View style={[{
+      position: 'absolute', left, top, width: 56, height: 56,
+      alignItems: 'center', justifyContent: 'center', zIndex: 200,
+    }, pulseStyle]}>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.8}
+        style={{
+          width: 56, height: 56, borderRadius: 28,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          borderWidth: 2, borderColor: '#FFD700',
+          alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <MaterialCommunityIcons name="lock" size={20} color="#FFD700" />
+        <Text style={{ fontSize: 7, color: '#FFD700', fontWeight: 'bold', marginTop: 1 }}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 // ── Obstacle SVG rendering ──────────────────────────────────────────────────
 function ObstacleSvg({ x, y, type, isClearing }: { x: number; y: number; type: string; isClearing: boolean }) {
   const hw = TILE_W / 2;
@@ -672,6 +709,22 @@ export default function RealmScreen() {
               containerHeight={CONTAINER_H}
               scrollX={parallaxScrollX}
               scrollY={parallaxScrollY}
+            />
+
+            {/* Layer 6: Biome lock icons — positioned at transition points */}
+            <BiomeLockIcon
+              left={Math.round(CONTAINER_W * 0.4743) - 28}
+              top={Math.round(CONTAINER_H * 0.3568) - 28}
+              emoji="🏜️"
+              label="Wüste"
+              onPress={() => Alert.alert('🏜️ Wüste', 'Schicke ein Tier auf Erkundung, um die Wüste freizuschalten!')}
+            />
+            <BiomeLockIcon
+              left={Math.round(CONTAINER_W * 0.6574) - 28}
+              top={Math.round(CONTAINER_H * 0.5188) - 28}
+              emoji="⛰️"
+              label="Berge"
+              onPress={() => Alert.alert('⛰️ Berge', 'Schicke ein Tier auf Erkundung, um die Berge freizuschalten!')}
             />
             </Animated.View>
           </GestureDetector>
