@@ -63,17 +63,21 @@ const CANVAS_SIZE = getGridPixelSize(GRID_SIZE);
 const CANVAS_W = CANVAS_SIZE.width;
 const CANVAS_H = CANVAS_SIZE.height;
 
-// World PNG sizing: world_full.png is 4096x2673 (aspect 1.532:1).
-// The world spans ~150 Blender units; the 15-tile grid covers 24 units centered.
-// So the grid occupies 24/150 = 16% of the total world width.
-const WORLD_ASPECT = 4096 / 2673;               // ~1.532
-const WORLD_GRID_RATIO = 150 / 24;              // ~6.25 — world width / grid width
-const CONTAINER_W = Math.round(CANVAS_W * WORLD_GRID_RATIO);
+// World PNG sizing: world_full.png is 6144x4010 (aspect 1.532:1).
+// From Blender projection: the GameGrid occupies 22% of image width, 19.4% of height.
+// Grid center is at 56.6% from left, 43.8% from top of the image.
+const WORLD_ASPECT = 6144 / 4010;               // ~1.532
+const GRID_WIDTH_FRAC = 0.2197;                  // grid is 22% of image width
+const GRID_CENTER_X_FRAC = 0.5659;              // grid center at 56.6% from left
+const GRID_CENTER_Y_FRAC = 0.4378;              // grid center at 43.8% from top
+
+// Container = world PNG scaled so the grid area matches CANVAS_W
+const CONTAINER_W = Math.round(CANVAS_W / GRID_WIDTH_FRAC);
 const CONTAINER_H = Math.round(CONTAINER_W / WORLD_ASPECT);
 
-// SVG grid offset within the world container (centered)
-const SVG_OFFSET_X = Math.round((CONTAINER_W - CANVAS_W) / 2);
-const SVG_OFFSET_Y = Math.round((CONTAINER_H - CANVAS_H) / 2);
+// SVG grid offset: position grid at exact pixel location matching the PNG
+const SVG_OFFSET_X = Math.round(CONTAINER_W * GRID_CENTER_X_FRAC - CANVAS_W / 2);
+const SVG_OFFSET_Y = Math.round(CONTAINER_H * GRID_CENTER_Y_FRAC - CANVAS_H / 2);
 
 // Zoom scale constants
 const MIN_SCALE = 0.35;
