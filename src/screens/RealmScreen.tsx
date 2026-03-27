@@ -528,19 +528,13 @@ export default function RealmScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      {/* World Map — Single ScrollView for smooth bidirectional pan + zoom */}
+      {/* World Map — Vertical ScrollView wrapping horizontal for true 2D pan */}
       <ScrollView
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: Math.round(CANVAS_W * 25 / 15) + 100,
-          height: Math.round(CANVAS_H * 25 / 15) + 100,
           alignItems: 'center',
-          justifyContent: 'center',
         }}
-        horizontal
-        directionalLockEnabled={false}
-        showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
         bounces
         scrollEnabled
@@ -552,18 +546,31 @@ export default function RealmScreen() {
           parallaxScrollY.value = contentOffset.y - initialScrollPos.current.y;
         }}
       >
-        <GestureDetector gesture={pinchGesture}>
-          <Animated.View
-            ref={svgContainerRef}
-            style={[
-              {
-                width: Math.round(CANVAS_W * 25 / 15),
-                height: Math.round(CANVAS_H * 25 / 15),
-                position: 'relative',
-              },
-              zoomStyle,
-            ]}
-          >
+        <ScrollView
+          horizontal
+          directionalLockEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          bounces
+          nestedScrollEnabled
+          decelerationRate="fast"
+          scrollEventThrottle={16}
+          onScroll={(e) => {
+            const { contentOffset } = e.nativeEvent;
+            parallaxScrollX.value = contentOffset.x - initialScrollPos.current.x;
+          }}
+        >
+          <GestureDetector gesture={pinchGesture}>
+            <Animated.View
+              ref={svgContainerRef}
+              style={[
+                {
+                  width: Math.round(CANVAS_W * 25 / 15),
+                  height: Math.round(CANVAS_H * 25 / 15),
+                  position: 'relative',
+                },
+                zoomStyle,
+              ]}
+            >
             {/* SVG wrapper — tap handler is HERE so locationX/Y = SVG coordinates directly */}
             <View
               style={{
@@ -618,8 +625,9 @@ export default function RealmScreen() {
               scrollX={parallaxScrollX}
               scrollY={parallaxScrollY}
             />
-          </Animated.View>
-        </GestureDetector>
+            </Animated.View>
+          </GestureDetector>
+        </ScrollView>
       </ScrollView>
 
       {/* Danger overlay — red border when wave approaching */}
