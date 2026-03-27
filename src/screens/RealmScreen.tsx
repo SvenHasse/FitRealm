@@ -322,21 +322,34 @@ export default function RealmScreen() {
     return () => clearTimeout(timer);
   }, [highlightedBuildingId]);
 
-  // Scroll map so the building sits at viewport centre.
-  // Mirrors the Rathaus camera-centering useEffect exactly:
-  //   transform:scale(INITIAL_SCALE) pivots around the Animated.View centre, not
-  //   the origin, so we must apply the visual-position formula before computing
-  //   the scroll target.
-  const scrollToBuilding = useCallback((row: number, col: number) => {
+  // Vertical offset (in Animated.View px, before scale) to shift the camera
+  // above the tile centre so the building SPRITE — not the floor tile — is centred.
+  // PNG sprites are bottom-anchored; SVG cuboids also extend upward from the tile.
+  const getSpriteVerticalOffset = (type: BuildingType): number => {
+    switch (type) {
+      case BuildingType.rathaus:    return -60; // tall PNG sprite
+      case BuildingType.holzfaeller: return -30; // medium PNG sprite
+      default:                      return -20; // SVG cuboid — small upward nudge
+    }
+  };
+
+  // Scroll map so the building sprite sits at viewport centre.
+  // transform:scale(INITIAL_SCALE) pivots around the Animated.View centre, not
+  // the origin, so we apply the visual-position formula before computing the
+  // scroll target.  A per-type sprite offset shifts Y above the tile floor so
+  // the player sees the building body rather than just its base tile.
+  const scrollToBuilding = useCallback((row: number, col: number, buildingType: BuildingType) => {
     const { x, y } = gridToScreen(row, col, GRID_SIZE);
     const containerW = Math.round(CANVAS_W * 25 / 15);
     const containerH = Math.round(CANVAS_H * 25 / 15);
     // SVG offset within the Animated.View
     const sOffX = Math.round((containerW - CANVAS_W) / 2);
     const sOffY = Math.round((containerH - CANVAS_H) / 2);
-    // Building tile centre in Animated.View space
+    // Building visual centre in Animated.View space
+    // Y is shifted up by spriteOffset so the sprite body — not the floor — is centred
+    const spriteOffset = getSpriteVerticalOffset(buildingType);
     const animX = sOffX + x + TILE_W / 2;
-    const animY = sOffY + y + TILE_H / 2;
+    const animY = sOffY + y + TILE_H / 2 + spriteOffset;
     // Content container padding (200 extra width / 400 extra height → 100/200 per side)
     const padX = 100;
     const padY = 200;
@@ -354,7 +367,7 @@ export default function RealmScreen() {
   const handleRegistrySelect = useCallback((building: Building) => {
     setShowRegistry(false);
     setHighlightedBuildingId(building.id);
-    scrollToBuilding(building.position.row, building.position.col);
+    scrollToBuilding(building.position.row, building.position.col, building.type);
   }, [scrollToBuilding]);
 
   const handleCellPress = (row: number, col: number) => {
