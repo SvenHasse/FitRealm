@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal,
   Dimensions, LayoutAnimation, UIManager, Platform, Alert,
-  GestureResponderEvent,
+  GestureResponderEvent, AppState,
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle,
@@ -54,6 +54,11 @@ import DefenseDashboardModal from '../components/DefenseDashboardModal';
 import { MONSTER_CONFIGS } from '../config/EntityConfig';
 import { waveService } from '../services/WaveService';
 import { Trophy } from '../models/types';
+import { BiomeId } from '../features/exploration/types';
+import { BIOME_CONFIGS } from '../features/exploration/biomeConfig';
+import { useExplorationStore } from '../features/exploration/useExplorationStore';
+import { SendScoutModal } from '../components/exploration/SendScoutModal';
+import { ScoutReportModal } from '../components/exploration/ScoutReportModal';
 
 const GRID_SIZE = WorldConstants.gridSize; // 15
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -106,19 +111,31 @@ const CELL_CFG: Record<string, { icon: string; color: string }> = {
 };
 
 // ── Biome Lock Icon ────────────────────────────────────────────────────────
-function BiomeLockIcon({ left, top, emoji, label, onPress }: {
-  left: number; top: number; emoji: string; label: string; onPress: () => void;
+function BiomeLockIcon({ left, top, emoji, label, status, onPress }: {
+  left: number; top: number; emoji: string; label: string;
+  status: 'locked' | 'scouting' | 'scout_returned' | 'unlocking' | 'unlocked';
+  onPress: () => void;
 }) {
   const pulse = useSharedValue(1);
+  const isReturned = status === 'scout_returned';
   React.useEffect(() => {
     pulse.value = withRepeat(
       withSequence(
-        withTiming(1.12, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(isReturned ? 1.18 : 1.12, { duration: 800, easing: Easing.inOut(Easing.ease) }),
         withTiming(1.0, { duration: 800, easing: Easing.inOut(Easing.ease) }),
       ), -1, false
     );
-  }, []);
+  }, [isReturned]);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+
+  if (status === 'unlocked') return null;
+
+  const iconName: keyof typeof MaterialCommunityIcons.glyphMap =
+    status === 'scouting' ? 'paw' :
+    status === 'scout_returned' ? 'email' :
+    status === 'unlocking' ? 'lock-open-variant' : 'lock';
+  const borderColor = isReturned ? '#FFD700' : '#FFD700';
+  const glowStyle = isReturned ? { shadowColor: '#FFD700', shadowOpacity: 0.8, shadowRadius: 12, elevation: 8 } : {};
 
   return (
     <Animated.View style={[{
@@ -128,14 +145,14 @@ function BiomeLockIcon({ left, top, emoji, label, onPress }: {
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.8}
-        style={{
+        style={[{
           width: 56, height: 56, borderRadius: 28,
           backgroundColor: 'rgba(0,0,0,0.6)',
-          borderWidth: 2, borderColor: '#FFD700',
+          borderWidth: 2, borderColor,
           alignItems: 'center', justifyContent: 'center',
-        }}
+        }, glowStyle]}
       >
-        <MaterialCommunityIcons name="lock" size={20} color="#FFD700" />
+        <MaterialCommunityIcons name={iconName} size={20} color="#FFD700" />
         <Text style={{ fontSize: 7, color: '#FFD700', fontWeight: 'bold', marginTop: 1 }}>{label}</Text>
       </TouchableOpacity>
     </Animated.View>
@@ -323,6 +340,18 @@ export default function RealmScreen() {
   const clearPendingDragonUnlock = useGameStore(s => s.clearPendingDragonUnlock);
   const activeWave = gameState.activeWave;
   const [placingTrophy, setPlacingTrophy] = useState<Trophy | null>(null);
+
+  // Exploration state
+  const biomes = useExplorationStore(s => s.biomes);
+  const checkReturnedScouts = useExplorationStore(s => s.checkReturnedScouts);
+  const [scoutModal, setScoutModal] = useState<BiomeId | null>(null);
+  const [reportModal, setReportModal] = useState<BiomeId | null>(null);
+
+  useEffect(() => {
+    checkReturnedScouts();
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') checkReturnedScouts(); });
+    return () => sub.remove();
+  }, []);
 
   // Scroll ref for map navigation
   const scrollRef = useRef<ScrollView>(null);
@@ -717,14 +746,28 @@ export default function RealmScreen() {
               top={Math.round(CONTAINER_H * 0.3568) - 28}
               emoji="🏜️"
               label="Wüste"
-              onPress={() => Alert.alert('🏜️ Wüste', 'Schicke ein Tier auf Erkundung, um die Wüste freizuschalten!')}
+              status={biomes.desert.status}
+              onPress={() => {
+                const s = biomes.desert.status;
+                if (s === 'scout_returned') setReportModal('desert');
+                else if (s === 'unlocking') setReportModal('desert');
+                else if (s === 'locked') setScoutModal('desert');
+                else if (s === 'scouting') setScoutModal('desert');
+              }}
             />
             <BiomeLockIcon
               left={Math.round(CONTAINER_W * 0.6574) - 28}
               top={Math.round(CONTAINER_H * 0.5188) - 28}
               emoji="⛰️"
               label="Berge"
-              onPress={() => Alert.alert('⛰️ Berge', 'Schicke ein Tier auf Erkundung, um die Berge freizuschalten!')}
+              status={biomes.mountains.status}
+              onPress={() => {
+                const s = biomes.mountains.status;
+                if (s === 'scout_returned') setReportModal('mountains');
+                else if (s === 'unlocking') setReportModal('mountains');
+                else if (s === 'locked') setScoutModal('mountains');
+                else if (s === 'scouting') setScoutModal('mountains');
+              }}
             />
             </Animated.View>
           </GestureDetector>
@@ -985,6 +1028,14 @@ export default function RealmScreen() {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       )}
+
+      {/* Exploration Modals */}
+      {(['desert', 'mountains'] as BiomeId[]).map(id => (
+        <React.Fragment key={`exploration-${id}`}>
+          <SendScoutModal biomeId={id} visible={scoutModal === id} onClose={() => setScoutModal(null)} />
+          <ScoutReportModal biomeId={id} visible={reportModal === id} onClose={() => setReportModal(null)} />
+        </React.Fragment>
+      ))}
     </GestureHandlerRootView>
   );
 }
