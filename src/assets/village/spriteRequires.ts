@@ -1,0 +1,31 @@
+// Static require() map for all 26 sprite types used in the forest border.
+// Metro requires static require() calls — no dynamic paths allowed.
+
+export const SPRITE_REQUIRES: Record<string, ReturnType<typeof require>> = {
+  'BirchTree_1.png':  require('../nature-sprites/BirchTree_1.png'),
+  'BirchTree_2.png':  require('../nature-sprites/BirchTree_2.png'),
+  'BirchTree_3.png':  require('../nature-sprites/BirchTree_3.png'),
+  'CommonTree_1.png': require('../nature-sprites/CommonTree_1.png'),
+  'CommonTree_2.png': require('../nature-sprites/CommonTree_2.png'),
+  'CommonTree_3.png': require('../nature-sprites/CommonTree_3.png'),
+  'CommonTree_4.png': require('../nature-sprites/CommonTree_4.png'),
+  'CommonTree_5.png': require('../nature-sprites/CommonTree_5.png'),
+  'PineTree_1.png':   require('../nature-sprites/PineTree_1.png'),
+  'PineTree_2.png':   require('../nature-sprites/PineTree_2.png'),
+  'PineTree_3.png':   require('../nature-sprites/PineTree_3.png'),
+  'Rock_1.png':       require('../nature-sprites/Rock_1.png'),
+  'Rock_2.png':       require('../nature-sprites/Rock_2.png'),
+  'Rock_3.png':       require('../nature-sprites/Rock_3.png'),
+  'Rock_4.png':       require('../nature-sprites/Rock_4.png'),
+  'Rock_5.png':       require('../nature-sprites/Rock_5.png'),
+  'Rock_Moss_1.png':  require('../nature-sprites/Rock_Moss_1.png'),
+  'Rock_Moss_2.png':  require('../nature-sprites/Rock_Moss_2.png'),
+  'Bush_1.png':       require('../nature-sprites/Bush_1.png'),
+  'Bush_2.png':       require('../nature-sprites/Bush_2.png'),
+  'TreeStump.png':    require('../nature-sprites/TreeStump.png'),
+  'WoodLog.png':      require('../nature-sprites/WoodLog.png'),
+  'Plant_1.png':      require('../nature-sprites/Plant_1.png'),
+  'Plant_2.png':      require('../nature-sprites/Plant_2.png'),
+  'Flowers.png':      require('../nature-sprites/Flowers.png'),
+  'Grass_2.png':      require('../nature-sprites/Grass_2.png'),
+};
