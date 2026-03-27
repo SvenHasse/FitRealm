@@ -10,6 +10,7 @@ import {
   obstacleRemovalCost,
   Animal, AnimalEgg, AnimalAssignment, MonsterWave, WaveResult, DamageEffect, DefenseBreakdown,
   LootDrop, EggRarity, Trophy,
+  Goal, SeasonalGoal, GoalStatus,
 } from '../models/types';
 import { ANIMAL_CONFIGS, STALL_CONFIG, WAVE_CONFIG, DEFENSE_CONFIG } from '../config/EntityConfig';
 import { waveService } from '../services/WaveService';
@@ -156,11 +157,119 @@ interface GameStore {
   // Pending dragon unlock
   pendingDragonUnlock: boolean;
 
+  // Goals
+  goals: Goal[];
+  seasonalGoal: SeasonalGoal | null;
+  claimedGoalIds: string[];
+  claimGoalReward: (goalId: string) => void;
+  claimSeasonalTier: (tier: 'bronze' | 'silver' | 'gold') => void;
+  refreshGoalProgress: () => void;
+
   // Helpers
   canAfford: (cost: ResourceCost) => boolean;
   hourlyProductionRate: (building: Building) => number;
   buildingStorageCap: (building: Building) => number;
 }
+
+// ── Goals initial data ─────────────────────────────────────────────────────
+
+const INITIAL_GOALS: Goal[] = [
+  // Fitness
+  {
+    id: 'fitness-weekly-workouts',
+    category: 'fitness',
+    difficulty: 'medium',
+    status: 'active',
+    titleKey: 'goals.fitness.weeklyWorkouts.title',
+    descriptionKey: 'goals.fitness.weeklyWorkouts.desc',
+    currentValue: 0,
+    targetValue: 12,
+    unit: 'workouts',
+    reward: { muskelmasse: 400, holz: 200 },
+    icon: 'run',
+  },
+  {
+    id: 'fitness-steps',
+    category: 'fitness',
+    difficulty: 'easy',
+    status: 'active',
+    titleKey: 'goals.fitness.steps.title',
+    descriptionKey: 'goals.fitness.steps.desc',
+    currentValue: 0,
+    targetValue: 150000,
+    unit: 'steps',
+    reward: { muskelmasse: 200, holz: 300 },
+    icon: 'shoe-print',
+  },
+  {
+    id: 'fitness-intense',
+    category: 'fitness',
+    difficulty: 'hard',
+    status: 'active',
+    titleKey: 'goals.fitness.intense.title',
+    descriptionKey: 'goals.fitness.intense.desc',
+    currentValue: 0,
+    targetValue: 5,
+    unit: 'workouts',
+    reward: { muskelmasse: 600, protein: 8 },
+    icon: 'fire',
+  },
+  // Village
+  {
+    id: 'village-builder',
+    category: 'village',
+    difficulty: 'easy',
+    status: 'active',
+    titleKey: 'goals.village.builder.title',
+    descriptionKey: 'goals.village.builder.desc',
+    currentValue: 0,
+    targetValue: 3,
+    unit: 'buildings',
+    reward: { muskelmasse: 300, holz: 400 },
+    icon: 'home-plus',
+  },
+  {
+    id: 'village-workers',
+    category: 'village',
+    difficulty: 'easy',
+    status: 'active',
+    titleKey: 'goals.village.workers.title',
+    descriptionKey: 'goals.village.workers.desc',
+    currentValue: 0,
+    targetValue: 2,
+    unit: 'workers',
+    reward: { muskelmasse: 200, protein: 3 },
+    icon: 'account-hard-hat',
+  },
+  {
+    id: 'village-resources',
+    category: 'village',
+    difficulty: 'medium',
+    status: 'active',
+    titleKey: 'goals.village.resources.title',
+    descriptionKey: 'goals.village.resources.desc',
+    currentValue: 0,
+    targetValue: 1000,
+    unit: 'holz',
+    reward: { muskelmasse: 250, protein: 3 },
+    icon: 'treasure-chest',
+  },
+];
+
+const CURRENT_SEASONAL_GOAL: SeasonalGoal = {
+  id: 'seasonal-2026-03',
+  titleKey: 'goals.seasonal.warrior.title',
+  descriptionKey: 'goals.seasonal.warrior.desc',
+  month: 3,
+  year: 2026,
+  icon: 'sword',
+  deadline: '2026-03-31T23:59:59Z',
+  tiers: [
+    { tier: 'bronze', targetValue: 12, currentValue: 0, status: 'active',  reward: { muskelmasse: 400, holz: 400 } },
+    { tier: 'silver', targetValue: 18, currentValue: 0, status: 'locked',  reward: { muskelmasse: 800, protein: 6 } },
+    { tier: 'gold',   targetValue: 24, currentValue: 0, status: 'locked',  reward: { muskelmasse: 1500, protein: 15 } },
+  ],
+};
 
 export const useGameStore = create<GameStore>((set, get) => ({
   // Initial state
@@ -181,6 +290,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   pendingHatchResult: null,
   pendingDragonUnlock: false,
   storageCap: getTotalStorageCap([]),
+  goals: INITIAL_GOALS,
+  seasonalGoal: CURRENT_SEASONAL_GOAL,
+  claimedGoalIds: [],
 
   // MARK: - Initialize
   async initialize() {
@@ -522,6 +634,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     _syncAllCurrencies(newGs);
 
     console.log(`[Store] Manual workout injected: ${workout.durationMinutes}min, ${workout.averageHeartRate ?? '?'}bpm → +${Math.floor(newGs.muskelmasse - prevGs.muskelmasse)}g Muskelmasse`);
+    get().refreshGoalProgress();
 
     // Ei-Fortschritt prüfen
     const gs = get().gameState;
@@ -1187,6 +1300,102 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newGs = { ...gs, pendingDragonUnlock: false };
     set({ gameState: newGs, pendingDragonUnlock: false });
     GE.saveGameState(newGs);
+  },
+
+  // ── Goals ──────────────────────────────────────────────────────────────────
+
+  claimGoalReward(goalId) {
+    const goal = get().goals.find(g => g.id === goalId);
+    if (!goal || goal.status !== 'claimable') return;
+    const r = goal.reward;
+    const cs = useCurrencyStore.getState();
+    if (r.muskelmasse) cs.addMuskelmasse(r.muskelmasse);
+    if (r.holz)        cs.addHolz(r.holz);
+    if (r.protein)     cs.addProtein(r.protein);
+    if (r.nahrung)     cs.addNahrung(r.nahrung);
+    if (r.stein)       cs.addStein(r.stein);
+    set(s => ({
+      goals: s.goals.map(g =>
+        g.id === goalId
+          ? { ...g, status: 'claimed' as GoalStatus, completedAt: new Date().toISOString() }
+          : g
+      ),
+      claimedGoalIds: [...s.claimedGoalIds, goalId],
+    }));
+  },
+
+  claimSeasonalTier(tier) {
+    const sg = get().seasonalGoal;
+    if (!sg) return;
+    const t = sg.tiers.find(t => t.tier === tier);
+    if (!t || t.status !== 'claimable') return;
+    const r = t.reward;
+    const cs = useCurrencyStore.getState();
+    if (r.muskelmasse) cs.addMuskelmasse(r.muskelmasse);
+    if (r.holz)        cs.addHolz(r.holz);
+    if (r.protein)     cs.addProtein(r.protein);
+    set(s => ({
+      seasonalGoal: s.seasonalGoal ? {
+        ...s.seasonalGoal,
+        tiers: s.seasonalGoal.tiers.map(t2 =>
+          t2.tier === tier
+            ? { ...t2, status: 'claimed' as GoalStatus }
+            : t2
+        ),
+      } : null,
+    }));
+  },
+
+  refreshGoalProgress() {
+    const state = get();
+    const now = Date.now();
+    const cutoff30d = now - 30 * 24 * 60 * 60 * 1000;
+    const workouts30d = state.recentWorkouts.filter(w => new Date(w.date).getTime() >= cutoff30d);
+    const intenseWorkouts = workouts30d.filter(
+      w => (w.averageHeartRate ?? 0) >= 140 && w.durationMinutes >= 20
+    ).length;
+    const steps = state.healthSnapshot.stepsToday * 30; // approximation
+    const gs = state.gameState;
+    const level2Buildings = gs.buildings.filter(b => b.level >= 2).length;
+    const workerCount = gs.workers?.length ?? 0;
+    const holzAmount = useCurrencyStore.getState().holz;
+
+    const updated = state.goals.map(goal => {
+      if (goal.status === 'claimed') return goal;
+      let currentValue = goal.currentValue;
+      switch (goal.id) {
+        case 'fitness-weekly-workouts': currentValue = workouts30d.length; break;
+        case 'fitness-steps':          currentValue = steps; break;
+        case 'fitness-intense':        currentValue = intenseWorkouts; break;
+        case 'village-builder':        currentValue = level2Buildings; break;
+        case 'village-workers':        currentValue = workerCount; break;
+        case 'village-resources':      currentValue = holzAmount; break;
+      }
+      const done = currentValue >= goal.targetValue;
+      const newStatus: GoalStatus = done && goal.status === 'active' ? 'claimable' : goal.status;
+      return { ...goal, currentValue, status: newStatus };
+    });
+
+    // Seasonal goal progress (total workouts in 30d)
+    const workoutCount = workouts30d.length;
+    let updatedSeasonal = state.seasonalGoal;
+    if (updatedSeasonal) {
+      const tierOrder: ('bronze' | 'silver' | 'gold')[] = ['bronze', 'silver', 'gold'];
+      const newTiers = updatedSeasonal.tiers.map((t, i) => {
+        if (t.status === 'claimed') return { ...t, currentValue: workoutCount };
+        const prevDone = i === 0 || ['claimable', 'claimed'].includes(updatedSeasonal!.tiers[i - 1].status);
+        const done = workoutCount >= t.targetValue;
+        let newStatus: GoalStatus = t.status;
+        if (!prevDone) newStatus = 'locked';
+        else if (done && t.status === 'active') newStatus = 'claimable';
+        else if (!done && t.status === 'locked' && prevDone) newStatus = 'active';
+        else newStatus = t.status;
+        return { ...t, currentValue: workoutCount, status: newStatus };
+      });
+      updatedSeasonal = { ...updatedSeasonal, tiers: newTiers };
+    }
+
+    set({ goals: updated, seasonalGoal: updatedSeasonal });
   },
 }));
 

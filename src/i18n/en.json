@@ -183,18 +183,34 @@
     "levelLabel": "Level {{level}}"
   },
   "goals": {
-    "lowerRHR": "Lower Resting Heart Rate",
-    "lowerRHRDesc": "Reduce your resting HR by 5 bpm over 60 days",
-    "improveVO2": "Improve VO2 Max",
-    "improveVO2Desc": "Increase your VO2 Max by 2 points over 60 days",
-    "complete20": "Complete 20 Workouts",
-    "complete20Desc": "Log 20 workouts this month",
-    "workoutsCount": "{{count}}/20 workouts",
-    "workoutsThisMonth": "{{count}} workouts this month",
-    "bpmImprovement": "{{value}} bpm improvement",
-    "pointsImprovement": "{{value}} points improvement",
+    "tabs": { "fitness": "Fitness", "village": "Village", "seasonal": "Seasonal" },
+    "difficulty": { "easy": "Easy", "medium": "Medium", "hard": "Hard", "legendary": "Legendary" },
+    "claimButton": "Claim Reward",
+    "claimed": "Claimed ✓",
     "progress": "Progress",
-    "goalAchieved": "Goal achieved! Claim your reward."
+    "daysLeft": "{{days}} days left",
+    "allDone": "All goals completed!",
+    "allDoneDesc": "New goals will appear soon.",
+    "fitness": {
+      "weeklyWorkouts": { "title": "Endurance Warrior", "desc": "Complete 12 workouts in 30 days" },
+      "steps":          { "title": "Step Master",       "desc": "150,000 steps in 30 days" },
+      "intense":        { "title": "Intense Trainer",   "desc": "5 intense workouts (≥70% HRmax, 20+ min)" }
+    },
+    "village": {
+      "builder":   { "title": "Master Builder",   "desc": "Upgrade 3 buildings to level 2" },
+      "workers":   { "title": "Employer",          "desc": "Train and deploy 2 workers" },
+      "resources": { "title": "Resource Baron",   "desc": "Collect 1,000 wood" }
+    },
+    "seasonal": {
+      "warrior": { "title": "Month of the Warrior", "desc": "Prove your strength in March" }
+    },
+    "units": {
+      "workouts":  "workouts",
+      "steps":     "steps",
+      "buildings": "buildings",
+      "workers":   "workers",
+      "holz":      "wood"
+    }
   },
   "settings": {
     "healthPermissions": "HealthKit Permissions",
