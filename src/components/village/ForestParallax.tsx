@@ -28,8 +28,7 @@ export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
   scrollX,
   scrollY,
 }) => {
-  // The container is already sized to the forest (25/15 * canvas).
-  // So the image fills the entire container at 100%.
+  // Container matches the parent (25/15 * canvas). Image must COVER it fully.
   const containerW = Math.round(canvasWidth * SCALE);
   const containerH = Math.round(canvasHeight * SCALE);
 
@@ -50,14 +49,14 @@ export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
         style={[styles.layer, { width: containerW, height: containerH }, bgStyle]}
         pointerEvents="none"
       >
-        <Image source={FOREST_BG} style={{ width: containerW, height: containerH }} resizeMode="contain" />
+        <Image source={FOREST_BG} style={{ width: containerW, height: containerH }} resizeMode="cover" />
       </Animated.View>
 
       <Animated.View
         style={[styles.layer, { width: containerW, height: containerH }]}
         pointerEvents="none"
       >
-        <Image source={FOREST_FG} style={{ width: containerW, height: containerH }} resizeMode="contain" />
+        <Image source={FOREST_FG} style={{ width: containerW, height: containerH }} resizeMode="cover" />
       </Animated.View>
     </>
   );
