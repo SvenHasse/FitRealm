@@ -33,9 +33,14 @@ import { canBuild } from '../engines/GameEngine';
 import { formatDuration } from '../utils/formatDuration';
 import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
 import IsometricTile from '../components/IsometricTile';
-import IsometricBuilding, { getBuildingHeight } from '../components/IsometricBuilding';
+import IsometricBuilding from '../components/IsometricBuilding';
 import { ForestParallax } from '../components/village/ForestParallax';
-import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
+import { BuildingSpriteOverlay, PNG_BUILDINGS } from '../components/BuildingSpriteOverlay';
+import {
+  IsometricBuildingSpriteG,
+  SPRITE_HEIGHT,
+  DEFAULT_SPRITE_HEIGHT,
+} from '../components/IsometricBuildingSprite';
 import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
@@ -425,20 +430,36 @@ export default function RealmScreen() {
         const trophyHere = !building && gameState.trophies.find(
           tr => tr.gridPosition?.x === col && tr.gridPosition?.y === row,
         );
-        // Only render the SVG cuboid scaffold for buildings under construction.
-        // All completed buildings are handled by BuildingSpriteOverlay
-        // (PNG sprite for rathaus/holzfaeller, IsometricBuildingSprite for all others).
-        if (building && building.isUnderConstruction) {
-          elements.push(
-            <IsometricBuilding
-              key={`bld-${row}-${col}`}
-              x={x}
-              y={y}
-              buildingType={building.type}
-              level={building.level}
-              isUnderConstruction={true}
-            />
-          );
+        if (building) {
+          if (building.isUnderConstruction) {
+            // Construction scaffold — generic SVG cuboid
+            elements.push(
+              <IsometricBuilding
+                key={`bld-${row}-${col}`}
+                x={x}
+                y={y}
+                buildingType={building.type}
+                level={building.level}
+                isUnderConstruction={true}
+              />
+            );
+          } else if (!PNG_BUILDINGS.has(building.type)) {
+            // Completed building with SVG sprite — render INSIDE the SVG canvas
+            // via <G transform> so it sits exactly on the tile with correct depth sort.
+            const H = SPRITE_HEIGHT[building.type] ?? DEFAULT_SPRITE_HEIGHT;
+            elements.push(
+              <IsometricBuildingSpriteG
+                key={`bld-${row}-${col}`}
+                type={building.type}
+                level={building.level}
+                H={H}
+                x={x}
+                y={y}
+                isDecayed={building.isDecayed}
+              />
+            );
+          }
+          // PNG buildings (rathaus, holzfaeller) → no SVG element, handled by BuildingSpriteOverlay
         } else if (obstacle) {
           elements.push(
             <ObstacleSvg

@@ -1,14 +1,15 @@
 // IsometricBuildingSprite.tsx
 // Detailed isometric SVG sprites for every building type that lacks a PNG asset.
-// Each sprite renders inside a <Svg> container sized TILE_W × (TILE_H + H).
 //
-// Coordinate system inside the SVG (H = building height):
+// Coordinate system (H = building height in pixels):
 //   Roof diamond:  top=(70,0)  right=(140,35)  bottom=(70,70)  left=(0,35)
 //   Left face:     (0,35)→(0,H+35)→(70,H+70)→(70,70)
 //   Right face:    (70,70)→(70,H+70)→(140,H+35)→(140,35)
 //
-// The parent positions the View at (svgOffsetX + tileX, svgOffsetY + tileY - H)
-// so the tile diamond aligns exactly with the underlying grid tile.
+// Two public variants:
+//   IsometricBuildingSprite     — standalone <Svg> wrapper (for previews etc.)
+//   IsometricBuildingSpriteG    — <G transform="translate(x, y-H)"> for use
+//                                 INSIDE the main SVG canvas in RealmScreen.
 
 import React from 'react';
 import Svg, {
@@ -649,67 +650,61 @@ function StallSprite({ H, level, d }: { H: number; level: number; d: boolean }) 
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Sprite content selector (shared by both public variants) ─────────────────
+
+function getSpriteContent(type: BuildingType, level: number, H: number, d: boolean): React.ReactElement {
+  switch (type) {
+    case BuildingType.feld:          return <FeldSprite H={H} level={level} d={d} />;
+    case BuildingType.steinbruch:    return <SteinbruchSprite H={H} level={level} d={d} />;
+    case BuildingType.proteinfarm:   return <ProteinfarmSprite H={H} level={level} d={d} />;
+    case BuildingType.kornkammer:    return <KornkammerSprite H={H} level={level} d={d} />;
+    case BuildingType.kaserne:       return <KaserneSprite H={H} level={level} d={d} />;
+    case BuildingType.tempel:        return <TempelSprite H={H} level={level} d={d} />;
+    case BuildingType.bibliothek:    return <BibliothekSprite H={H} level={level} d={d} />;
+    case BuildingType.marktplatz:    return <MarktplatzSprite H={H} level={level} d={d} />;
+    case BuildingType.stammeshaus:   return <StammeshausSprite H={H} level={level} d={d} />;
+    case BuildingType.holzlager:     return <HolzlagerSprite H={H} level={level} d={d} />;
+    case BuildingType.steinlager:    return <SteinlagerSprite H={H} level={level} d={d} />;
+    case BuildingType.nahrungslager: return <NahrungslagerSprite H={H} level={level} d={d} />;
+    case BuildingType.wachturm:      return <WachturmSprite H={H} level={level} d={d} />;
+    case BuildingType.mauer:         return <MauerSprite H={H} level={level} d={d} />;
+    case BuildingType.stall:
+    default:                         return <StallSprite H={H} level={level} d={d} />;
+  }
+}
+
+// ── Variant A: standalone <Svg> wrapper (previews, BuildingSpriteOverlay) ────
 
 export const IsometricBuildingSprite = React.memo(
   function IsometricBuildingSprite({ type, level, H, isDecayed = false }: IsometricBuildingSpriteProps) {
-    const d = isDecayed;
     const svgH = TH + H;
-
-    let content: React.ReactElement;
-    switch (type) {
-      case BuildingType.feld:
-        content = <FeldSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.steinbruch:
-        content = <SteinbruchSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.proteinfarm:
-        content = <ProteinfarmSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.kornkammer:
-        content = <KornkammerSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.kaserne:
-        content = <KaserneSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.tempel:
-        content = <TempelSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.bibliothek:
-        content = <BibliothekSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.marktplatz:
-        content = <MarktplatzSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.stammeshaus:
-        content = <StammeshausSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.holzlager:
-        content = <HolzlagerSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.steinlager:
-        content = <SteinlagerSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.nahrungslager:
-        content = <NahrungslagerSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.wachturm:
-        content = <WachturmSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.mauer:
-        content = <MauerSprite H={H} level={level} d={d} />;
-        break;
-      case BuildingType.stall:
-      default:
-        content = <StallSprite H={H} level={level} d={d} />;
-        break;
-    }
-
     return (
       <Svg width={TW} height={svgH} viewBox={`0 0 ${TW} ${svgH}`}>
-        {content}
+        {getSpriteContent(type, level, H, isDecayed)}
       </Svg>
+    );
+  }
+);
+
+// ── Variant B: inline <G> for embedding inside the main Svg canvas ───────────
+// Translates to tile position: x = gridToScreen x, y = gridToScreen y.
+// The G shifts UP by H so the building base sits on the tile surface.
+
+export interface IsometricBuildingSpriteGProps {
+  type: BuildingType;
+  level: number;
+  H: number;
+  x: number;          // SVG-canvas x from gridToScreen
+  y: number;          // SVG-canvas y from gridToScreen
+  isDecayed?: boolean;
+}
+
+export const IsometricBuildingSpriteG = React.memo(
+  function IsometricBuildingSpriteG({ type, level, H, x, y, isDecayed = false }: IsometricBuildingSpriteGProps) {
+    return (
+      <G transform={`translate(${x}, ${y - H})`}>
+        {getSpriteContent(type, level, H, isDecayed)}
+      </G>
     );
   }
 );
