@@ -47,7 +47,7 @@ export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
         <Image
           source={WORLD_FULL}
           style={{ width: containerWidth, height: containerHeight }}
-          resizeMode="contain"
+          resizeMode="cover"
         />
       </Animated.View>
 
@@ -59,7 +59,7 @@ export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
         <Image
           source={WORLD_CLOUDS}
           style={{ width: containerWidth, height: containerHeight }}
-          resizeMode="contain"
+          resizeMode="cover"
         />
       </Animated.View>
     </>

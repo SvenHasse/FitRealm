@@ -63,15 +63,15 @@ const CANVAS_SIZE = getGridPixelSize(GRID_SIZE);
 const CANVAS_W = CANVAS_SIZE.width;
 const CANVAS_H = CANVAS_SIZE.height;
 
-// World PNG sizing: world_full.png is 6144x4010 (aspect 1.532:1).
-// From Blender projection: the GameGrid occupies 22% of image width, 19.4% of height.
-// Grid center is at 56.6% from left, 43.8% from top of the image.
+// World PNG is 6144x4010. Grid occupies 22% width, center at (56.6%, 43.8%).
+// Container is sized so SVG grid (CANVAS_W) matches the grid area in the image.
+// The image fills the container at native resolution via resizeMode="cover".
 const WORLD_ASPECT = 6144 / 4010;               // ~1.532
 const GRID_WIDTH_FRAC = 0.2197;                  // grid is 22% of image width
 const GRID_CENTER_X_FRAC = 0.5659;              // grid center at 56.6% from left
 const GRID_CENTER_Y_FRAC = 0.4378;              // grid center at 43.8% from top
 
-// Container = world PNG scaled so the grid area matches CANVAS_W
+// Container sized so the SVG grid area matches the grid in the PNG
 const CONTAINER_W = Math.round(CANVAS_W / GRID_WIDTH_FRAC);
 const CONTAINER_H = Math.round(CONTAINER_W / WORLD_ASPECT);
 
