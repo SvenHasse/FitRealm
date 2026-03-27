@@ -1,4 +1,4 @@
-// PolarBear.tsx — SVG-Eisbär mit HP-Badge, Treffer-Effekt, Tod-Animation
+// PolarBear.tsx — SVG-Wildschwein mit HP-Badge, Treffer-Effekt, Tod-Animation
 
 import React, { useEffect, useRef } from 'react';
 import { G, Ellipse, Circle, Rect, Text as SvgText } from 'react-native-svg';
@@ -18,7 +18,7 @@ interface Props {
   showHpBadge: boolean;
 }
 
-export default function PolarBearSVG({ bear, isBeingAttacked, showHpBadge }: Props) {
+function PolarBearInner({ bear, isBeingAttacked, showHpBadge }: Props) {
   const { position, size, hp, maxHp, alive } = bear;
 
   // Walk bob
@@ -170,3 +170,15 @@ export default function PolarBearSVG({ bear, isBeingAttacked, showHpBadge }: Pro
     </AnimatedG>
   );
 }
+
+const PolarBearSVG = React.memo(PolarBearInner, (prev, next) => {
+  return (
+    prev.bear.hp === next.bear.hp &&
+    prev.bear.alive === next.bear.alive &&
+    Math.round(prev.bear.position.x) === Math.round(next.bear.position.x) &&
+    Math.round(prev.bear.position.y) === Math.round(next.bear.position.y) &&
+    prev.isBeingAttacked === next.isBeingAttacked
+  );
+});
+
+export default PolarBearSVG;

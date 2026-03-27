@@ -18,12 +18,12 @@ interface Props {
 
 const itemLabel: Record<ItemType, { label: string; color: string }> = {
   [ItemType.RAW_MEAT]: { label: 'Fleisch', color: '#e53935' },
-  [ItemType.STEAK]: { label: 'Steaks', color: '#8d6e63' },
-  [ItemType.GRILLED_STEAK]: { label: 'Grill-Steaks', color: '#5d4037' },
-  [ItemType.MONEY]: { label: 'Geld', color: '#4caf50' },
+  [ItemType.STEAK]: { label: 'Ger\u00e4uchertes', color: '#a0522d' },
+  [ItemType.GRILLED_STEAK]: { label: 'Proviant', color: '#5d4037' },
+  [ItemType.MONEY]: { label: 'M\u00fcnzen', color: '#F5A623' },
 };
 
-export default function HUD({ totalMoney, backpackCount, backpackCapacity, currentItemType, onClaimReward }: Props) {
+function HUDInner({ totalMoney, backpackCount, backpackCapacity, currentItemType, onClaimReward }: Props) {
   const moneyScale = useSharedValue(1);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function HUD({ totalMoney, backpackCount, backpackCapacity, curre
     <View style={styles.container} pointerEvents="box-none">
       {/* Title */}
       <View style={styles.titleContainer}>
-        <Text style={styles.title}>EISB\u00c4REN-FABRIK</Text>
+        <Text style={styles.title}>DIE GROSSE JAGD</Text>
       </View>
 
       {/* Money */}
@@ -67,12 +67,15 @@ export default function HUD({ totalMoney, backpackCount, backpackCapacity, curre
       {/* Reward claim button */}
       {totalMoney > 0 && onClaimReward && (
         <TouchableOpacity style={styles.rewardBtn} onPress={onClaimReward}>
-          <Text style={styles.rewardBtnText}>Einl\u00f6sen</Text>
+          <Text style={styles.rewardBtnText}>Einl{'\u00f6'}sen</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 }
+
+const HUD = React.memo(HUDInner);
+export default HUD;
 
 const styles = StyleSheet.create({
   container: {
