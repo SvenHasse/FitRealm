@@ -528,37 +528,30 @@ export default function RealmScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      {/* World Map — Vertical ScrollView wrapping horizontal for true 2D pan */}
+      {/* World Map — ScrollView with both directions via horizontal+scrollEnabled */}
       <ScrollView
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          alignItems: 'center',
+          width: Math.round(CANVAS_W * 25 / 15),
+          height: Math.round(CANVAS_H * 25 / 15),
         }}
         showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
         bounces
         scrollEnabled
+        directionalLockEnabled={false}
         decelerationRate="fast"
         scrollEventThrottle={16}
+        maximumZoomScale={2.5}
+        minimumZoomScale={0.35}
+        bouncesZoom
         onScroll={(e) => {
           const { contentOffset } = e.nativeEvent;
           parallaxScrollX.value = contentOffset.x - initialScrollPos.current.x;
           parallaxScrollY.value = contentOffset.y - initialScrollPos.current.y;
         }}
       >
-        <ScrollView
-          horizontal
-          directionalLockEnabled={false}
-          showsHorizontalScrollIndicator={false}
-          bounces
-          nestedScrollEnabled
-          decelerationRate="fast"
-          scrollEventThrottle={16}
-          onScroll={(e) => {
-            const { contentOffset } = e.nativeEvent;
-            parallaxScrollX.value = contentOffset.x - initialScrollPos.current.x;
-          }}
-        >
           <GestureDetector gesture={pinchGesture}>
             <Animated.View
               ref={svgContainerRef}
@@ -627,7 +620,6 @@ export default function RealmScreen() {
             />
             </Animated.View>
           </GestureDetector>
-        </ScrollView>
       </ScrollView>
 
       {/* Danger overlay — red border when wave approaching */}
