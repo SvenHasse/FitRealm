@@ -284,29 +284,26 @@ export default function RealmScreen() {
     store.checkObstacleCompletion();
   }, []);
 
-  // Centre camera on Rathaus at startup
-  // transform:scale pivots around the Animated.View centre, not the origin.
-  // Visual position of a point (animX, animY) within the Animated.View:
-  //   visualX = padX + containerW/2 + (animX - containerW/2) * INITIAL_SCALE
-  //   visualY = padY + containerH/2 + (animY - containerH/2) * INITIAL_SCALE
-  // where padX/padY = half the extra content padding (200w → 100, 400h → 200).
+  // Centre camera on Rathaus at startup.
+  // contentContainerStyle is exactly containerW × containerH — no extra padding,
+  // no alignItems/justifyContent centering — so the Animated.View sits at (0, 0).
+  // transform:scale(INITIAL_SCALE) pivots around the Animated.View centre:
+  //   visualX = containerW/2 + (animX - containerW/2) * scale
+  //   visualY = containerH/2 + (animY - containerH/2) * scale
   useEffect(() => {
     const rathaus = gameState.buildings.find(b => b.type === BuildingType.rathaus);
     if (!rathaus) return;
     const { x, y } = gridToScreen(rathaus.position.row, rathaus.position.col, GRID_SIZE);
     const containerW = Math.round(CANVAS_W * 25 / 15);
     const containerH = Math.round(CANVAS_H * 25 / 15);
-    const sOffX = Math.round((containerW - CANVAS_W) / 2); // svgOffsetX
-    const sOffY = Math.round((containerH - CANVAS_H) / 2); // svgOffsetY
+    const sOffX = Math.round((containerW - CANVAS_W) / 2);
+    const sOffY = Math.round((containerH - CANVAS_H) / 2);
     // Rathaus tile centre in Animated.View space
     const animX = sOffX + x + TILE_W / 2;
     const animY = sOffY + y + TILE_H / 2;
-    // Content padding: contentContainerStyle adds 200 extra width + 400 extra height
-    const padX = 100;
-    const padY = 200;
-    // Visual position in content coordinate space
-    const visualX = padX + containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
-    const visualY = padY + containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
+    // Visual position in content space — scale pivots on Animated.View centre
+    const visualX = containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
+    const visualY = containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
     const targetX = Math.max(0, visualX - SCREEN_W / 2);
     const targetY = Math.max(0, visualY - SCREEN_H / 2);
     initialScrollPos.current = { x: targetX, y: targetY };
@@ -322,6 +319,10 @@ export default function RealmScreen() {
     return () => clearTimeout(timer);
   }, [highlightedBuildingId]);
 
+  // Pinch-to-zoom shared values — declared here so scrollToBuilding can read scale.value
+  const scale = useSharedValue(INITIAL_SCALE);
+  const savedScale = useSharedValue(INITIAL_SCALE);
+
   // Vertical offset (in Animated.View px, before scale) to shift the camera
   // above the tile centre so the building SPRITE — not the floor tile — is centred.
   // PNG sprites are bottom-anchored; SVG cuboids also extend upward from the tile.
@@ -334,10 +335,13 @@ export default function RealmScreen() {
   };
 
   // Scroll map so the building sprite sits at viewport centre.
-  // transform:scale(INITIAL_SCALE) pivots around the Animated.View centre, not
-  // the origin, so we apply the visual-position formula before computing the
-  // scroll target.  A per-type sprite offset shifts Y above the tile floor so
-  // the player sees the building body rather than just its base tile.
+  // contentContainerStyle has zero extra padding — Animated.View is at (0, 0).
+  // transform:scale pivots around the Animated.View centre:
+  //   visualX = containerW/2 + (animX - containerW/2) * currentScale
+  // We read scale.value (current zoom level) so the target is correct even
+  // after the user has pinched to zoom before opening the registry.
+  // A per-type sprite offset shifts Y above the tile floor so the player
+  // sees the building body rather than just its base tile.
   const scrollToBuilding = useCallback((row: number, col: number, buildingType: BuildingType) => {
     const { x, y } = gridToScreen(row, col, GRID_SIZE);
     const containerW = Math.round(CANVAS_W * 25 / 15);
@@ -345,23 +349,21 @@ export default function RealmScreen() {
     // SVG offset within the Animated.View
     const sOffX = Math.round((containerW - CANVAS_W) / 2);
     const sOffY = Math.round((containerH - CANVAS_H) / 2);
-    // Building visual centre in Animated.View space
-    // Y is shifted up by spriteOffset so the sprite body — not the floor — is centred
+    // Building visual centre in Animated.View space (Y shifted up to show sprite body)
     const spriteOffset = getSpriteVerticalOffset(buildingType);
     const animX = sOffX + x + TILE_W / 2;
     const animY = sOffY + y + TILE_H / 2 + spriteOffset;
-    // Content container padding (200 extra width / 400 extra height → 100/200 per side)
-    const padX = 100;
-    const padY = 200;
-    // Visual position accounting for scale transform (centred on Animated.View centre)
-    const visualX = padX + containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
-    const visualY = padY + containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
+    // Use current zoom level — correct even if user has pinched before opening registry
+    const currentScale = scale.value;
+    // Visual position in content space — scale pivots on Animated.View centre
+    const visualX = containerW / 2 + (animX - containerW / 2) * currentScale;
+    const visualY = containerH / 2 + (animY - containerH / 2) * currentScale;
     scrollRef.current?.scrollTo({
       x: Math.max(0, visualX - SCREEN_W / 2),
       y: Math.max(0, visualY - SCREEN_H / 2),
       animated: true,
     });
-  }, []);
+  }, [scale]);
 
   // Called when a building is selected in the registry
   const handleRegistrySelect = useCallback((building: Building) => {
@@ -555,10 +557,6 @@ export default function RealmScreen() {
   // Shared values for parallax scroll tracking
   const parallaxScrollX = useSharedValue(0);
   const parallaxScrollY = useSharedValue(0);
-
-  // Pinch-to-zoom
-  const scale = useSharedValue(INITIAL_SCALE);
-  const savedScale = useSharedValue(INITIAL_SCALE);
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
