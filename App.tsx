@@ -77,8 +77,9 @@ function TabNavigator() {
 }
 
 export default function App() {
-  const initialize = useGameStore(s => s.initialize);
+  const initialize          = useGameStore(s => s.initialize);
   const initializeWaveSystem = useGameStore(s => s.initializeWaveSystem);
+  const refreshGoalProgress  = useGameStore(s => s.refreshGoalProgress);
 
   // Pre-load ALL icon fonts before rendering anything.
   // Without this, icons on the first screen can render as "?" on cold start.
@@ -90,6 +91,7 @@ export default function App() {
   useEffect(() => {
     initialize().then(() => {
       initializeWaveSystem();
+      refreshGoalProgress();
     });
   }, []);
 
