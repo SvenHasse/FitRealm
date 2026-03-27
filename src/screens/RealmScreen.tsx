@@ -425,11 +425,10 @@ export default function RealmScreen() {
         const trophyHere = !building && gameState.trophies.find(
           tr => tr.gridPosition?.x === col && tr.gridPosition?.y === row,
         );
-        // Skip SVG cuboid for building types that have PNG sprites (unless under construction)
-        const hasPngSprite = !building?.isUnderConstruction && (
-          building?.type === BuildingType.rathaus || building?.type === BuildingType.holzfaeller
-        );
-        if (building && !hasPngSprite) {
+        // Only render the SVG cuboid scaffold for buildings under construction.
+        // All completed buildings are handled by BuildingSpriteOverlay
+        // (PNG sprite for rathaus/holzfaeller, IsometricBuildingSprite for all others).
+        if (building && building.isUnderConstruction) {
           elements.push(
             <IsometricBuilding
               key={`bld-${row}-${col}`}
@@ -437,7 +436,7 @@ export default function RealmScreen() {
               y={y}
               buildingType={building.type}
               level={building.level}
-              isUnderConstruction={building.isUnderConstruction}
+              isUnderConstruction={true}
             />
           );
         } else if (obstacle) {
