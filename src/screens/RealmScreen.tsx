@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal,
   Dimensions, LayoutAnimation, UIManager, Platform, Alert,
-  GestureResponderEvent,
+  GestureResponderEvent, AppState,
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle,
@@ -54,20 +54,90 @@ import DefenseDashboardModal from '../components/DefenseDashboardModal';
 import { MONSTER_CONFIGS } from '../config/EntityConfig';
 import { waveService } from '../services/WaveService';
 import { Trophy } from '../models/types';
+import { BiomeId } from '../features/exploration/types';
+import { BIOME_CONFIGS } from '../features/exploration/biomeConfig';
+import { useExplorationStore } from '../features/exploration/useExplorationStore';
+import { SendScoutModal } from '../components/exploration/SendScoutModal';
+import { ScoutReportModal } from '../components/exploration/ScoutReportModal';
 
 const GRID_SIZE = WorldConstants.gridSize; // 15
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Canvas = just the 15x15 playfield. Forest PNG extends beyond.
+// Canvas = just the 15x15 playfield SVG grid.
 const CANVAS_SIZE = getGridPixelSize(GRID_SIZE);
 const CANVAS_W = CANVAS_SIZE.width;
 const CANVAS_H = CANVAS_SIZE.height;
+
+// World PNG is 6144x4010. Grid occupies 22% width, center at (56.6%, 43.8%).
+// Container is sized so SVG grid (CANVAS_W) matches the grid area in the image.
+// The image fills the container at native resolution via resizeMode="cover".
+const WORLD_ASPECT = 6144 / 4010;               // ~1.532
+const GRID_WIDTH_FRAC = 0.2197;                  // grid is 22% of image width
+const GRID_CENTER_X_FRAC = 0.5659;              // grid center at 56.6% from left
+const GRID_CENTER_Y_FRAC = 0.4378;              // grid center at 43.8% from top
+
+// Container sized so the SVG grid area matches the grid in the PNG
+const CONTAINER_W = Math.round(CANVAS_W / GRID_WIDTH_FRAC);
+const CONTAINER_H = Math.round(CONTAINER_W / WORLD_ASPECT);
+
+// SVG grid offset: position grid at exact pixel location matching the PNG
+const SVG_OFFSET_X = Math.round(CONTAINER_W * GRID_CENTER_X_FRAC - CANVAS_W / 2);
+const SVG_OFFSET_Y = Math.round(CONTAINER_H * GRID_CENTER_Y_FRAC - CANVAS_H / 2);
 
 // Zoom scale constants
 const MIN_SCALE = 0.35;
 const MAX_SCALE = 1.5;
 const INITIAL_SCALE = 0.55;
 
+
+// ── Biome Lock Icon ────────────────────────────────────────────────────────
+function BiomeLockIcon({ left, top, emoji, label, status, onPress }: {
+  left: number; top: number; emoji: string; label: string;
+  status: 'locked' | 'scouting' | 'scout_returned' | 'unlocking' | 'unlocked';
+  onPress: () => void;
+}) {
+  const pulse = useSharedValue(1);
+  const isReturned = status === 'scout_returned';
+  React.useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(isReturned ? 1.18 : 1.12, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+      ), -1, false
+    );
+  }, [isReturned]);
+  const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+
+  if (status === 'unlocked') return null;
+
+  const iconName: keyof typeof MaterialCommunityIcons.glyphMap =
+    status === 'scouting' ? 'paw' :
+    status === 'scout_returned' ? 'email' :
+    status === 'unlocking' ? 'lock-open-variant' : 'lock';
+  const borderColor = isReturned ? '#FFD700' : '#FFD700';
+  const glowStyle = isReturned ? { shadowColor: '#FFD700', shadowOpacity: 0.8, shadowRadius: 12, elevation: 8 } : {};
+
+  return (
+    <Animated.View style={[{
+      position: 'absolute', left, top, width: 56, height: 56,
+      alignItems: 'center', justifyContent: 'center', zIndex: 200,
+    }, pulseStyle]}>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.8}
+        style={[{
+          width: 56, height: 56, borderRadius: 28,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          borderWidth: 2, borderColor,
+          alignItems: 'center', justifyContent: 'center',
+        }, glowStyle]}
+      >
+        <MaterialCommunityIcons name={iconName} size={20} color="#FFD700" />
+        <Text style={{ fontSize: 7, color: '#FFD700', fontWeight: 'bold', marginTop: 1 }}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 
 // ── Obstacle SVG rendering ──────────────────────────────────────────────────
 function ObstacleSvg({ x, y, type, isClearing }: { x: number; y: number; type: string; isClearing: boolean }) {
@@ -197,6 +267,18 @@ export default function RealmScreen() {
   const activeWave = gameState.activeWave;
   const [placingTrophy, setPlacingTrophy] = useState<Trophy | null>(null);
 
+  // Exploration state
+  const biomes = useExplorationStore(s => s.biomes);
+  const checkReturnedScouts = useExplorationStore(s => s.checkReturnedScouts);
+  const [scoutModal, setScoutModal] = useState<BiomeId | null>(null);
+  const [reportModal, setReportModal] = useState<BiomeId | null>(null);
+
+  useEffect(() => {
+    checkReturnedScouts();
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') checkReturnedScouts(); });
+    return () => sub.remove();
+  }, []);
+
   // Scroll ref for map navigation
   const scrollRef = useRef<ScrollView>(null);
   // Initial scroll position (set by Rathaus-centering useEffect, used for parallax delta)
@@ -220,16 +302,12 @@ export default function RealmScreen() {
     const rathaus = gameState.buildings.find(b => b.type === BuildingType.rathaus);
     if (!rathaus) return;
     const { x, y } = gridToScreen(rathaus.position.row, rathaus.position.col, GRID_SIZE);
-    const containerW = Math.round(CANVAS_W * 25 / 15);
-    const containerH = Math.round(CANVAS_H * 25 / 15);
-    const sOffX = Math.round((containerW - CANVAS_W) / 2);
-    const sOffY = Math.round((containerH - CANVAS_H) / 2);
     // Rathaus tile centre in Animated.View space
-    const animX = sOffX + x + TILE_W / 2;
-    const animY = sOffY + y + TILE_H / 2;
+    const animX = SVG_OFFSET_X + x + TILE_W / 2;
+    const animY = SVG_OFFSET_Y + y + TILE_H / 2;
     // Visual position in content space — scale pivots on Animated.View centre
-    const visualX = containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
-    const visualY = containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
+    const visualX = CONTAINER_W / 2 + (animX - CONTAINER_W / 2) * INITIAL_SCALE;
+    const visualY = CONTAINER_H / 2 + (animY - CONTAINER_H / 2) * INITIAL_SCALE;
     const targetX = Math.max(0, visualX - SCREEN_W / 2);
     const targetY = Math.max(0, visualY - SCREEN_H / 2);
     initialScrollPos.current = { x: targetX, y: targetY };
@@ -270,20 +348,15 @@ export default function RealmScreen() {
   // sees the building body rather than just its base tile.
   const scrollToBuilding = useCallback((row: number, col: number, buildingType: BuildingType) => {
     const { x, y } = gridToScreen(row, col, GRID_SIZE);
-    const containerW = Math.round(CANVAS_W * 25 / 15);
-    const containerH = Math.round(CANVAS_H * 25 / 15);
-    // SVG offset within the Animated.View
-    const sOffX = Math.round((containerW - CANVAS_W) / 2);
-    const sOffY = Math.round((containerH - CANVAS_H) / 2);
     // Building visual centre in Animated.View space (Y shifted up to show sprite body)
     const spriteOffset = getSpriteVerticalOffset(buildingType);
-    const animX = sOffX + x + TILE_W / 2;
-    const animY = sOffY + y + TILE_H / 2 + spriteOffset;
+    const animX = SVG_OFFSET_X + x + TILE_W / 2;
+    const animY = SVG_OFFSET_Y + y + TILE_H / 2 + spriteOffset;
     // Use current zoom level — correct even if user has pinched before opening registry
     const currentScale = scale.value;
     // Visual position in content space — scale pivots on Animated.View centre
-    const visualX = containerW / 2 + (animX - containerW / 2) * currentScale;
-    const visualY = containerH / 2 + (animY - containerH / 2) * currentScale;
+    const visualX = CONTAINER_W / 2 + (animX - CONTAINER_W / 2) * currentScale;
+    const visualY = CONTAINER_H / 2 + (animY - CONTAINER_H / 2) * currentScale;
     scrollRef.current?.scrollTo({
       x: Math.max(0, visualX - SCREEN_W / 2),
       y: Math.max(0, visualY - SCREEN_H / 2),
@@ -477,8 +550,8 @@ export default function RealmScreen() {
   }, [gameState.buildings]);
 
   // SVG offset within the container (for positioning overlays)
-  const svgOffsetX = Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2);
-  const svgOffsetY = Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2);
+  const svgOffsetX = SVG_OFFSET_X;
+  const svgOffsetY = SVG_OFFSET_Y;
 
   // Shared values for parallax scroll tracking
   const parallaxScrollX = useSharedValue(0);
@@ -506,8 +579,8 @@ export default function RealmScreen() {
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: Math.round(CANVAS_W * 25 / 15),
-          height: Math.round(CANVAS_H * 25 / 15),
+          width: CONTAINER_W,
+          height: CONTAINER_H,
         }}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
@@ -530,8 +603,8 @@ export default function RealmScreen() {
               ref={svgContainerRef}
               style={[
                 {
-                  width: Math.round(CANVAS_W * 25 / 15),
-                  height: Math.round(CANVAS_H * 25 / 15),
+                  width: CONTAINER_W,
+                  height: CONTAINER_H,
                   position: 'relative',
                 },
                 zoomStyle,
@@ -541,8 +614,8 @@ export default function RealmScreen() {
             <View
               style={{
                 position: 'absolute',
-                top: Math.round((CANVAS_H * 25 / 15 - CANVAS_H) / 2),
-                left: Math.round((CANVAS_W * 25 / 15 - CANVAS_W) / 2),
+                top: SVG_OFFSET_Y,
+                left: SVG_OFFSET_X,
                 width: CANVAS_W,
                 height: CANVAS_H,
               }}
@@ -579,10 +652,40 @@ export default function RealmScreen() {
             {/* Layer 5: Forest PNG ON TOP — transparent center shows tiles through,
                 tree edges naturally overlap the playfield border = correct depth */}
             <ForestParallax
-              canvasWidth={CANVAS_W}
-              canvasHeight={CANVAS_H}
+              containerWidth={CONTAINER_W}
+              containerHeight={CONTAINER_H}
               scrollX={parallaxScrollX}
               scrollY={parallaxScrollY}
+            />
+
+            {/* Layer 6: Biome lock icons — positioned at transition points */}
+            <BiomeLockIcon
+              left={Math.round(CONTAINER_W * 0.4743) - 28}
+              top={Math.round(CONTAINER_H * 0.3568) - 28}
+              emoji="🏜️"
+              label="Wüste"
+              status={biomes.desert.status}
+              onPress={() => {
+                const s = biomes.desert.status;
+                if (s === 'scout_returned') setReportModal('desert');
+                else if (s === 'unlocking') setReportModal('desert');
+                else if (s === 'locked') setScoutModal('desert');
+                else if (s === 'scouting') setScoutModal('desert');
+              }}
+            />
+            <BiomeLockIcon
+              left={Math.round(CONTAINER_W * 0.6574) - 28}
+              top={Math.round(CONTAINER_H * 0.5188) - 28}
+              emoji="⛰️"
+              label="Berge"
+              status={biomes.mountains.status}
+              onPress={() => {
+                const s = biomes.mountains.status;
+                if (s === 'scout_returned') setReportModal('mountains');
+                else if (s === 'unlocking') setReportModal('mountains');
+                else if (s === 'locked') setScoutModal('mountains');
+                else if (s === 'scouting') setScoutModal('mountains');
+              }}
             />
             </Animated.View>
           </GestureDetector>
@@ -843,6 +946,14 @@ export default function RealmScreen() {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       )}
+
+      {/* Exploration Modals */}
+      {(['desert', 'mountains'] as BiomeId[]).map(id => (
+        <React.Fragment key={`exploration-${id}`}>
+          <SendScoutModal biomeId={id} visible={scoutModal === id} onClose={() => setScoutModal(null)} />
+          <ScoutReportModal biomeId={id} visible={reportModal === id} onClose={() => setReportModal(null)} />
+        </React.Fragment>
+      ))}
     </GestureHandlerRootView>
   );
 }

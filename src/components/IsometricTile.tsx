@@ -18,7 +18,7 @@ const TILE_COLORS: Record<TileVariant, { top: string; left: string; right: strin
   grass:     { top: 'transparent', left: 'transparent', right: 'transparent' },
   path:      { top: 'transparent', left: 'transparent', right: 'transparent' },
   water:     { top: 'rgba(44,95,138,0.3)', left: 'transparent', right: 'transparent' },
-  highlight: { top: 'rgba(255,215,0,0.3)', left: 'transparent', right: 'transparent', stroke: '#FFD700' },
+  highlight: { top: 'rgba(255,215,0,0.12)', left: 'transparent', right: 'transparent', stroke: 'rgba(255,215,0,0.5)' },
 };
 
 function IsometricTileInner({ x, y, variant, showGrid = false }: Props) {

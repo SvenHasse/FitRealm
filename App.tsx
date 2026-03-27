@@ -27,6 +27,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import WorkoutRewardScreen from './src/screens/WorkoutRewardScreen';
 import MinigameScreen from './src/minigame/MinigameScreen';
 import GLBTestScreen from './src/screens/GLBTestScreen';
+import RealmScreen3D from './src/screens/RealmScreen3D';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -121,6 +122,11 @@ export default function App() {
         <RootStack.Screen
           name="GLBTest"
           component={GLBTestScreen}
+          options={{ presentation: 'fullScreenModal', headerShown: false }}
+        />
+        <RootStack.Screen
+          name="RealmScreen3D"
+          component={RealmScreen3D}
           options={{ presentation: 'fullScreenModal', headerShown: false }}
         />
       </RootStack.Navigator>
