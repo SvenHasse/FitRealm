@@ -11,6 +11,7 @@ interface Props {
   x: number;
   y: number;
   variant: TileVariant;
+  showGrid?: boolean;  // show grid lines (only in placement mode)
 }
 
 const TILE_COLORS: Record<TileVariant, { top: string; left: string; right: string; stroke?: string }> = {
@@ -20,7 +21,7 @@ const TILE_COLORS: Record<TileVariant, { top: string; left: string; right: strin
   highlight: { top: 'rgba(255,215,0,0.3)', left: 'transparent', right: 'transparent', stroke: '#FFD700' },
 };
 
-function IsometricTileInner({ x, y, variant }: Props) {
+function IsometricTileInner({ x, y, variant, showGrid = false }: Props) {
   const hw = TILE_W / 2; // 48
   const hh = TILE_H / 2; // 24
   const colors = TILE_COLORS[variant];
@@ -41,8 +42,8 @@ function IsometricTileInner({ x, y, variant }: Props) {
       <Polygon
         points={topFace}
         fill={colors.top}
-        stroke={colors.stroke ?? 'rgba(255,255,255,0.18)'}
-        strokeWidth={colors.stroke ? 1.5 : 0.7}
+        stroke={colors.stroke ?? (showGrid ? 'rgba(255,255,255,0.18)' : 'none')}
+        strokeWidth={colors.stroke ? 1.5 : (showGrid ? 0.7 : 0)}
       />
     </>
   );

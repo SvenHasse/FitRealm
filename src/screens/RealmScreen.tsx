@@ -284,29 +284,26 @@ export default function RealmScreen() {
     store.checkObstacleCompletion();
   }, []);
 
-  // Centre camera on Rathaus at startup
-  // transform:scale pivots around the Animated.View centre, not the origin.
-  // Visual position of a point (animX, animY) within the Animated.View:
-  //   visualX = padX + containerW/2 + (animX - containerW/2) * INITIAL_SCALE
-  //   visualY = padY + containerH/2 + (animY - containerH/2) * INITIAL_SCALE
-  // where padX/padY = half the extra content padding (200w → 100, 400h → 200).
+  // Centre camera on Rathaus at startup.
+  // contentContainerStyle is exactly containerW × containerH — no extra padding,
+  // no alignItems/justifyContent centering — so the Animated.View sits at (0, 0).
+  // transform:scale(INITIAL_SCALE) pivots around the Animated.View centre:
+  //   visualX = containerW/2 + (animX - containerW/2) * scale
+  //   visualY = containerH/2 + (animY - containerH/2) * scale
   useEffect(() => {
     const rathaus = gameState.buildings.find(b => b.type === BuildingType.rathaus);
     if (!rathaus) return;
     const { x, y } = gridToScreen(rathaus.position.row, rathaus.position.col, GRID_SIZE);
     const containerW = Math.round(CANVAS_W * 25 / 15);
     const containerH = Math.round(CANVAS_H * 25 / 15);
-    const sOffX = Math.round((containerW - CANVAS_W) / 2); // svgOffsetX
-    const sOffY = Math.round((containerH - CANVAS_H) / 2); // svgOffsetY
+    const sOffX = Math.round((containerW - CANVAS_W) / 2);
+    const sOffY = Math.round((containerH - CANVAS_H) / 2);
     // Rathaus tile centre in Animated.View space
     const animX = sOffX + x + TILE_W / 2;
     const animY = sOffY + y + TILE_H / 2;
-    // Content padding: contentContainerStyle adds 200 extra width + 400 extra height
-    const padX = 100;
-    const padY = 200;
-    // Visual position in content coordinate space
-    const visualX = padX + containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
-    const visualY = padY + containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
+    // Visual position in content space — scale pivots on Animated.View centre
+    const visualX = containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
+    const visualY = containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
     const targetX = Math.max(0, visualX - SCREEN_W / 2);
     const targetY = Math.max(0, visualY - SCREEN_H / 2);
     initialScrollPos.current = { x: targetX, y: targetY };
@@ -322,19 +319,57 @@ export default function RealmScreen() {
     return () => clearTimeout(timer);
   }, [highlightedBuildingId]);
 
-  // Scroll map so the building sits roughly at viewport centre
-  const scrollToBuilding = useCallback((row: number, col: number) => {
+  // Pinch-to-zoom shared values — declared here so scrollToBuilding can read scale.value
+  const scale = useSharedValue(INITIAL_SCALE);
+  const savedScale = useSharedValue(INITIAL_SCALE);
+
+  // Vertical offset (in Animated.View px, before scale) to shift the camera
+  // above the tile centre so the building SPRITE — not the floor tile — is centred.
+  // PNG sprites are bottom-anchored; SVG cuboids also extend upward from the tile.
+  const getSpriteVerticalOffset = (type: BuildingType): number => {
+    switch (type) {
+      case BuildingType.rathaus:    return -60; // tall PNG sprite
+      case BuildingType.holzfaeller: return -30; // medium PNG sprite
+      default:                      return -20; // SVG cuboid — small upward nudge
+    }
+  };
+
+  // Scroll map so the building sprite sits at viewport centre.
+  // contentContainerStyle has zero extra padding — Animated.View is at (0, 0).
+  // transform:scale pivots around the Animated.View centre:
+  //   visualX = containerW/2 + (animX - containerW/2) * currentScale
+  // We read scale.value (current zoom level) so the target is correct even
+  // after the user has pinched to zoom before opening the registry.
+  // A per-type sprite offset shifts Y above the tile floor so the player
+  // sees the building body rather than just its base tile.
+  const scrollToBuilding = useCallback((row: number, col: number, buildingType: BuildingType) => {
     const { x, y } = gridToScreen(row, col, GRID_SIZE);
-    const scrollX = Math.max(0, x - SCREEN_W / 2);
-    const scrollY = Math.max(0, y - SCREEN_H / 2);
-    scrollRef.current?.scrollTo({ x: scrollX, y: scrollY, animated: true });
-  }, []);
+    const containerW = Math.round(CANVAS_W * 25 / 15);
+    const containerH = Math.round(CANVAS_H * 25 / 15);
+    // SVG offset within the Animated.View
+    const sOffX = Math.round((containerW - CANVAS_W) / 2);
+    const sOffY = Math.round((containerH - CANVAS_H) / 2);
+    // Building visual centre in Animated.View space (Y shifted up to show sprite body)
+    const spriteOffset = getSpriteVerticalOffset(buildingType);
+    const animX = sOffX + x + TILE_W / 2;
+    const animY = sOffY + y + TILE_H / 2 + spriteOffset;
+    // Use current zoom level — correct even if user has pinched before opening registry
+    const currentScale = scale.value;
+    // Visual position in content space — scale pivots on Animated.View centre
+    const visualX = containerW / 2 + (animX - containerW / 2) * currentScale;
+    const visualY = containerH / 2 + (animY - containerH / 2) * currentScale;
+    scrollRef.current?.scrollTo({
+      x: Math.max(0, visualX - SCREEN_W / 2),
+      y: Math.max(0, visualY - SCREEN_H / 2),
+      animated: true,
+    });
+  }, [scale]);
 
   // Called when a building is selected in the registry
   const handleRegistrySelect = useCallback((building: Building) => {
     setShowRegistry(false);
     setHighlightedBuildingId(building.id);
-    scrollToBuilding(building.position.row, building.position.col);
+    scrollToBuilding(building.position.row, building.position.col, building.type);
   }, [scrollToBuilding]);
 
   const handleCellPress = (row: number, col: number) => {
@@ -423,9 +458,38 @@ export default function RealmScreen() {
   const stallBuilding = gameState.buildings.find(b => b.type === BuildingType.stall && b.level >= 1) ?? null;
 
   // ── Render isometric grid rows (painter's algorithm: back to front) ─────
-  const renderGridTiles = useMemo(() => {
-    const elements: React.ReactElement[] = [];
+  // Tile layer — re-renders when highlights or placement mode changes.
+  // Tiles are transparent so separating them from buildings causes no z-order issues.
+  // showGrid: grid lines hidden by default, shown only in build/trophy placement mode.
+  const showGrid = buildPlacementMode !== null || placingTrophy !== null;
 
+  const tileLayer = useMemo(() => {
+    const elements: React.ReactElement[] = [];
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        const { x, y } = gridToScreen(row, col, GRID_SIZE);
+        const building = gameState.buildings.find(b => b.position.row === row && b.position.col === col);
+        const obstacle = obstacles.find(o => o.row === row && o.col === col && !o.isCleared);
+        const isPlacementTarget = (buildPlacementMode != null || placingTrophy != null) && !building && !obstacle;
+        const isHighlighted = building != null && highlightedBuildingId === building.id;
+        elements.push(
+          <IsometricTile
+            key={`tile-${row}-${col}`}
+            x={x}
+            y={y}
+            variant={isHighlighted ? 'highlight' : isPlacementTarget ? 'highlight' : 'grass'}
+            showGrid={showGrid}
+          />
+        );
+      }
+    }
+    return elements;
+  }, [gameState.buildings, obstacles, buildPlacementMode, placingTrophy, highlightedBuildingId, showGrid]);
+
+  // Building/obstacle/trophy layer — re-renders when game content changes.
+  // Does NOT depend on showGrid so the tile memo fires independently.
+  const buildingLayer = useMemo(() => {
+    const elements: React.ReactElement[] = [];
     for (let row = 0; row < GRID_SIZE; row++) {
       for (let col = 0; col < GRID_SIZE; col++) {
         const { x, y } = gridToScreen(row, col, GRID_SIZE);
@@ -435,19 +499,7 @@ export default function RealmScreen() {
         const trophyHere = !building && gameState.trophies.find(
           tr => tr.gridPosition?.x === col && tr.gridPosition?.y === row,
         );
-        const isHighlighted = building != null && highlightedBuildingId === building.id;
-
-        // Base tile
-        elements.push(
-          <IsometricTile
-            key={`tile-${row}-${col}`}
-            x={x}
-            y={y}
-            variant={isHighlighted ? 'highlight' : isPlacementTarget ? 'highlight' : 'grass'}
-          />
-        );
-
-        // Building — skip SVG cuboid for types that have PNG sprites (unless under construction)
+        // Skip SVG cuboid for building types that have PNG sprites (unless under construction)
         const hasPngSprite = !building?.isUnderConstruction && (
           building?.type === BuildingType.rathaus || building?.type === BuildingType.holzfaeller
         );
@@ -488,7 +540,6 @@ export default function RealmScreen() {
         }
       }
     }
-
     return elements;
   }, [gameState.buildings, gameState.trophies, obstacles, buildPlacementMode, placingTrophy, highlightedBuildingId]);
 
@@ -506,10 +557,6 @@ export default function RealmScreen() {
   // Shared values for parallax scroll tracking
   const parallaxScrollX = useSharedValue(0);
   const parallaxScrollY = useSharedValue(0);
-
-  // Pinch-to-zoom
-  const scale = useSharedValue(INITIAL_SCALE);
-  const savedScale = useSharedValue(INITIAL_SCALE);
 
   const pinchGesture = Gesture.Pinch()
     .onStart(() => {
@@ -582,7 +629,8 @@ export default function RealmScreen() {
                 height={CANVAS_H}
                 viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
               >
-                {renderGridTiles}
+                {tileLayer}
+                {buildingLayer}
               </Svg>
             </View>
 
