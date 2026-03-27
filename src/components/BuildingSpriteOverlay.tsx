@@ -1,10 +1,11 @@
 // BuildingSpriteOverlay.tsx
-// Renders pre-rendered 3D building PNGs on top of the isometric grid.
-// Only buildings with available sprites get the PNG treatment.
-// Others still use the SVG cuboid fallback in IsometricBuilding.
+// Renders PNG building sprites for ALL building types on top of the isometric grid.
+// Sprites are 512×512 PNGs with transparent background.
+// Replace any {type}_level_{n}.png in src/assets/buildings/ with a real render
+// to upgrade that building's appearance immediately — no code changes needed.
 
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, View } from 'react-native';
 import { BuildingType } from '../models/types';
 import { BuildingSprites } from '../assets/buildings';
 import { gridToScreen, TILE_W, TILE_H } from '../utils/isometric';
@@ -19,38 +20,65 @@ interface Building {
 interface Props {
   buildings: Building[];
   gridSize: number;
-  /** Offset from the container to the SVG origin */
+  /** Offset from the Animated.View origin to the SVG canvas top-left */
   svgOffsetX: number;
   svgOffsetY: number;
 }
 
-// Map building type + level to sprite key
+// ── Sprite lookup ─────────────────────────────────────────────────────────────
+
 function getSpriteSource(type: BuildingType, level: number): any | null {
+  // Clamp to levels we have assets for (1–3 for most, 1–5 for rathaus)
+  const maxLevel = type === BuildingType.rathaus ? 5 : 3;
+  const l = Math.max(1, Math.min(maxLevel, level));
+
+  // Rathaus uses legacy key name "burg"
   if (type === BuildingType.rathaus) {
-    const clampedLevel = Math.max(1, Math.min(5, level));
-    const key = `burg_level_${clampedLevel}` as keyof typeof BuildingSprites;
+    const key = `burg_level_${l}` as keyof typeof BuildingSprites;
     return BuildingSprites[key] ?? null;
   }
+
+  // Holzfäller uses legacy key name "schmiede"
   if (type === BuildingType.holzfaeller) {
-    // Only schmiede_level_1 exists — use it for all levels until more sprites are added
-    return BuildingSprites.schmiede_level_1;
+    const key = `schmiede_level_${l}` as keyof typeof BuildingSprites;
+    return (BuildingSprites as any)[key] ?? BuildingSprites.schmiede_level_1;
   }
-  return null; // No sprite available — SVG fallback
+
+  // All other types use {type}_level_{n}
+  const key = `${type}_level_${l}` as keyof typeof BuildingSprites;
+  return (BuildingSprites as any)[key] ?? null;
 }
 
-// Sprite display size relative to tile
+// ── Per-type display scale (fraction of TILE_W for the sprite width) ──────────
+// Adjust these if a specific PNG needs more/less space.
 const SPRITE_SCALE: Partial<Record<BuildingType, number>> = {
-  [BuildingType.rathaus]: 1.15,     // burg fits within one tile
-  [BuildingType.holzfaeller]: 1.0,  // schmiede fits within one tile
+  [BuildingType.rathaus]:      1.15,
+  [BuildingType.stammeshaus]:  1.10,
+  [BuildingType.kaserne]:      1.05,
+  [BuildingType.tempel]:       1.05,
+  [BuildingType.bibliothek]:   1.05,
+  [BuildingType.wachturm]:     0.85,
+  [BuildingType.feld]:         0.95,
+  [BuildingType.mauer]:        0.85,
 };
-const DEFAULT_SCALE = 0.95;
+const DEFAULT_SCALE = 1.0;
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffsetY }: Props) {
   const sprites = useMemo(() => {
-    const result: { key: string; source: any; x: number; y: number; size: number; zIndex: number }[] = [];
+    const result: {
+      key: string;
+      source: any;
+      x: number;
+      y: number;
+      size: number;
+      zIndex: number;
+    }[] = [];
 
     for (const b of buildings) {
-      if (b.isUnderConstruction) continue; // Under construction = use SVG scaffold
+      if (b.isUnderConstruction) continue; // scaffold shown by IsometricBuilding SVG
+
       const source = getSpriteSource(b.type, b.level);
       if (!source) continue;
 
@@ -58,9 +86,9 @@ function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffset
       const scale = SPRITE_SCALE[b.type] ?? DEFAULT_SCALE;
       const size = TILE_W * scale;
 
-      // Position: center the sprite on the tile, shift up so it "stands" on the tile
+      // Center the sprite on the tile, anchor its bottom to the tile bottom edge
       const spriteX = svgOffsetX + x + TILE_W / 2 - size / 2;
-      const spriteY = svgOffsetY + y + TILE_H / 2 - size * 0.75; // bottom-anchored
+      const spriteY = svgOffsetY + y + TILE_H / 2 - size * 0.75;
 
       result.push({
         key: `sprite-${b.position.row}-${b.position.col}`,
@@ -68,11 +96,11 @@ function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffset
         x: spriteX,
         y: spriteY,
         size,
-        zIndex: Math.round(y + TILE_H), // depth sort: lower on screen = in front
+        zIndex: Math.round(y + TILE_H), // depth sort: lower row = higher zIndex = in front
       });
     }
 
-    // Sort by zIndex for correct overlap
+    // Isometric depth sort
     result.sort((a, b) => a.zIndex - b.zIndex);
     return result;
   }, [buildings, gridSize, svgOffsetX, svgOffsetY]);
@@ -106,3 +134,8 @@ function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffset
 }
 
 export const BuildingSpriteOverlay = React.memo(BuildingSpriteOverlayInner);
+
+/** Building types rendered via PNG overlay (all of them now) */
+export const PNG_BUILDINGS = new Set<BuildingType>(
+  Object.values(BuildingType) as BuildingType[]
+);
