@@ -20,6 +20,7 @@ export type RootStackParamList = {
   };
   Minigame: undefined;
   GLBTest: undefined;
+  RealmScreen3D: undefined;
 };
 
 // Mock workout used when tapping "Auswerten" on Dashboard
