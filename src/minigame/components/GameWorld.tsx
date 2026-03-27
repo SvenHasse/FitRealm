@@ -1,11 +1,11 @@
-// GameWorld.tsx — SVG-basierte Spielwelt mit Kamera-System
+// GameWorld.tsx — SVG-basierte Spielwelt mit Kamera-System (PERF OPTIMIZED)
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Dimensions } from 'react-native';
-import Svg, { Rect, Ellipse, Line, G, Circle, Text as SvgText, Path } from 'react-native-svg';
-import { GameState, ItemType } from '../types';
+import Svg, { Rect, Ellipse, G, Circle, Text as SvgText, Path } from 'react-native-svg';
+import { GameState, ItemType, Position } from '../types';
 import {
-  WORLD_WIDTH, WORLD_HEIGHT, SNOW_COLOR_LIGHT, SNOW_COLOR_DARK,
+  WORLD_WIDTH, WORLD_HEIGHT, SNOW_COLOR_LIGHT,
   SAND_COLOR, SAND_COLOR_DARK, FENCE_WOOD, FENCE_TIP_RED,
   GATE_WOOD_DARK, GATE_GOLD, RAW_MEAT_COLOR, STEAK_COLOR,
   GRILLED_STEAK_COLOR, MONEY_COLOR,
@@ -34,44 +34,71 @@ interface Props {
   state: GameState;
 }
 
-// ─── Fence helpers ───────────────────────────────────────────────────────────
+// ─── Fence helpers (batched paths — no individual elements) ─────────────────
 
-function FenceH({ x, y, width }: { x: number; y: number; width: number }) {
-  const posts: React.ReactNode[] = [];
+function FencePostsPathH(x: number, y: number, width: number): string {
+  let d = '';
   const spacing = 25;
   const count = Math.floor(width / spacing);
   for (let i = 0; i <= count; i++) {
     const px = x + i * spacing;
-    posts.push(
-      <G key={`fh-${x}-${y}-${i}`}>
-        <Rect x={px - 3} y={y - 18} width={6} height={20} rx={1} fill={FENCE_WOOD} />
-        <Circle cx={px} cy={y - 18} r={3} fill={FENCE_TIP_RED} />
-      </G>
-    );
+    d += `M${px - 3},${y - 18} h6 v20 h-6 Z `;
   }
+  return d;
+}
+
+function FenceTipsPathH(x: number, y: number, width: number): string {
+  let d = '';
+  const spacing = 25;
+  const count = Math.floor(width / spacing);
+  for (let i = 0; i <= count; i++) {
+    const px = x + i * spacing;
+    // Approximate circle as small square for perf
+    d += `M${px - 3},${y - 21} h6 v6 h-6 Z `;
+  }
+  return d;
+}
+
+function FenceH({ x, y, width }: { x: number; y: number; width: number }) {
   return (
     <G>
       <Rect x={x} y={y - 12} width={width} height={3} rx={1} fill={FENCE_WOOD} opacity={0.7} />
       <Rect x={x} y={y - 6} width={width} height={3} rx={1} fill={FENCE_WOOD} opacity={0.7} />
-      {posts}
+      <Path d={FencePostsPathH(x, y, width)} fill={FENCE_WOOD} />
+      <Path d={FenceTipsPathH(x, y, width)} fill={FENCE_TIP_RED} />
     </G>
   );
 }
 
-function FenceV({ x, y, height }: { x: number; y: number; height: number }) {
-  const posts: React.ReactNode[] = [];
+function FencePostsPathV(x: number, y: number, height: number): string {
+  let d = '';
   const spacing = 25;
   const count = Math.floor(height / spacing);
   for (let i = 0; i <= count; i++) {
     const py = y + i * spacing;
-    posts.push(
-      <G key={`fv-${x}-${y}-${i}`}>
-        <Rect x={x - 3} y={py - 18} width={6} height={20} rx={1} fill={FENCE_WOOD} />
-        <Circle cx={x} cy={py - 18} r={3} fill={FENCE_TIP_RED} />
-      </G>
-    );
+    d += `M${x - 3},${py - 18} h6 v20 h-6 Z `;
   }
-  return <G>{posts}</G>;
+  return d;
+}
+
+function FenceTipsPathV(x: number, y: number, height: number): string {
+  let d = '';
+  const spacing = 25;
+  const count = Math.floor(height / spacing);
+  for (let i = 0; i <= count; i++) {
+    const py = y + i * spacing;
+    d += `M${x - 3},${py - 21} h6 v6 h-6 Z `;
+  }
+  return d;
+}
+
+function FenceV({ x, y, height }: { x: number; y: number; height: number }) {
+  return (
+    <G>
+      <Path d={FencePostsPathV(x, y, height)} fill={FENCE_WOOD} />
+      <Path d={FenceTipsPathV(x, y, height)} fill={FENCE_TIP_RED} />
+    </G>
+  );
 }
 
 function Gate({ x, y, width }: { x: number; y: number; width: number }) {
@@ -82,23 +109,8 @@ function Gate({ x, y, width }: { x: number; y: number; width: number }) {
       <Circle cx={x} cy={y - 14} r={6} fill={GATE_GOLD} />
       <Rect x={x + width - 5} y={y - 14} width={10} height={26} fill={GATE_WOOD_DARK} rx={1} />
       <Circle cx={x + width} cy={y - 14} r={6} fill={GATE_GOLD} />
-      {/* Left door X */}
       <Rect x={x + 8} y={y - 10} width={halfW - 16} height={20} rx={1} fill={GATE_WOOD_DARK} opacity={0.7} />
-      <Line x1={x + 8} y1={y - 10} x2={x + halfW - 8} y2={y + 10} stroke="#a0784a" strokeWidth={2.5} />
-      <Line x1={x + halfW - 8} y1={y - 10} x2={x + 8} y2={y + 10} stroke="#a0784a" strokeWidth={2.5} />
-      {/* Right door X */}
       <Rect x={x + halfW + 8} y={y - 10} width={halfW - 16} height={20} rx={1} fill={GATE_WOOD_DARK} opacity={0.7} />
-      <Line x1={x + halfW + 8} y1={y - 10} x2={x + width - 8} y2={y + 10} stroke="#a0784a" strokeWidth={2.5} />
-      <Line x1={x + width - 8} y1={y - 10} x2={x + halfW + 8} y2={y + 10} stroke="#a0784a" strokeWidth={2.5} />
-    </G>
-  );
-}
-
-function StationPlaceholder({ x, y, w, h, label, color }: { x: number; y: number; w: number; h: number; label: string; color: string }) {
-  return (
-    <G>
-      <Rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={5} fill={color} stroke="rgba(0,0,0,0.2)" strokeWidth={1} />
-      <SvgText x={x} y={y + 3} fill="white" fontSize={8} fontWeight="bold" textAnchor="middle">{label}</SvgText>
     </G>
   );
 }
@@ -114,19 +126,13 @@ function itemColor(type: ItemType): string {
   }
 }
 
-// ─── Snow hills ──────────────────────────────────────────────────────────────
+// ─── Distance helper ─────────────────────────────────────────────────────────
 
-const snowHills = [
-  { cx: 100, cy: 30, rx: 80, ry: 25 },
-  { cx: 500, cy: 20, rx: 70, ry: 20 },
-  { cx: 350, cy: 10, rx: 60, ry: 15 },
-  { cx: 650, cy: 150, rx: 60, ry: 20 },
-  { cx: 30, cy: 250, rx: 50, ry: 18 },
-  { cx: 600, cy: 300, rx: 45, ry: 14 },
-  { cx: 150, cy: 800, rx: 80, ry: 22 },
-  { cx: 500, cy: 900, rx: 70, ry: 20 },
-  { cx: 350, cy: 950, rx: 90, ry: 25 },
-];
+function distPos(a: Position, b: Position): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
@@ -148,16 +154,21 @@ function GameWorldInner({ state }: Props) {
   // Sort bears + player by Y for depth
   const sortedBears = [...bears].filter(b => b.alive || b.respawnTimer > 50).sort((a, b) => a.position.y - b.position.y);
 
-  // Pulse scale for dropped items (simple sin-based, per tick)
-  const pulseFactor = 0.95 + 0.1 * Math.sin(tickCount * 0.06);
+  // FIX 2: Limit dropped items to 8 visible
+  const visibleDrops = droppedItems.slice(0, 8);
+
+  // FIX 9: Only render the 2 closest upgrade fields
+  const visibleUpgrades = useMemo(() => {
+    return state.upgrades
+      .filter(u => u.currentLevel < u.maxLevel)
+      .sort((a, b) => distPos(state.playerPosition, a.position) - distPos(state.playerPosition, b.position))
+      .slice(0, 2);
+  }, [state.upgrades, Math.round(state.playerPosition.x / 50), Math.round(state.playerPosition.y / 50)]);
 
   return (
     <Svg width="100%" height="100%" viewBox={viewBox}>
-      {/* Background */}
+      {/* Background — no snow hills (FIX 3) */}
       <Rect x={0} y={0} width={WORLD_WIDTH} height={WORLD_HEIGHT} fill={SNOW_COLOR_LIGHT} />
-      {snowHills.map((h, i) => (
-        <Ellipse key={`hill-${i}`} cx={h.cx} cy={h.cy} rx={h.rx} ry={h.ry} fill={SNOW_COLOR_DARK} opacity={0.5} />
-      ))}
 
       {/* Work area */}
       <Rect x={workX} y={workY} width={workW} height={workH} rx={8} fill={SAND_COLOR} />
@@ -178,7 +189,7 @@ function GameWorldInner({ state }: Props) {
         <Gate x={BEAR_PEN_GATE.x} y={BEAR_PEN.y + BEAR_PEN.height} width={BEAR_PEN_GATE.width} />
       </G>
 
-      {/* Conveyor system (table + belt + shredder + steak output) */}
+      {/* Conveyor system */}
       <ConveyorBeltComponent
         conveyorItems={conveyorItems}
         shredderProcessing={shredderProcessing}
@@ -202,27 +213,22 @@ function GameWorldInner({ state }: Props) {
         tick={tickCount}
       />
 
-      {/* Upgrade fields */}
-      {state.upgrades.filter(u => u.currentLevel < u.maxLevel).map(upg => (
+      {/* Upgrade fields — only nearest 2 (FIX 9) */}
+      {visibleUpgrades.map(upg => (
         <UpgradeField key={upg.id} upgrade={upg} tick={tickCount} />
       ))}
 
-      {/* Dropped items */}
-      {droppedItems.map(item => (
+      {/* Dropped items — max 8 visible, no pickup arrows (FIX 2) */}
+      {visibleDrops.map(item => (
         <G key={item.id}>
           <Ellipse cx={item.position.x} cy={item.position.y + 5} rx={4} ry={2} fill="rgba(0,0,0,0.15)" />
           <Circle
             cx={item.position.x}
             cy={item.position.y}
-            r={6 * pulseFactor}
+            r={6}
             fill={itemColor(item.type)}
             stroke="rgba(255,255,255,0.5)"
             strokeWidth={1}
-          />
-          {/* Pickup arrow indicator */}
-          <Path
-            d={`M${item.position.x},${item.position.y - 14} L${item.position.x - 3},${item.position.y - 10} L${item.position.x + 3},${item.position.y - 10} Z`}
-            fill="rgba(255,255,255,0.6)"
           />
         </G>
       ))}
