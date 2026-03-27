@@ -13,18 +13,18 @@ interface Props {
 }
 
 const TUTORIAL_TEXTS: Record<number, string> = {
-  1: 'Geh zu den Eisb\u00e4ren!',
-  2: 'Greife einen Eisb\u00e4ren an!',
+  1: 'Geh zu den Wildschweinen!',
+  2: 'Greife ein Wildschwein an!',
   3: 'Sammle das Fleisch ein!',
-  4: 'Bring das Fleisch zum Tisch!',
-  5: 'Warte auf die Steaks...',
-  6: 'Hole die Steaks ab!',
-  7: 'Bring die Steaks zum Grill!',
-  8: 'Hole die fertigen Steaks!',
-  9: 'Verkaufe an der Theke!',
-  10: 'Sammle das Geld ein!',
-  11: 'Kaufe ein Upgrade!',
-  12: 'Du hast es verstanden! \ud83c\udf89',
+  4: 'Bring das Fleisch zur R\u00e4ucherkammer!',
+  5: 'Warte auf das ger\u00e4ucherte Fleisch...',
+  6: 'Hole das ger\u00e4ucherte Fleisch!',
+  7: 'Bring es zur Wickelstation!',
+  8: 'Hole den fertigen Proviant!',
+  9: 'Verkaufe am Handelsposten!',
+  10: 'Sammle die M\u00fcnzen ein!',
+  11: 'Kaufe eine Verbesserung!',
+  12: 'Du bist ein Meisterj\u00e4ger!',
 };
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');

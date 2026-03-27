@@ -1,4 +1,4 @@
-// Snowflakes.tsx — Performante Schneefall-Animation als SVG-Overlay
+// Snowflakes.tsx — Performante Herbstblätter-Animation als SVG-Overlay
 
 import React, { useRef, useMemo } from 'react';
 import { G, Circle } from 'react-native-svg';
@@ -12,7 +12,10 @@ interface Flake {
   speed: number;
   drift: number;   // Amplitude der seitlichen Sin-Bewegung
   phase: number;    // Startphase der Sin-Kurve
+  color: string;    // Herbstfarbe
 }
+
+const LEAF_COLORS = ['#D4A017', '#C45911', '#8B4513', '#DAA520'];
 
 interface Props {
   tick: number;
@@ -30,11 +33,12 @@ function createFlakes(): Flake[] {
     flakes.push({
       x: Math.random() * WORLD_WIDTH,
       y: Math.random() * WORLD_HEIGHT,
-      r: 1 + Math.random() * 2,
-      opacity: 0.3 + Math.random() * 0.4,
+      r: 2 + Math.random() * 3,
+      opacity: 0.4 + Math.random() * 0.4,
       speed: 0.3 + Math.random() * 0.5,
       drift: 0.3 + Math.random() * 0.7,
       phase: Math.random() * Math.PI * 2,
+      color: LEAF_COLORS[Math.floor(Math.random() * LEAF_COLORS.length)],
     });
   }
   return flakes;
@@ -66,11 +70,11 @@ function Snowflakes({ tick, cameraX, cameraY, viewWidth, viewHeight }: Props) {
 
   // Only render visible flakes
   const visibleFlakes = useMemo(() => {
-    const visible: { key: number; x: number; y: number; r: number; o: number }[] = [];
+    const visible: { key: number; x: number; y: number; r: number; o: number; c: string }[] = [];
     for (let i = 0; i < flakes.length; i++) {
       const f = flakes[i];
       if (f.x >= visLeft && f.x <= visRight && f.y >= visTop && f.y <= visBottom) {
-        visible.push({ key: i, x: f.x, y: f.y, r: f.r, o: f.opacity });
+        visible.push({ key: i, x: f.x, y: f.y, r: f.r, o: f.opacity, c: f.color });
       }
     }
     return visible;
@@ -85,7 +89,7 @@ function Snowflakes({ tick, cameraX, cameraY, viewWidth, viewHeight }: Props) {
           cx={f.x}
           cy={f.y}
           r={f.r}
-          fill="white"
+          fill={f.c}
           opacity={f.o}
         />
       ))}

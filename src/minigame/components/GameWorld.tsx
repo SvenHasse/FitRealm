@@ -117,20 +117,20 @@ function itemColor(type: ItemType): string {
 // ─── Snow hills ──────────────────────────────────────────────────────────────
 
 const snowHills = [
-  { cx: 150, cy: 50, rx: 120, ry: 35 },
-  { cx: 750, cy: 30, rx: 100, ry: 25 },
-  { cx: 450, cy: 10, rx: 80, ry: 20 },
-  { cx: 900, cy: 200, rx: 90, ry: 28 },
-  { cx: 50, cy: 300, rx: 70, ry: 22 },
-  { cx: 850, cy: 400, rx: 60, ry: 18 },
-  { cx: 200, cy: 1200, rx: 110, ry: 30 },
-  { cx: 700, cy: 1400, rx: 95, ry: 26 },
-  { cx: 500, cy: 1500, rx: 130, ry: 35 },
+  { cx: 100, cy: 30, rx: 80, ry: 25 },
+  { cx: 500, cy: 20, rx: 70, ry: 20 },
+  { cx: 350, cy: 10, rx: 60, ry: 15 },
+  { cx: 650, cy: 150, rx: 60, ry: 20 },
+  { cx: 30, cy: 250, rx: 50, ry: 18 },
+  { cx: 600, cy: 300, rx: 45, ry: 14 },
+  { cx: 150, cy: 800, rx: 80, ry: 22 },
+  { cx: 500, cy: 900, rx: 70, ry: 20 },
+  { cx: 350, cy: 950, rx: 90, ry: 25 },
 ];
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export default function GameWorld({ state }: Props) {
+function GameWorldInner({ state }: Props) {
   const { playerPosition, backpack, isAttacking, isMoving, tickCount, attackTarget,
           bears, droppedItems, floatingTexts,
           conveyorItems, shredderProcessing, steakOutputPile,
@@ -143,10 +143,10 @@ export default function GameWorld({ state }: Props) {
   const clampedCamY = Math.max(0, Math.min(WORLD_HEIGHT - VIEW_HEIGHT_UNITS, camY));
   const viewBox = `${clampedCamX} ${clampedCamY} ${VIEW_WIDTH_UNITS} ${VIEW_HEIGHT_UNITS}`;
 
-  const workX = 50, workY = 420, workW = 900, workH = 660;
+  const workX = 50, workY = 280, workW = 600, workH = 450;
 
   // Sort bears + player by Y for depth
-  const sortedBears = [...bears].filter(b => b.alive || b.respawnTimer > 135).sort((a, b) => a.position.y - b.position.y);
+  const sortedBears = [...bears].filter(b => b.alive || b.respawnTimer > 50).sort((a, b) => a.position.y - b.position.y);
 
   // Pulse scale for dropped items (simple sin-based, per tick)
   const pulseFactor = 0.95 + 0.1 * Math.sin(tickCount * 0.06);
@@ -260,3 +260,6 @@ export default function GameWorld({ state }: Props) {
     </Svg>
   );
 }
+
+const GameWorld = React.memo(GameWorldInner);
+export default GameWorld;

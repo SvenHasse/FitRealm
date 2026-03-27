@@ -12,7 +12,7 @@ import {
   BackpackItem, FloatingText, Position,
 } from './types';
 import {
-  GAME_TICK_MS, PLAYER_START_X, PLAYER_START_Y, PLAYER_SPEED,
+  PLAYER_START_X, PLAYER_START_Y, PLAYER_SPEED,
   MAX_BACKPACK_CAPACITY, WORLD_WIDTH, WORLD_HEIGHT,
   BEAR_PEN, PICKUP_RADIUS, STATION_INTERACT_RADIUS, UPGRADE_INTERACT_RADIUS,
   CONVEYOR_TABLE, STEAK_OUTPUT, SHREDDER,
@@ -74,12 +74,12 @@ function createBears(count: number): PolarBear[] {
     bears.push({
       id: uid(),
       position: randomPenPosition(),
-      hp: 40,
-      maxHp: 40,
+      hp: 80,
+      maxHp: 80,
       alive: true,
       respawnTimer: 0,
       walkDirection: normalizedRandom(),
-      walkTimer: Math.floor(randomInRange(90, 180)),
+      walkTimer: Math.floor(randomInRange(60, 120)),
       idlePauseTimer: 0,
       size: Math.floor(randomInRange(18, 22)),
     });
@@ -112,7 +112,7 @@ function createInitialState(): GameState {
     currentItemType: null,
     isMoving: false,
 
-    bears: createBears(10),
+    bears: createBears(15),
     droppedItems: [],
 
     conveyorItems: [],
@@ -124,7 +124,7 @@ function createInitialState(): GameState {
     moneyPileAmount: 0,
 
     customers: createCustomers(6),
-    customerBuyTimer: 60,
+    customerBuyTimer: 40,
 
     totalMoney: 0,
     upgrades: UPGRADE_DEFINITIONS.map(u => ({ ...u })),
@@ -158,7 +158,7 @@ function getTutorialTarget(step: number): Position | null {
     case 8: return { x: GRILL_OUTPUT.x, y: GRILL_OUTPUT.y };
     case 9: return { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y };
     case 10: return { x: MONEY_PILE.x, y: MONEY_PILE.y };
-    case 11: return { x: 500, y: 620 }; // Approximate upgrade area
+    case 11: return { x: 350, y: 440 }; // Approximate upgrade area
     default: return null;
   }
 }
@@ -178,12 +178,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const _bpUpg = state.upgrades.find(u => u.id === 'bigger_backpack');
       const preEffCapacity = 15 + ((_bpUpg?.currentLevel ?? 0) * 5);
       const _shoeUpg = state.upgrades.find(u => u.id === 'faster_shoes');
-      const preEffSpeed = 5.5 + ((_shoeUpg?.currentLevel ?? 0) * 0.8);
+      const preEffSpeed = 7.0 + ((_shoeUpg?.currentLevel ?? 0) * 0.8);
       const _convUpg = state.upgrades.find(u => u.id === 'better_conveyor');
       const preConvLevel = _convUpg?.currentLevel ?? 0;
       const _grillUpg = state.upgrades.find(u => u.id === 'better_grill');
       const preGrillLevel = _grillUpg?.currentLevel ?? 0;
-      const preEffGrillCap = 3 + preGrillLevel * 2;
+      const preEffGrillCap = 5 + preGrillLevel * 2;
       const _custUpg = state.upgrades.find(u => u.id === 'more_customers');
       const preCustLevel = _custUpg?.currentLevel ?? 0;
 
@@ -208,7 +208,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
               position: randomPenPosition(),
               respawnTimer: 0,
               walkDirection: normalizedRandom(),
-              walkTimer: Math.floor(randomInRange(90, 180)),
+              walkTimer: Math.floor(randomInRange(60, 120)),
               idlePauseTimer: 0,
             };
           }
@@ -229,14 +229,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           if (Math.random() < 0.3) {
             return {
               ...bear,
-              idlePauseTimer: Math.floor(randomInRange(60, 120)),
+              idlePauseTimer: Math.floor(randomInRange(40, 80)),
               walkTimer: 0,
             };
           }
           return {
             ...bear,
             walkDirection: normalizedRandom(),
-            walkTimer: Math.floor(randomInRange(90, 180)),
+            walkTimer: Math.floor(randomInRange(60, 120)),
           };
         }
 
@@ -253,14 +253,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             ...bear,
             position: clamped,
             walkDirection: { x: -walkDirection.x, y: -walkDirection.y },
-            walkTimer: Math.floor(randomInRange(30, 60)),
+            walkTimer: Math.floor(randomInRange(20, 40)),
           };
         }
 
         return { ...bear, position: { x: nx, y: ny }, walkTimer };
       });
 
-      // ── Combat ──
+      // ── Combat (AOE) ──
       let { attackCooldown, isAttacking, attackTarget } = state;
       const newFloats: FloatingText[] = [];
       const newDrops: DroppedItem[] = [];
@@ -269,59 +269,39 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       const playerInPen = isInsideBearPen(playerPos);
       if (playerInPen && attackCooldown === 0) {
-        // Find nearest alive bear within range
-        let nearestBear: PolarBear | null = null;
-        let nearestDist = 40;
-        for (const b of newBears) {
+        // Find ALL alive bears within AOE radius
+        const AOE_RADIUS = 55;
+        const bearsInRange: { bear: PolarBear; idx: number; d: number }[] = [];
+        for (let i = 0; i < newBears.length; i++) {
+          const b = newBears[i];
           if (!b.alive) continue;
           const d = dist(playerPos, b.position);
-          if (d < nearestDist) {
-            nearestDist = d;
-            nearestBear = b;
+          if (d < AOE_RADIUS) {
+            bearsInRange.push({ bear: b, idx: i, d });
           }
         }
-        if (nearestBear) {
+
+        if (bearsInRange.length > 0) {
           isAttacking = true;
-          attackTarget = nearestBear.id;
-          attackCooldown = 15; // 0.5s at 30/s
+          attackTarget = bearsInRange[0].bear.id;
+          attackCooldown = 10; // ~0.5s at 20 ticks/s
 
-          // Apply damage
-          const bearIdx = newBears.findIndex(b => b.id === nearestBear!.id);
-          if (bearIdx >= 0) {
-            const b = newBears[bearIdx];
+          let killCount = 0;
+          // Apply damage to ALL bears in range
+          for (const { bear: b, idx } of bearsInRange) {
             const newHp = b.hp - preEffDamage;
-
-            // Floating damage text
-            newFloats.push({
-              id: uid(),
-              text: `-${preEffDamage}`,
-              position: { x: b.position.x, y: b.position.y },
-              color: '#ffffff',
-              opacity: 1,
-              offsetY: -15,
-              fontSize: 12,
-            });
 
             if (newHp <= 0) {
               // Bear dies
-              newBears[bearIdx] = {
+              newBears[idx] = {
                 ...b,
                 hp: 0,
                 alive: false,
-                respawnTimer: 150, // 5s at 30/s
+                respawnTimer: 60,
               };
-              // "BONK!" text
-              newFloats.push({
-                id: uid(),
-                text: 'BONK!',
-                position: { x: b.position.x, y: b.position.y },
-                color: '#ffffff',
-                opacity: 1,
-                offsetY: -30,
-                fontSize: 16,
-              });
-              // Drop raw meat (2-4 items)
-              const dropCount = 2 + Math.floor(Math.random() * 3);
+              killCount++;
+              // Drop raw meat (3-5 items)
+              const dropCount = 3 + Math.floor(Math.random() * 3);
               for (let d = 0; d < dropCount; d++) {
                 newDrops.push({
                   id: uid(),
@@ -334,8 +314,35 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 });
               }
             } else {
-              newBears[bearIdx] = { ...b, hp: newHp };
+              newBears[idx] = { ...b, hp: newHp };
             }
+          }
+
+          // Combined damage text
+          const hitText = bearsInRange.length > 1
+            ? `-${preEffDamage} \u00d7${bearsInRange.length}`
+            : `-${preEffDamage}`;
+          newFloats.push({
+            id: uid(),
+            text: hitText,
+            position: { x: playerPos.x, y: playerPos.y },
+            color: '#ffffff',
+            opacity: 1,
+            offsetY: -15,
+            fontSize: 12,
+          });
+
+          if (killCount > 0) {
+            // "KRACH!" text
+            newFloats.push({
+              id: uid(),
+              text: 'KRACH!',
+              position: { x: playerPos.x, y: playerPos.y },
+              color: '#ffffff',
+              opacity: 1,
+              offsetY: -30,
+              fontSize: 16,
+            });
           }
         } else {
           isAttacking = false;
@@ -359,10 +366,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
         // Check capacity
         if (backpack.length >= preEffCapacity) {
-          if (state.tickCount - lastFullWarningTick > 45) {
+          if (state.tickCount - lastFullWarningTick > 30) {
             newFloats.push({
               id: uid(),
-              text: 'VOLL!',
+              text: 'Zu schwer!',
               position: { x: playerPos.x, y: playerPos.y },
               color: '#e53935',
               opacity: 1,
@@ -376,10 +383,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
         // Check item type compatibility
         if (currentItemType !== null && currentItemType !== item.type) {
-          if (state.tickCount - lastFullWarningTick > 45) {
+          if (state.tickCount - lastFullWarningTick > 30) {
             newFloats.push({
               id: uid(),
-              text: 'Erst ablegen!',
+              text: 'Erst abliefern!',
               position: { x: playerPos.x, y: playerPos.y },
               color: '#ffc107',
               opacity: 1,
@@ -414,7 +421,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       let shredderProcessing = [...state.shredderProcessing];
       let steakOutputPile = state.steakOutputPile;
       let lastStationInteractTick = state.lastStationInteractTick;
-      const stationCooldown = 9; // ticks between drops/pickups (0.3s at 30/s)
+      const stationCooldown = 3; // ticks between drops/pickups
 
       // CONVEYOR_TABLE: Drop raw meat from backpack onto conveyor
       const tablePos: Position = { x: CONVEYOR_TABLE.x, y: CONVEYOR_TABLE.y };
@@ -447,12 +454,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         lastStationInteractTick = state.tickCount;
         newFloats.push({
           id: uid(), text: '+1', position: { x: playerPos.x, y: playerPos.y },
-          color: '#8d6e63', opacity: 1, offsetY: -20, fontSize: 11,
+          color: '#a0522d', opacity: 1, offsetY: -20, fontSize: 11,
         });
       }
 
       // ── Conveyor Belt Movement ──
-      conveyorItems = conveyorItems.map(ci => ({ ...ci, progress: ci.progress + 0.005 * Math.pow(1.5, preConvLevel) }));
+      conveyorItems = conveyorItems.map(ci => ({ ...ci, progress: ci.progress + 0.025 * Math.pow(1.5, preConvLevel) }));
 
       // Items reaching end of belt -> into shredder
       const arrivedItems = conveyorItems.filter(ci => ci.progress >= 1.0);
@@ -462,16 +469,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       // ── Shredder Processing ──
-      shredderProcessing = shredderProcessing.map(sp => ({ ...sp, progress: sp.progress + 0.017 * Math.pow(1.5, preConvLevel) }));
+      shredderProcessing = shredderProcessing.map(sp => ({ ...sp, progress: sp.progress + 0.08 * Math.pow(1.5, preConvLevel) }));
       const finishedSteaks = shredderProcessing.filter(sp => sp.progress >= 1.0);
       shredderProcessing = shredderProcessing.filter(sp => sp.progress < 1.0);
       if (finishedSteaks.length > 0) {
         steakOutputPile += finishedSteaks.length;
         for (const _s of finishedSteaks) {
           newFloats.push({
-            id: uid(), text: '+1 Steak',
+            id: uid(), text: '+1 Ger\u00e4uchertes',
             position: { x: SHREDDER.x + SHREDDER.width / 2, y: SHREDDER.y },
-            color: '#8d6e63', opacity: 1, offsetY: -10, fontSize: 10,
+            color: '#a0522d', opacity: 1, offsetY: -10, fontSize: 10,
           });
         }
       }
@@ -493,7 +500,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         lastStationInteractTick = state.tickCount;
         newFloats.push({
           id: uid(), text: '-1', position: { x: playerPos.x, y: playerPos.y },
-          color: '#8d6e63', opacity: 1, offsetY: -20, fontSize: 11,
+          color: '#a0522d', opacity: 1, offsetY: -20, fontSize: 11,
         });
       }
 
@@ -515,14 +522,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       // Grill processing
-      grillItems = grillItems.map(gi => ({ ...gi, progress: gi.progress + 0.011 * Math.pow(1.4, preGrillLevel) }));
+      grillItems = grillItems.map(gi => ({ ...gi, progress: gi.progress + 0.06 * Math.pow(1.4, preGrillLevel) }));
       const finishedGrilled = grillItems.filter(gi => gi.progress >= 1.0);
       grillItems = grillItems.filter(gi => gi.progress < 1.0);
       if (finishedGrilled.length > 0) {
         grillOutputPile += finishedGrilled.length;
         for (const _g of finishedGrilled) {
           newFloats.push({
-            id: uid(), text: '+1 Grill-Steak',
+            id: uid(), text: 'BEREIT!',
             position: { x: GRILL.x + GRILL.width / 2, y: GRILL.y },
             color: '#5d4037', opacity: 1, offsetY: -10, fontSize: 10,
           });
@@ -560,26 +567,34 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       if (customerBuyTimer <= 0 && counterSteaks > 0) {
         counterSteaks = Math.max(0, counterSteaks - 1);
-        moneyPileAmount = (moneyPileAmount || 0) + 10;
-        customerBuyTimer = [60, 45, 33][preCustLevel] ?? 33;
+        moneyPileAmount = (moneyPileAmount || 0) + 15;
+        customerBuyTimer = [15, 10, 7][preCustLevel] ?? 7;
         newFloats.push({
-          id: uid(), text: '+$10',
+          id: uid(), text: 'SOLD!',
           position: { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y - 10 },
-          color: '#ffd700', opacity: 1, offsetY: -10, fontSize: 12,
+          color: '#F5A623', opacity: 1, offsetY: -10, fontSize: 12,
         });
         // Make a random customer happy
         const unhappy = newCustomers.filter(c => c.happyTimer === 0);
         if (unhappy.length > 0) {
           const lucky = unhappy[Math.floor(Math.random() * unhappy.length)];
           newCustomers = newCustomers.map(c =>
-            c.id === lucky.id ? { ...c, happyTimer: 30, hasSteakInHand: true } : c
+            c.id === lucky.id ? { ...c, happyTimer: 20, hasSteakInHand: true } : c
           );
+          // Customer reaction texts
+          const reactions = ['F\u00fcr den Stamm!', 'Gute Ware!', 'Mehr Proviant!', 'Das st\u00e4rkt uns!'];
+          const reaction = reactions[Math.floor(Math.random() * reactions.length)];
+          newFloats.push({
+            id: uid(), text: reaction,
+            position: { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y + 30 },
+            color: '#F5A623', opacity: 1, offsetY: -10, fontSize: 10,
+          });
         }
       }
 
       // ── Money Pile Pickup ──
       const moneyPos: Position = { x: MONEY_PILE.x, y: MONEY_PILE.y };
-      const moneyPickupCooldown = 5; // at 30/s
+      const moneyPickupCooldown = 2; // at 20 ticks/s
       if (dist(playerPos, moneyPos) < PICKUP_RADIUS + 5 &&
           (moneyPileAmount || 0) >= 10 &&
           (currentItemType === null || currentItemType === ItemType.MONEY) &&
@@ -589,19 +604,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         backpack = [...backpack, { id: uid(), type: ItemType.MONEY }];
         currentItemType = ItemType.MONEY;
         lastStationInteractTick = state.tickCount;
-        // "CHA-CHING!" only on first pickup in sequence
+        // "SOLD!" only on first pickup in sequence
         if (state.currentItemType !== ItemType.MONEY) {
           newFloats.push({
-            id: uid(), text: 'CHA-CHING!',
+            id: uid(), text: 'SOLD!',
             position: { x: playerPos.x, y: playerPos.y },
-            color: '#ffd700', opacity: 1, offsetY: -35, fontSize: 13,
+            color: '#F5A623', opacity: 1, offsetY: -35, fontSize: 13,
           });
         }
       }
 
       // ── Upgrade Payment ──
       let upgrades = state.upgrades.map(u => ({ ...u }));
-      const upgradePayCooldown = 3; // at 30/s
+      const upgradePayCooldown = 2; // at 20 ticks/s
 
       if (state.tickCount % 2 === 0) {
         for (let ui = 0; ui < upgrades.length; ui++) {
@@ -623,7 +638,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             upg.currentLevel += 1;
             upg.paidAmount = 0;
             newFloats.push({
-              id: uid(), text: 'UPGRADE!',
+              id: uid(), text: 'VERBESSERT!',
               position: { x: upg.position.x, y: upg.position.y },
               color: '#4caf50', opacity: 1, offsetY: -20, fontSize: 18,
             });
@@ -640,14 +655,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const effectiveCapacity = 15 + ((bpUpg?.currentLevel ?? 0) * 5);
 
       const shoeUpg = upgrades.find(u => u.id === 'faster_shoes');
-      const effectiveSpeed = 5.5 + ((shoeUpg?.currentLevel ?? 0) * 0.8);
+      const effectiveSpeed = 7.0 + ((shoeUpg?.currentLevel ?? 0) * 0.8);
 
       const convUpg = upgrades.find(u => u.id === 'better_conveyor');
       const _convLevel = convUpg?.currentLevel ?? 0;
 
       const grillUpg = upgrades.find(u => u.id === 'better_grill');
       const grillLevel = grillUpg?.currentLevel ?? 0;
-      const effectiveGrillCap = 3 + grillLevel * 2;
+      const effectiveGrillCap = 5 + grillLevel * 2;
 
       const custUpg = upgrades.find(u => u.id === 'more_customers');
       const custLevel = custUpg?.currentLevel ?? 0;
@@ -656,7 +671,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const hasAutoConveyor = (autoConvUpg?.currentLevel ?? 0) >= 1;
 
       // ── Auto-Conveyor: steakOutputPile -> grill ──
-      if (hasAutoConveyor && steakOutputPile > 0 && grillItems.length < effectiveGrillCap && state.tickCount % 15 === 0) {
+      if (hasAutoConveyor && steakOutputPile > 0 && grillItems.length < effectiveGrillCap && state.tickCount % 10 === 0) {
         steakOutputPile = Math.max(0, steakOutputPile - 1);
         grillItems = [...grillItems, { id: uid(), progress: 0 }];
       }
@@ -676,15 +691,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         newCustomers = [...newCustomers, ...toAdd];
       }
 
-      // ── Floating texts decay + cap at 15 ──
+      // ── Floating texts decay + cap at 8 ──
       const updatedFloats = [...state.floatingTexts, ...newFloats]
         .map(ft => ({
           ...ft,
-          opacity: ft.opacity - 0.017,
-          offsetY: ft.offsetY - 1.0,
+          opacity: ft.opacity - 0.025,
+          offsetY: ft.offsetY - 1.5,
         }))
         .filter(ft => ft.opacity > 0)
-        .slice(-15);
+        .slice(-8);
 
       // ── Tutorial Step Transitions ──
       let tutorialStep = state.tutorialStep;
@@ -729,7 +744,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           case 12:
             if (tutorialCompleteAt === 0) {
               tutorialCompleteAt = state.tickCount;
-            } else if (state.tickCount - tutorialCompleteAt > 90) {
+            } else if (state.tickCount - tutorialCompleteAt > 60) {
               tutorialStep = 0;
               tutorialCompleteAt = 0;
             }
@@ -804,6 +819,7 @@ export default function MinigameScreen({ navigation, onExit, onEarnReward }: Min
   const [showStartScreen, setShowStartScreen] = useState(true);
 
   const joystickRef = useRef({ dx: 0, dy: 0 });
+  const frameRef = useRef<number>(0);
 
   const handleJoystickMove = useCallback((dx: number, dy: number) => {
     joystickRef.current = { dx, dy };
@@ -819,17 +835,28 @@ export default function MinigameScreen({ navigation, onExit, onEarnReward }: Min
     opacity: startFade.value,
   }));
 
-  // Game loop - only run when not showing start screen
+  // Game loop - requestAnimationFrame + deltaTime accumulator
   useEffect(() => {
     if (!state.gameActive || showStartScreen) return;
-    const interval = setInterval(() => {
-      dispatch({
-        type: 'TICK',
-        joystickDx: joystickRef.current.dx,
-        joystickDy: joystickRef.current.dy,
-      });
-    }, GAME_TICK_MS);
-    return () => clearInterval(interval);
+    let lastTime = 0;
+    let accumulator = 0;
+    const FIXED_TICK = 50; // 20 ticks/sec is enough for idle game
+
+    const loop = (time: number) => {
+      if (lastTime === 0) lastTime = time;
+      const delta = time - lastTime;
+      lastTime = time;
+      accumulator += delta;
+      let ticksThisFrame = 0;
+      while (accumulator >= FIXED_TICK && ticksThisFrame < 3) {
+        dispatch({ type: 'TICK', joystickDx: joystickRef.current.dx, joystickDy: joystickRef.current.dy });
+        accumulator -= FIXED_TICK;
+        ticksThisFrame++;
+      }
+      frameRef.current = requestAnimationFrame(loop);
+    };
+    frameRef.current = requestAnimationFrame(loop);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
   }, [state.gameActive, showStartScreen]);
 
   // Claim reward handler
@@ -866,7 +893,7 @@ export default function MinigameScreen({ navigation, onExit, onEarnReward }: Min
           <TouchableOpacity style={styles.backButton} onPress={handleExit}>
             <Ionicons name="arrow-back" size={22} color={UI_TEXT} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Eisb{'\u00e4'}ren-Fabrik</Text>
+          <Text style={styles.headerTitle}>Die Gro{'\u00df'}e Jagd</Text>
           {state.totalMoney > 0 && onEarnReward ? (
             <TouchableOpacity style={styles.rewardBtn} onPress={handleClaimReward}>
               <Text style={styles.rewardBtnText}>Einl{'\u00f6'}sen</Text>
@@ -885,8 +912,8 @@ export default function MinigameScreen({ navigation, onExit, onEarnReward }: Min
           {/* Start Screen Overlay */}
           {showStartScreen && (
             <Animated.View style={[styles.startOverlay, startFadeStyle]}>
-              <Text style={styles.startTitle}>EISB{'\u00c4'}REN-FABRIK</Text>
-              <Text style={styles.startSubtitle}>Jage {'\u00b7'} Verarbeite {'\u00b7'} Verkaufe</Text>
+              <Text style={styles.startTitle}>DIE GROSSE JAGD</Text>
+              <Text style={styles.startSubtitle}>Jage {'\u00b7'} R{'\u00e4'}uchere {'\u00b7'} Handle</Text>
               <TouchableOpacity
                 style={styles.playButton}
                 onPress={() => {
@@ -921,7 +948,7 @@ export default function MinigameScreen({ navigation, onExit, onEarnReward }: Min
                   arrowColor = RAW_MEAT_COLOR;
                 } else if (it === ItemType.STEAK) {
                   arrowTarget = { x: GRILL.x + GRILL.width / 2, y: GRILL.y + GRILL.height / 2 };
-                  arrowColor = '#8d6e63';
+                  arrowColor = '#a0522d';
                 } else if (it === ItemType.GRILLED_STEAK) {
                   arrowTarget = { x: SALES_COUNTER.x + SALES_COUNTER.width / 2, y: SALES_COUNTER.y };
                   arrowColor = '#5d4037';
@@ -939,7 +966,7 @@ export default function MinigameScreen({ navigation, onExit, onEarnReward }: Min
                   }
                   if (nearest) {
                     arrowTarget = nearest;
-                    arrowColor = '#4caf50';
+                    arrowColor = '#F5A623';
                   }
                 }
 

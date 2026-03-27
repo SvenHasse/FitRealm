@@ -34,7 +34,7 @@ function itemColor(type: ItemType): string {
   }
 }
 
-export default function Player({ x, y, backpackItems, isAttacking, isMoving }: Props) {
+function PlayerInner({ x, y, backpackItems, isAttacking, isMoving }: Props) {
   // Selection ring pulse
   const ringPulse = useSharedValue(21);
   React.useEffect(() => {
@@ -229,3 +229,15 @@ export default function Player({ x, y, backpackItems, isAttacking, isMoving }: P
     </G>
   );
 }
+
+const Player = React.memo(PlayerInner, (prev, next) => {
+  return (
+    Math.round(prev.x) === Math.round(next.x) &&
+    Math.round(prev.y) === Math.round(next.y) &&
+    prev.backpackItems.length === next.backpackItems.length &&
+    prev.isAttacking === next.isAttacking &&
+    prev.isMoving === next.isMoving
+  );
+});
+
+export default Player;
