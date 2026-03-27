@@ -322,12 +322,32 @@ export default function RealmScreen() {
     return () => clearTimeout(timer);
   }, [highlightedBuildingId]);
 
-  // Scroll map so the building sits roughly at viewport centre
+  // Scroll map so the building sits at viewport centre.
+  // Mirrors the Rathaus camera-centering useEffect exactly:
+  //   transform:scale(INITIAL_SCALE) pivots around the Animated.View centre, not
+  //   the origin, so we must apply the visual-position formula before computing
+  //   the scroll target.
   const scrollToBuilding = useCallback((row: number, col: number) => {
     const { x, y } = gridToScreen(row, col, GRID_SIZE);
-    const scrollX = Math.max(0, x - SCREEN_W / 2);
-    const scrollY = Math.max(0, y - SCREEN_H / 2);
-    scrollRef.current?.scrollTo({ x: scrollX, y: scrollY, animated: true });
+    const containerW = Math.round(CANVAS_W * 25 / 15);
+    const containerH = Math.round(CANVAS_H * 25 / 15);
+    // SVG offset within the Animated.View
+    const sOffX = Math.round((containerW - CANVAS_W) / 2);
+    const sOffY = Math.round((containerH - CANVAS_H) / 2);
+    // Building tile centre in Animated.View space
+    const animX = sOffX + x + TILE_W / 2;
+    const animY = sOffY + y + TILE_H / 2;
+    // Content container padding (200 extra width / 400 extra height → 100/200 per side)
+    const padX = 100;
+    const padY = 200;
+    // Visual position accounting for scale transform (centred on Animated.View centre)
+    const visualX = padX + containerW / 2 + (animX - containerW / 2) * INITIAL_SCALE;
+    const visualY = padY + containerH / 2 + (animY - containerH / 2) * INITIAL_SCALE;
+    scrollRef.current?.scrollTo({
+      x: Math.max(0, visualX - SCREEN_W / 2),
+      y: Math.max(0, visualY - SCREEN_H / 2),
+      animated: true,
+    });
   }, []);
 
   // Called when a building is selected in the registry
