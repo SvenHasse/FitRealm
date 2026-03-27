@@ -23,7 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import {
   AppColors, Building, BuildingType, Obstacle,
-  buildingIconName, buildingAccentColor,
+  buildingAccentColor,
   obstacleIsSmall, obstacleRemovalCost,
   workerStatus, WorkerStatus,
   zoneIsExploring,
@@ -68,26 +68,6 @@ const MIN_SCALE = 0.35;
 const MAX_SCALE = 1.5;
 const INITIAL_SCALE = 0.55;
 
-// ── Per-building visual config for the map cells ──────────────────────────────
-const CELL_CFG: Record<string, { icon: string; color: string }> = {
-  rathaus:      { icon: 'home-city',      color: '#7B68EE' },
-  kornkammer:   { icon: 'grain',          color: '#F5A623' },
-  proteinfarm:  { icon: 'lightning-bolt', color: '#9B59B6' },
-  holzfaeller:  { icon: 'axe',           color: '#A0784A' },
-  steinbruch:   { icon: 'pickaxe',       color: '#9E9E9E' },
-  feld:         { icon: 'sprout',        color: '#4CAF50' },
-  holzlager:    { icon: 'warehouse',     color: '#607D8B' },
-  steinlager:   { icon: 'layers-triple', color: '#78909C' },
-  nahrungslager:{ icon: 'basket',        color: '#FF8C00' },
-  kaserne:      { icon: 'shield-sword',  color: '#3E8A40' },
-  tempel:       { icon: 'flare',         color: '#E8C948' },
-  bibliothek:   { icon: 'bookshelf',     color: '#5C8A6A' },
-  marktplatz:   { icon: 'store',         color: '#FF7043' },
-  stammeshaus:  { icon: 'account-group', color: '#2196F3' },
-  stall:        { icon: 'paw',           color: '#C4934A' },
-  wachturm:     { icon: 'tower-fire',    color: '#795548' },
-  mauer:        { icon: 'wall',          color: '#78909C' },
-};
 
 // ── Obstacle SVG rendering ──────────────────────────────────────────────────
 function ObstacleSvg({ x, y, type, isClearing }: { x: number; y: number; type: string; isClearing: boolean }) {
@@ -188,60 +168,6 @@ function PlacementIndicator({ x, y }: { x: number; y: number }) {
   );
 }
 
-// ── Building icon overlay (MaterialCommunityIcons on top of SVG buildings) ───
-const SPRITE_BUILDINGS: string[] = ['rathaus', 'holzfaeller'];
-
-interface IconOverlayProps {
-  buildings: Building[];
-  gridSize: number;
-  svgOffsetX: number;
-  svgOffsetY: number;
-}
-
-function BuildingIconOverlay({ buildings, gridSize, svgOffsetX, svgOffsetY }: IconOverlayProps) {
-  const icons = useMemo(() => {
-    const result: { key: string; iconName: string; color: string; x: number; y: number }[] = [];
-    for (const b of buildings) {
-      if (SPRITE_BUILDINGS.includes(b.type) || b.isUnderConstruction) continue;
-      const cfg = CELL_CFG[b.type as string];
-      if (!cfg) continue;
-      const { x, y } = gridToScreen(b.position.row, b.position.col, gridSize);
-      const H = getBuildingHeight(b.type as BuildingType);
-      result.push({
-        key: `icon-${b.position.row}-${b.position.col}`,
-        iconName: cfg.icon,
-        color: '#ffffff',
-        x: svgOffsetX + x + TILE_W / 2,
-        y: svgOffsetY + y + TILE_H / 2 - H,
-      });
-    }
-    return result;
-  }, [buildings, gridSize, svgOffsetX, svgOffsetY]);
-
-  if (icons.length === 0) return null;
-  const ICON_SIZE = 20;
-
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {icons.map((ic) => (
-        <View
-          key={ic.key}
-          style={{
-            position: 'absolute',
-            left: ic.x - ICON_SIZE / 2,
-            top: ic.y - ICON_SIZE / 2,
-            width: ICON_SIZE,
-            height: ICON_SIZE,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <MaterialCommunityIcons name={ic.iconName as any} size={ICON_SIZE} color={ic.color} />
-        </View>
-      ))}
-    </View>
-  );
-}
 
 export default function RealmScreen() {
   const store = useGameStore();
@@ -634,7 +560,7 @@ export default function RealmScreen() {
               </Svg>
             </View>
 
-            {/* Layer 2: Pre-rendered 3D building sprites (rathaus, holzfaeller) */}
+            {/* Layer 2: Building sprites — PNG for rathaus/holzfaeller, SVG for all others */}
             <BuildingSpriteOverlay
               buildings={gameState.buildings}
               gridSize={GRID_SIZE}
@@ -642,15 +568,7 @@ export default function RealmScreen() {
               svgOffsetY={svgOffsetY}
             />
 
-            {/* Layer 3: MaterialCommunityIcons on top of SVG cuboid buildings */}
-            <BuildingIconOverlay
-              buildings={gameState.buildings}
-              gridSize={GRID_SIZE}
-              svgOffsetX={svgOffsetX}
-              svgOffsetY={svgOffsetY}
-            />
-
-            {/* Layer 4: Animated farm animals roaming the playfield */}
+            {/* Layer 3: Animated farm animals roaming the playfield */}
             <PlayfieldAnimals
               gridSize={GRID_SIZE}
               occupiedTiles={occupiedTiles}
