@@ -1,7 +1,15 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, Dimensions } from 'react-native';
+import { View, Image, Animated, StyleSheet, Dimensions } from 'react-native';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+const CLOUD_IMAGES = [
+  require('../../assets/village/clouds/cloud_1.png'),
+  require('../../assets/village/clouds/cloud_2.png'),
+  require('../../assets/village/clouds/cloud_3.png'),
+  require('../../assets/village/clouds/cloud_4.png'),
+  require('../../assets/village/clouds/cloud_5.png'),
+];
 
 interface CloudPos {
   x: number;
@@ -12,6 +20,7 @@ interface CloudPos {
   driftX: number;
   driftY: number;
   driftDuration: number;
+  imageIndex: number;
 }
 
 function generateClouds(area: 'top-left' | 'bottom-right'): CloudPos[] {
@@ -32,6 +41,7 @@ function generateClouds(area: 'top-left' | 'bottom-right'): CloudPos[] {
       driftX: 8 + Math.random() * 12,
       driftY: 4 + Math.random() * 6,
       driftDuration: 4000 + Math.random() * 3000,
+      imageIndex: i % CLOUD_IMAGES.length,
     });
   }
   return clouds;
@@ -40,10 +50,11 @@ function generateClouds(area: 'top-left' | 'bottom-right'): CloudPos[] {
 interface CloudOverlayProps {
   area: 'top-left' | 'bottom-right';
   visible: boolean; // false triggers fade-out (unlock)
+  unlocking?: boolean;
   onFadeComplete?: () => void;
 }
 
-export default function CloudOverlay({ area, visible, onFadeComplete }: CloudOverlayProps) {
+export default function CloudOverlay({ area, visible, unlocking, onFadeComplete }: CloudOverlayProps) {
   const clouds = useRef(generateClouds(area)).current;
   const driftAnims = useRef(clouds.map(() => new Animated.Value(0))).current;
   const fadeAnim = useRef(new Animated.Value(visible ? 1 : 0)).current;
@@ -98,15 +109,19 @@ export default function CloudOverlay({ area, visible, onFadeComplete }: CloudOve
               top: cloud.y,
               width: cloud.w,
               height: cloud.h,
-              backgroundColor: 'rgba(200, 210, 220, 0.85)',
-              borderRadius: 60,
               transform: [
                 { scale: cloud.scale },
                 { translateX },
                 { translateY },
               ],
             }}
-          />
+          >
+            <Image
+              source={CLOUD_IMAGES[cloud.imageIndex]}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="contain"
+            />
+          </Animated.View>
         );
       })}
     </Animated.View>

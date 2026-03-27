@@ -54,6 +54,15 @@ import DefenseDashboardModal from '../components/DefenseDashboardModal';
 import { MONSTER_CONFIGS } from '../config/EntityConfig';
 import { waveService } from '../services/WaveService';
 import { Trophy } from '../models/types';
+import { BiomeId } from '../features/exploration/types';
+import { BIOME_CONFIGS } from '../features/exploration/biomeConfig';
+import { useExplorationStore } from '../features/exploration/useExplorationStore';
+import LockGate from '../components/exploration/LockGate';
+import SendScoutModal from '../components/exploration/SendScoutModal';
+import ScoutReportModal from '../components/exploration/ScoutReportModal';
+import CloudOverlay from '../components/exploration/CloudOverlay';
+import UnlockAnimation from '../components/exploration/UnlockAnimation';
+import { AppState } from 'react-native';
 
 const GRID_SIZE = WorldConstants.gridSize; // 15
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -270,6 +279,34 @@ export default function RealmScreen() {
   const clearPendingDragonUnlock = useGameStore(s => s.clearPendingDragonUnlock);
   const activeWave = gameState.activeWave;
   const [placingTrophy, setPlacingTrophy] = useState<Trophy | null>(null);
+
+  // Exploration state
+  const biomes = useExplorationStore(s => s.biomes);
+  const checkReturnedScouts = useExplorationStore(s => s.checkReturnedScouts);
+  const [activeScoutModal, setActiveScoutModal] = useState<BiomeId | null>(null);
+  const [showScoutReport, setShowScoutReport] = useState<BiomeId | null>(null);
+  const [unlockAnimBiome, setUnlockAnimBiome] = useState<BiomeId | null>(null);
+
+  // Check for returned scouts on mount and foreground
+  useEffect(() => {
+    checkReturnedScouts();
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') checkReturnedScouts();
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Poll every 30s for scout returns
+  useEffect(() => {
+    const interval = setInterval(() => { checkReturnedScouts(); }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Lock gate screen positions (approximate - adjust based on isometric layout)
+  const lockScreenPositions: Record<BiomeId, { x: number; y: number }> = {
+    desert: { x: SCREEN_W * 0.35, y: 140 },
+    mountains: { x: SCREEN_W * 0.65, y: SCREEN_H - 200 },
+  };
 
   // Scroll ref for map navigation
   const scrollRef = useRef<ScrollView>(null);
@@ -669,6 +706,75 @@ export default function RealmScreen() {
             </Animated.View>
           </GestureDetector>
       </ScrollView>
+
+      {/* Cloud overlays for locked biomes */}
+      {Object.values(BIOME_CONFIGS).map(config => {
+        const biomeState = biomes[config.id];
+        return (
+          <CloudOverlay
+            key={`cloud-${config.id}`}
+            area={config.cloudArea}
+            visible={biomeState.status !== 'unlocked'}
+            unlocking={unlockAnimBiome === config.id}
+          />
+        );
+      })}
+
+      {/* Lock gates on the map */}
+      {Object.values(BIOME_CONFIGS).map(config => (
+        <LockGate
+          key={`lock-${config.id}`}
+          biomeName={config.name}
+          status={biomes[config.id].status}
+          onPress={() => {
+            const s = biomes[config.id].status;
+            if (s === 'scout_returned') {
+              setShowScoutReport(config.id);
+            } else if (s === 'locked' || s === 'scouting' || s === 'unlocking') {
+              if (s === 'unlocking') {
+                setShowScoutReport(config.id);
+              } else {
+                setActiveScoutModal(config.id);
+              }
+            }
+          }}
+        />
+      ))}
+
+      {/* Scout modals */}
+      {Object.values(BIOME_CONFIGS).map(config => (
+        <React.Fragment key={`modals-${config.id}`}>
+          <SendScoutModal
+            visible={activeScoutModal === config.id}
+            biomeId={config.id}
+            biomeState={biomes[config.id]}
+            onSend={(animalType) => {
+              useExplorationStore.getState().sendScout(config.id, animalType);
+              setActiveScoutModal(null);
+            }}
+            onClose={() => setActiveScoutModal(null)}
+          />
+          <ScoutReportModal
+            visible={showScoutReport === config.id}
+            biomeId={config.id}
+            biomeState={biomes[config.id]}
+            onStartUnlocking={() => {
+              setShowScoutReport(null);
+              setUnlockAnimBiome(config.id);
+            }}
+            onClose={() => setShowScoutReport(null)}
+          />
+        </React.Fragment>
+      ))}
+
+      {/* Unlock animation */}
+      {unlockAnimBiome && (
+        <UnlockAnimation
+          biomeName={BIOME_CONFIGS[unlockAnimBiome].name}
+          biomeEmoji={BIOME_CONFIGS[unlockAnimBiome].emoji}
+          onComplete={() => setUnlockAnimBiome(null)}
+        />
+      )}
 
       {/* Danger overlay — red border when wave approaching */}
       {isWaveApproaching && (
