@@ -705,6 +705,14 @@ export default function DevToolsSection() {
         </View>
       </TouchableOpacity>
 
+      <TouchableOpacity style={s.minigameBtn} onPress={() => nav.navigate('RealmScreen3D' as any)} activeOpacity={0.75}>
+        <MaterialCommunityIcons name="earth" size={16} color="#4CAF50" />
+        <View style={{ flex: 1 }}>
+          <Text style={[s.minigameBtnTitle, { color: '#4CAF50' }]}>3D Welt</Text>
+          <Text style={s.minigameBtnSub}>Produktion 3D World Renderer (3 Biome)</Text>
+        </View>
+      </TouchableOpacity>
+
       {/* ── SCHADENSEFFEKTE ───────────────────────────────────── */}
       <SectionLabel text="SCHADENSEFFEKTE" />
       <View style={s.grid}>
