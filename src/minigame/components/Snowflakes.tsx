@@ -1,4 +1,4 @@
-// Snowflakes.tsx — Performante Herbstblätter-Animation als SVG-Overlay
+// Snowflakes.tsx — Minimal leaf particles (PERF: reduced to 5)
 
 import React, { useRef, useMemo } from 'react';
 import { G, Circle } from 'react-native-svg';
@@ -10,9 +10,9 @@ interface Flake {
   r: number;
   opacity: number;
   speed: number;
-  drift: number;   // Amplitude der seitlichen Sin-Bewegung
-  phase: number;    // Startphase der Sin-Kurve
-  color: string;    // Herbstfarbe
+  drift: number;
+  phase: number;
+  color: string;
 }
 
 const LEAF_COLORS = ['#D4A017', '#C45911', '#8B4513', '#DAA520'];
@@ -25,7 +25,7 @@ interface Props {
   viewHeight: number;
 }
 
-const NUM_FLAKES = 40;
+const NUM_FLAKES = 5;
 
 function createFlakes(): Flake[] {
   const flakes: Flake[] = [];
@@ -48,7 +48,6 @@ function Snowflakes({ tick, cameraX, cameraY, viewWidth, viewHeight }: Props) {
   const flakesRef = useRef<Flake[]>(createFlakes());
   const flakes = flakesRef.current;
 
-  // Update flake positions based on tick
   const margin = 50;
   const visLeft = cameraX - margin;
   const visRight = cameraX + viewWidth + margin;
@@ -60,8 +59,6 @@ function Snowflakes({ tick, cameraX, cameraY, viewWidth, viewHeight }: Props) {
     const f = flakes[i];
     f.y += f.speed;
     f.x += Math.sin(tick * 0.02 + f.phase) * f.drift * 0.3;
-
-    // Reset if below world or far off-screen
     if (f.y > WORLD_HEIGHT + 20) {
       f.y = -10;
       f.x = Math.random() * WORLD_WIDTH;
@@ -79,7 +76,7 @@ function Snowflakes({ tick, cameraX, cameraY, viewWidth, viewHeight }: Props) {
     }
     return visible;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick]); // tick dependency triggers recalculation
+  }, [tick]);
 
   return (
     <G>

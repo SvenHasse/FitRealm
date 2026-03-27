@@ -840,7 +840,7 @@ export default function MinigameScreen({ navigation, onExit, onEarnReward }: Min
     if (!state.gameActive || showStartScreen) return;
     let lastTime = 0;
     let accumulator = 0;
-    const FIXED_TICK = 50; // 20 ticks/sec is enough for idle game
+    const FIXED_TICK = 80; // 12.5 ticks/sec is enough for idle tycoon
 
     const loop = (time: number) => {
       if (lastTime === 0) lastTime = time;
