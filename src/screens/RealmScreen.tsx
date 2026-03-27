@@ -35,12 +35,7 @@ import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, T
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding from '../components/IsometricBuilding';
 import { ForestParallax } from '../components/village/ForestParallax';
-import { BuildingSpriteOverlay, PNG_BUILDINGS } from '../components/BuildingSpriteOverlay';
-import {
-  IsometricBuildingSpriteG,
-  SPRITE_HEIGHT,
-  DEFAULT_SPRITE_HEIGHT,
-} from '../components/IsometricBuildingSprite';
+import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
 import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
@@ -432,7 +427,7 @@ export default function RealmScreen() {
         );
         if (building) {
           if (building.isUnderConstruction) {
-            // Construction scaffold — generic SVG cuboid
+            // Construction scaffold only — completed buildings handled by BuildingSpriteOverlay
             elements.push(
               <IsometricBuilding
                 key={`bld-${row}-${col}`}
@@ -443,23 +438,8 @@ export default function RealmScreen() {
                 isUnderConstruction={true}
               />
             );
-          } else if (!PNG_BUILDINGS.has(building.type)) {
-            // Completed building with SVG sprite — render INSIDE the SVG canvas
-            // via <G transform> so it sits exactly on the tile with correct depth sort.
-            const H = SPRITE_HEIGHT[building.type] ?? DEFAULT_SPRITE_HEIGHT;
-            elements.push(
-              <IsometricBuildingSpriteG
-                key={`bld-${row}-${col}`}
-                type={building.type}
-                level={building.level}
-                H={H}
-                x={x}
-                y={y}
-                isDecayed={building.isDecayed}
-              />
-            );
           }
-          // PNG buildings (rathaus, holzfaeller) → no SVG element, handled by BuildingSpriteOverlay
+          // Completed buildings: PNG rendered by BuildingSpriteOverlay (Layer 2)
         } else if (obstacle) {
           elements.push(
             <ObstacleSvg
