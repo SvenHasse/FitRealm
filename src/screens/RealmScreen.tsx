@@ -533,8 +533,8 @@ export default function RealmScreen() {
         ref={scrollRef}
         style={styles.mapScroll}
         contentContainerStyle={{
-          width: Math.round(CANVAS_W * 25 / 15) + 200,
-          height: Math.round(CANVAS_H * 25 / 15) + 400,
+          width: Math.round(CANVAS_W * 25 / 15) + 100,
+          height: Math.round(CANVAS_H * 25 / 15) + 100,
           alignItems: 'center',
           justifyContent: 'center',
         }}
