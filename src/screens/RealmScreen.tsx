@@ -557,20 +557,10 @@ export default function RealmScreen() {
   const parallaxScrollX = useSharedValue(0);
   const parallaxScrollY = useSharedValue(0);
 
-  const pinchGesture = Gesture.Pinch()
-    .onStart(() => {
-      savedScale.value = scale.value;
-    })
-    .onUpdate((e) => {
-      scale.value = Math.min(MAX_SCALE, Math.max(MIN_SCALE, savedScale.value * e.scale));
-    })
-    .onEnd(() => {
-      savedScale.value = scale.value;
-    });
-
+  // Zoom is handled entirely by ScrollView's built-in maximumZoomScale/minimumZoomScale.
+  // No manual pinch gesture — avoids conflict with ScrollView zoom that causes drift.
   const zoomStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    transformOrigin: 'center center',
+    // No transform — ScrollView handles zoom natively
   }));
 
   return (
@@ -599,17 +589,13 @@ export default function RealmScreen() {
           parallaxScrollY.value = contentOffset.y - initialScrollPos.current.y;
         }}
       >
-          <GestureDetector gesture={pinchGesture}>
-            <Animated.View
+            <View
               ref={svgContainerRef}
-              style={[
-                {
-                  width: CONTAINER_W,
-                  height: CONTAINER_H,
-                  position: 'relative',
-                },
-                zoomStyle,
-              ]}
+              style={{
+                width: CONTAINER_W,
+                height: CONTAINER_H,
+                position: 'relative',
+              }}
             >
             {/* SVG wrapper — tap handler is HERE so locationX/Y = SVG coordinates directly */}
             <View
@@ -682,8 +668,7 @@ export default function RealmScreen() {
                 else if (s === 'scouting') setScoutModal('mountains');
               }}
             />
-            </Animated.View>
-          </GestureDetector>
+            </View>
       </ScrollView>
 
       {/* Danger overlay — red border when wave approaching */}
