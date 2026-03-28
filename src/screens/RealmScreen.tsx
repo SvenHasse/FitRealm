@@ -34,7 +34,7 @@ import { formatDuration } from '../utils/formatDuration';
 import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding from '../components/IsometricBuilding';
-import { ForestParallax } from '../components/village/ForestParallax';
+import { ParallaxWorld } from '../components/village/ParallaxWorld';
 import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
 import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
@@ -649,13 +649,15 @@ export default function RealmScreen() {
               svgOffsetY={svgOffsetY}
             />
 
-            {/* Layer 5: Forest PNG ON TOP — transparent center shows tiles through,
-                tree edges naturally overlap the playfield border = correct depth */}
-            <ForestParallax
+            {/* Depth-layer parallax world: 4 layers at different speeds + clouds */}
+            <ParallaxWorld
+              biome="forest"
               containerWidth={CONTAINER_W}
               containerHeight={CONTAINER_H}
               scrollX={parallaxScrollX}
               scrollY={parallaxScrollY}
+              showDesertClouds={biomes.desert.status !== 'unlocked'}
+              showMountainClouds={biomes.mountains.status !== 'unlocked'}
             />
 
             {/* Layer 6: Biome lock icons — positioned at transition points */}
