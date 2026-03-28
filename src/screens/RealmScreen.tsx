@@ -36,7 +36,7 @@ import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding from '../components/IsometricBuilding';
 import { ForestParallax } from '../components/village/ForestParallax';
 import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
-import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
+// import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
 import WorkerSheet from '../components/WorkerSheet';
@@ -641,13 +641,7 @@ export default function RealmScreen() {
               svgOffsetY={svgOffsetY}
             />
 
-            {/* Layer 3: Animated farm animals roaming the playfield */}
-            <PlayfieldAnimals
-              gridSize={GRID_SIZE}
-              occupiedTiles={occupiedTiles}
-              svgOffsetX={svgOffsetX}
-              svgOffsetY={svgOffsetY}
-            />
+            {/* Layer 3: Animated farm animals — disabled for now */}
 
             {/* Layer 5: Forest PNG ON TOP — transparent center shows tiles through,
                 tree edges naturally overlap the playfield border = correct depth */}
