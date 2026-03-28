@@ -756,8 +756,24 @@ export default function RealmScreen() {
         )}
       </View>
 
-      {/* HUD Bottom — compact bar */}
+      {/* HUD Bottom — collect button above bar + main bar */}
       <View style={styles.hudBottom}>
+        {/* Collect button — small pill above the main bar */}
+        <TouchableOpacity
+          style={styles.collectPill}
+          activeOpacity={0.75}
+          onPress={() => {
+            const result = store.collectAll();
+            if (result.totalBuildings === 0) {
+              setToastMessage(t('collect.nothingToCollect'));
+              setTimeout(() => setToastMessage(null), 2000);
+            }
+          }}
+        >
+          <Ionicons name="download-outline" size={16} color="#00C853" />
+          <Text style={styles.collectPillText}>{t('hud.collect')}</Text>
+        </TouchableOpacity>
+
         <View style={styles.bottomBar}>
           <TouchableOpacity style={styles.hudBtn} onPress={() => { setBuildPlacementMode(null); setShowBuildMenu(true); }}>
             <Ionicons name="hammer" size={28} color="#F5A623" />
@@ -772,14 +788,15 @@ export default function RealmScreen() {
             <Text style={styles.hudBtnLabel}>{t('hud.registry')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.hudBtn} onPress={() => {
-            const result = store.collectAll();
-            if (result.totalBuildings === 0) {
-              setToastMessage(t('collect.nothingToCollect'));
-              setTimeout(() => setToastMessage(null), 2000);
+            if (stallBuilding) {
+              setSelectedStall(stallBuilding);
+            } else {
+              setToastMessage('Baue zuerst einen Stall!');
+              setTimeout(() => setToastMessage(null), 2500);
             }
           }}>
-            <Ionicons name="download-outline" size={28} color="#00C853" />
-            <Text style={styles.hudBtnLabel}>{t('hud.collect')}</Text>
+            <MaterialCommunityIcons name="paw" size={28} color="#C4934A" />
+            <Text style={styles.hudBtnLabel}>Tiere</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.hudBtn} onPress={() => setShowDefense(true)}>
             <Ionicons name="shield-checkmark" size={28} color="#E879F9" />
@@ -1219,6 +1236,13 @@ const styles = StyleSheet.create({
   },
   hudBtn: { alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14 },
   hudBtnLabel: { fontSize: 12, color: '#fff', marginTop: 4 },
+  collectPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(37, 37, 71, 0.85)',
+    borderRadius: 16, paddingVertical: 6, paddingHorizontal: 16,
+    borderWidth: 1, borderColor: 'rgba(0, 200, 83, 0.3)',
+  },
+  collectPillText: { fontSize: 12, fontWeight: '600', color: '#00C853' },
   resourceBar: { gap: 6 },
 
   // Collapsed pill
