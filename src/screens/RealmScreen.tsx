@@ -570,6 +570,7 @@ export default function RealmScreen() {
 
   const zoomStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
+    transformOrigin: 'center center',
   }));
 
   return (
