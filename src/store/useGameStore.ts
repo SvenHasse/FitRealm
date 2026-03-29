@@ -22,7 +22,7 @@ import type { CollectResult, SellConsequences } from '../engines/GameEngine';
 import * as VE from '../engines/VitacoinEngine';
 import * as HK from '../engines/HealthKitManager';
 import * as OM from '../engines/ObstacleManager';
-import { ResourceCost, StorageCapacity, getTotalStorageCap, buildCost, upgradeCost, rathausRequirement, UNIQUE_BUILDINGS, Workers } from '../config/GameConfig';
+import { ResourceCost, StorageCapacity, getTotalStorageCap, buildCost, upgradeCost, rathausRequirement, UNIQUE_BUILDINGS, Workers, WALL_HP_PER_LEVEL } from '../config/GameConfig';
 import { useGameStore as useCurrencyStore } from './gameStore';
 
 interface GameStore {
@@ -407,7 +407,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (type === BuildingType.mauer) {
       // The building starts at level 0 (under construction), wallHP will be set when construction completes.
       // We initialize with the target level (1) so it's ready.
-      const initialHP = 1 * 50; // L1: 50 HP
+      const initialHP = 1 * WALL_HP_PER_LEVEL;
       finalState = { ...finalState, wallHP: { current: initialHP, max: initialHP } };
     }
 
@@ -426,7 +426,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let finalResult = result;
     const upgradedBuilding = result.buildings.find(b => b.id === buildingID);
     if (upgradedBuilding && upgradedBuilding.type === BuildingType.mauer && upgradedBuilding.level >= 1) {
-      const newMax = upgradedBuilding.level * 50;
+      const newMax = upgradedBuilding.level * WALL_HP_PER_LEVEL;
       finalResult = { ...result, wallHP: { current: newMax, max: newMax } };
     }
 

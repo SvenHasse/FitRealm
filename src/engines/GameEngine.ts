@@ -18,6 +18,7 @@ import {
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
   getTotalStorageCap, storageBuildingResource, getStorageBonusArray,
   constructionTime, skipConstructionCost,
+  EXPLORATION_REWARD_RANGES, INTENSIVE_TRACKER, STREAK_ENGINE_REWARDS,
 } from '../config/GameConfig';
 import { ANIMAL_CONFIGS } from '../config/EntityConfig';
 
@@ -643,14 +644,14 @@ function updateStreak(state: GameState, date: Date): void {
 
   // 3-day milestone — Lastesel
   if (state.currentStreak >= 3 && state.lastStreakMilestone < 3) {
-    state.streakTokens += 2;
+    state.streakTokens += STREAK_ENGINE_REWARDS[3]?.streakTokens ?? 0;
     state.lastStreakMilestone = 3;
     _grantStreakAnimal(state, 'lastesel');
   }
   // 7-day milestone — Holzbär
   if (state.currentStreak >= 7 && state.lastStreakMilestone < 7) {
-    state.streakTokens += 5;
-    state.protein += 3;
+    state.streakTokens += STREAK_ENGINE_REWARDS[7]?.streakTokens ?? 0;
+    state.protein += STREAK_ENGINE_REWARDS[7]?.protein ?? 0;
     state.lastStreakMilestone = 7;
     _grantStreakAnimal(state, 'holzbaer');
   }
@@ -710,8 +711,8 @@ function _grantStreakAnimal(state: GameState, animalType: AnimalType): void {
 /** HRmax-Tracking: Zählt intensive Workouts (≥70% HRmax) und schaltet Tiere frei. */
 function _updateIntensiveTracker(state: GameState): void {
   const now = Date.now();
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const biweekMs = 14 * 24 * 60 * 60 * 1000;
+  const weekMs = INTENSIVE_TRACKER.weekWindowMs;
+  const biweekMs = INTENSIVE_TRACKER.biweekWindowMs;
 
   // Initialisiere tracker falls noch nicht vorhanden (Migration alter States)
   if (!state.intensiveWorkoutTracker) {
@@ -741,13 +742,13 @@ function _updateIntensiveTracker(state: GameState): void {
 
   state.intensiveWorkoutTracker = { weeklyCount, weekStart, biweeklyCount, biweeklyStart };
 
-  // Spähfalke: 5× ≥70% HRmax in einer Woche
-  if (weeklyCount >= 5 && !state.animals.some(a => a.type === 'spaehfalke')) {
+  // Spähfalke: weeklyThreshold× ≥70% HRmax in einer Woche
+  if (weeklyCount >= INTENSIVE_TRACKER.weeklyThreshold && !state.animals.some(a => a.type === 'spaehfalke')) {
     _grantStreakAnimal(state, 'spaehfalke');
   }
 
-  // Mystischer Hirsch: 10× ≥70% HRmax in 14 Tagen
-  if (biweeklyCount >= 10 && !state.animals.some(a => a.type === 'mystischerHirsch')) {
+  // Mystischer Hirsch: biweeklyThreshold× ≥70% HRmax in 14 Tagen
+  if (biweeklyCount >= INTENSIVE_TRACKER.biweeklyThreshold && !state.animals.some(a => a.type === 'mystischerHirsch')) {
     _grantStreakAnimal(state, 'mystischerHirsch');
   }
 }
@@ -1011,9 +1012,9 @@ export function claimExplorationReward(state: GameState, zoneID: number): GameSt
   if (!isComplete && !hasRewardReady) return null;
 
   const s = { ...state, zones: [...state.zones] };
-  const muskel = 50 + Math.random() * 150;
-  const wood = 20 + Math.floor(Math.random() * 60);
-  const stone = 5 + Math.floor(Math.random() * 25);
+  const muskel = EXPLORATION_REWARD_RANGES.muskelmasse.min + Math.random() * EXPLORATION_REWARD_RANGES.muskelmasse.randomRange;
+  const wood = EXPLORATION_REWARD_RANGES.wood.min + Math.floor(Math.random() * EXPLORATION_REWARD_RANGES.wood.randomRange);
+  const stone = EXPLORATION_REWARD_RANGES.stone.min + Math.floor(Math.random() * EXPLORATION_REWARD_RANGES.stone.randomRange);
 
   s.muskelmasse += muskel;
   s.wood += wood;

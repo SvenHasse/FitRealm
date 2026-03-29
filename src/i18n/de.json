@@ -497,6 +497,75 @@
       }
     }
   },
+  "buildingConfig": {
+    "rathaus":       { "name": "Rathaus",       "description": "Das Herzstück deines Dorfes. Rüste es auf, um neue Gebäude freizuschalten.",
+      "levels": {
+        "2": { "effect": "Schaltet Kaserne, Steinbruch, Steinlager und Wachturm frei" },
+        "3": { "effect": "Schaltet Tempel, Bibliothek, Marktplatz und Mauer frei" },
+        "4": { "effect": "Schaltet Proteinfarm frei" },
+        "5": { "effect": "Schaltet Stammeshaus frei" }
+      }
+    },
+    "holzfaeller":   { "name": "Holzfäller",    "description": "Produziert kontinuierlich Holz für deinen Ausbau." },
+    "kornkammer":    { "name": "Kornkammer",    "description": "Speichert passiv Muskelmasse aus deinen Workouts." },
+    "steinbruch":    { "name": "Steinbruch",    "description": "Baut Stein ab für fortgeschrittene Bauprojekte." },
+    "proteinfarm":   { "name": "Proteinfarm",   "description": "Produziert langsam Protein — die seltenste Ressource." },
+    "feld":          { "name": "Feld",           "description": "Baut Nahrung an, um deine Arbeiter satt und produktiv zu halten." },
+    "holzlager":     { "name": "Holzlager",     "description": "Erhöht deine maximale Holz-Kapazität." },
+    "steinlager":    { "name": "Steinlager",    "description": "Erhöht deine maximale Stein-Kapazität." },
+    "nahrungslager": { "name": "Nahrungslager", "description": "Erhöht deine maximale Nahrungskapazität." },
+    "kaserne":       { "name": "Kaserne",       "description": "Bildet Arbeiter aus und beherbergt deine Arbeitskraft.",
+      "levels": {
+        "1": { "effect": "Max. 1 Arbeiter" },
+        "2": { "effect": "Max. 2 Arbeiter" },
+        "3": { "effect": "Max. 3 Arbeiter" },
+        "4": { "effect": "Max. 4 Arbeiter" },
+        "5": { "effect": "Max. 5 Arbeiter" }
+      }
+    },
+    "tempel":        { "name": "Tempel",        "description": "Wandelt deinen Workout-Streak in Produktionsboni um.",
+      "levels": {
+        "1": { "effect": "+5% Muskelmasse aus Workouts" },
+        "2": { "effect": "+5% Muskelmasse aus Kalorien" },
+        "3": { "effect": "+12% Muskelmasse + Streak Shield alle 21 Tage" },
+        "4": { "effect": "+20% Muskelmasse aus Schritten + Shield alle 14 Tage" },
+        "5": { "effect": "+30% Muskelmasse auf alles" }
+      }
+    },
+    "bibliothek":    { "name": "Bibliothek",    "description": "Schaltet Forschung frei, die jeden Aspekt deines Reiches verbessert." },
+    "marktplatz":    { "name": "Marktplatz",    "description": "Tausche überschüssige Ressourcen mit anderen Stämmen." },
+    "stammeshaus":   { "name": "Stammeshaus",   "description": "Das ultimative Symbol für Stammes-Prestige und Endgame-Macht." },
+    "stall":         { "name": "Stall",         "description": "Beherbergt Tiere und vergibt Produktionsboni an benachbarte Gebäude." },
+    "wachturm":      { "name": "Wachturm",      "description": "Gibt Frühwarnung vor Monsterwellen und reduziert Angreifer-Stärke." },
+    "mauer":         { "name": "Mauer",         "description": "Absorbiert Schaden und schützt dein Dorf vor Monsterwellen." }
+  },
+  "streak": {
+    "milestones": {
+      "3":   { "name": "Erster Schritt",  "reward": "+50g Muskelmasse + 100 Holz" },
+      "7":   { "name": "Aufgewärmt",      "reward": "+3 Protein + Streak Shield" },
+      "14":  { "name": "Dranbleiber",     "reward": "+100g + 200 Holz + 7 Tage Kalorien-Boost" },
+      "21":  { "name": "Krieger",         "reward": "+5 Protein + 300 Holz + Profilrahmen" },
+      "30":  { "name": "Monatsheld",      "reward": "+200g + 5 Protein + 500 Holz + 7 Tage Prod-Boost" },
+      "50":  { "name": "Ausdauerprofi",   "reward": "+10 Protein + 1.000 Holz + Kalorien-Bonus permanent" },
+      "100": { "name": "Legende",         "reward": "+20 Protein + 2.000 Holz + Titan-Skin" },
+      "365": { "name": "Unsterblich",     "reward": "+50 Protein + alle Skins + +10% Produktion permanent" }
+    }
+  },
+  "zones": {
+    "1": { "name": "Der Wald" },
+    "2": { "name": "Die Berge" },
+    "3": { "name": "Die Ruinen" },
+    "4": { "name": "Der Sumpf" },
+    "5": { "name": "Die Eiswüste" },
+    "6": { "name": "Der Gipfel" }
+  },
+  "adjacency": {
+    "holzfaeller_holzlager":  "+15% Holz-Storage",
+    "kaserne_tempel":         "+10% Worker-Effizienz",
+    "bibliothek_any":         "+5% Bibliotheks-Bonus auf alle Gebäude",
+    "feld_kornkammer":        "+10% Nahrungsproduktion",
+    "steinbruch_steinlager":  "+10% Stein-Storage"
+  },
   "onboarding": {
     "welcomeTitle": "FitRealm",
     "tagline": "Trainiere. Verdiene. Baue.",

@@ -497,6 +497,75 @@
       }
     }
   },
+  "buildingConfig": {
+    "rathaus":       { "name": "Town Hall",       "description": "The heart of your village. Upgrade it to unlock new buildings.",
+      "levels": {
+        "2": { "effect": "Unlocks Barracks, Quarry, Stone Warehouse and Watchtower" },
+        "3": { "effect": "Unlocks Temple, Library, Marketplace and Wall" },
+        "4": { "effect": "Unlocks Protein Farm" },
+        "5": { "effect": "Unlocks Tribal Hall" }
+      }
+    },
+    "holzfaeller":   { "name": "Lumberjack",      "description": "Continuously produces wood to keep your construction supplied." },
+    "kornkammer":    { "name": "Granary",          "description": "Passively stores Muskelmasse generated from your workouts." },
+    "steinbruch":    { "name": "Quarry",           "description": "Extracts stone from the earth for advanced building projects." },
+    "proteinfarm":   { "name": "Protein Farm",     "description": "Slowly produces Protein — the rarest and most valuable resource." },
+    "feld":          { "name": "Field",            "description": "Grows food to keep your workers fed and productive." },
+    "holzlager":     { "name": "Wood Warehouse",   "description": "Increases your maximum Wood storage capacity." },
+    "steinlager":    { "name": "Stone Warehouse",  "description": "Increases your maximum Stone storage capacity." },
+    "nahrungslager": { "name": "Food Warehouse",   "description": "Increases your maximum Food storage capacity." },
+    "kaserne":       { "name": "Barracks",         "description": "Trains new workers and houses your workforce.",
+      "levels": {
+        "1": { "effect": "Max. 1 worker" },
+        "2": { "effect": "Max. 2 workers" },
+        "3": { "effect": "Max. 3 workers" },
+        "4": { "effect": "Max. 4 workers" },
+        "5": { "effect": "Max. 5 workers" }
+      }
+    },
+    "tempel":        { "name": "Temple",           "description": "Channels your workout streak into powerful production bonuses.",
+      "levels": {
+        "1": { "effect": "+5% Muskelmasse from workouts" },
+        "2": { "effect": "+5% Muskelmasse from calories" },
+        "3": { "effect": "+12% Muskelmasse + Streak Shield every 21 days" },
+        "4": { "effect": "+20% Muskelmasse from steps + Shield every 14 days" },
+        "5": { "effect": "+30% Muskelmasse on everything" }
+      }
+    },
+    "bibliothek":    { "name": "Library",          "description": "Unlocks research that improves every aspect of your realm." },
+    "marktplatz":    { "name": "Marketplace",      "description": "Trade surplus resources with other tribes for what you need." },
+    "stammeshaus":   { "name": "Tribal Hall",      "description": "The ultimate symbol of tribal prestige and endgame power." },
+    "stall":         { "name": "Stable",           "description": "Houses animals and grants production bonuses to nearby buildings." },
+    "wachturm":      { "name": "Watchtower",       "description": "Provides early warning of monster waves and reduces attacker strength." },
+    "mauer":         { "name": "Wall",             "description": "Absorbs damage and protects your settlement from monster attacks." }
+  },
+  "streak": {
+    "milestones": {
+      "3":   { "name": "First Step",        "reward": "+50g Muskelmasse + 100 Wood" },
+      "7":   { "name": "Warmed Up",         "reward": "+3 Protein + Streak Shield" },
+      "14":  { "name": "Consistent",        "reward": "+100g + 200 Wood + 7-day Calorie Boost" },
+      "21":  { "name": "Warrior",           "reward": "+5 Protein + 300 Wood + Profile Frame" },
+      "30":  { "name": "Month Hero",        "reward": "+200g + 5 Protein + 500 Wood + 7-day Prod Boost" },
+      "50":  { "name": "Endurance Pro",     "reward": "+10 Protein + 1,000 Wood + Permanent Calorie Bonus" },
+      "100": { "name": "Legend",            "reward": "+20 Protein + 2,000 Wood + Titan Skin" },
+      "365": { "name": "Immortal",          "reward": "+50 Protein + all Skins + +10% Production permanent" }
+    }
+  },
+  "zones": {
+    "1": { "name": "The Forest" },
+    "2": { "name": "The Mountains" },
+    "3": { "name": "The Ruins" },
+    "4": { "name": "The Swamp" },
+    "5": { "name": "The Ice Desert" },
+    "6": { "name": "The Summit" }
+  },
+  "adjacency": {
+    "holzfaeller_holzlager":  "+15% Wood Storage",
+    "kaserne_tempel":         "+10% Worker Efficiency",
+    "bibliothek_any":         "+5% Library Bonus on all buildings",
+    "feld_kornkammer":        "+10% Food Production",
+    "steinbruch_steinlager":  "+10% Stone Storage"
+  },
   "onboarding": {
     "welcomeTitle": "FitRealm",
     "tagline": "Train. Earn. Build.",
