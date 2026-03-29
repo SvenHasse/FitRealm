@@ -444,6 +444,17 @@
       "kriegswolf": "🔒 21-Tage-Streak + Rathaus L3",
       "gluecksphoenixt": "🔒 Legendäres Ei ausbrüten",
       "uralterDrache": "🔒 Boss besiegen + 30-Tage Streak"
+    },
+    "config": {
+      "erntehuhn": { "name": "Erntehuhn", "flavor": "Pickt eifrig die Körner auf, die neben dem Feld liegen. Unermüdlich und ein bisschen dumm." },
+      "lastesel": { "name": "Lastesel", "flavor": "Trägt geduldig alles, was man ihm auflädt. Beschwert sich nie — zumindest nicht hörbar." },
+      "holzbaer": { "name": "Holzbär", "flavor": "Reißt mit seinen Pranken ganze Baumstämme aus der Erde. Erstaunlich sanftmütig — solange man ihn füttert." },
+      "spaehfalke": { "name": "Spähfalke", "flavor": "Kreist hoch über dem Dorf und sieht alles. Sein durchdringender Schrei warnt vor nahender Gefahr.", "ability": "Frühwarnung +6h, Angreifer -10% Angriffskraft" },
+      "steinbock": { "name": "Steinbock", "flavor": "Klettert auf Felsen, die kein Mensch besteigen könnte. Sein Fell ist so hart wie der Stein selbst.", "ability": "Mauer hält +20% mehr aus" },
+      "mystischerHirsch": { "name": "Mystischer Hirsch", "flavor": "Sein Geweih leuchtet in der Dämmerung silbern. Wo er steht, wächst das Gras schneller.", "ability": "Heilaura: Repariert 5% Gebäudeschaden nach Angriff" },
+      "kriegswolf": { "name": "Kriegswolf", "flavor": "Seine gelben Augen mustern jeden Fremden. Er folgt nur dem Stärksten — und das bist du.", "ability": "Rudel-Taktik: Alle Tiere in Verteidigung +10% VP" },
+      "gluecksphoenixt": { "name": "Glücksphönix", "flavor": "Aus der Asche geboren, in Flammen getaucht. Sein Feuer zerstört nicht — es erneuert.", "ability": "Wiedergeburt: 1× pro Welle ein zerstörtes Gebäude sofort repariert" },
+      "uralterDrache": { "name": "Uralter Drache", "flavor": "Die Legenden sprachen von ihm. Jahrhunderte schlief er unter dem Berg. Dein Kampfgeist hat ihn geweckt.", "ability": "Drachenatem: Vernichtet 30% der Monsterwelle sofort" }
     }
   },
   "eggs": {
@@ -582,12 +593,12 @@
     }
   },
   "zones": {
-    "1": { "name": "Der Wald" },
-    "2": { "name": "Die Berge" },
-    "3": { "name": "Die Ruinen" },
-    "4": { "name": "Der Sumpf" },
-    "5": { "name": "Die Eiswüste" },
-    "6": { "name": "Der Gipfel" }
+    "1": { "name": "Der Wald", "description": "Ein dichter Wald voller Ressourcen, die darauf warten, gesammelt zu werden." },
+    "2": { "name": "Die Berge", "description": "Raues Berggelände, reich an Stein und seltenen Mineralien." },
+    "3": { "name": "Die Ruinen", "description": "Uralte Ruinen, die vergessene Schätze und Artefakte verbergen." },
+    "4": { "name": "Der Sumpf", "description": "Ein trüber Sumpf voller verborgener Gefahren und seltener Funde." },
+    "5": { "name": "Die Eiswüste", "description": "Eine gefrorene Einöde, die nur die entschlossensten Athleten ertragen." },
+    "6": { "name": "Der Gipfel", "description": "Der ultimative Gipfel — bezwinge ihn, um deine Dominanz zu beweisen." }
   },
   "adjacency": {
     "holzfaeller_holzlager":  "+15% Holz-Storage",
@@ -624,5 +635,35 @@
     "resultExplain": "Deine HRmax wird genutzt, um Workout-Intensit\u00e4t pr\u00e4zise zu bewerten. Ab 70% HRmax z\u00e4hlt ein Workout als intensiv.",
     "resultFormula": "Formel: 220 \u2212 {{age}} = HRmax",
     "letsGo": "Los geht's!"
+  },
+  "monsters": {
+    "config": {
+      "sumpfgoblin": { "name": "Sumpfgoblin", "damage": "-15% Nahrungsproduktion" },
+      "schattenratte": { "name": "Schattenratte", "damage": "5-10% der gelagerten Ressourcen" },
+      "skelettkrieger": { "name": "Skelettkrieger", "damage": "Gebäude stoppt Produktion" },
+      "giftwurm": { "name": "Giftwurm", "damage": "Alle Felder -50% Produktion" },
+      "dunkelork": { "name": "Dunkelork", "damage": "2 Gebäude stoppen + Ressourcenverlust" },
+      "nebelgeist": { "name": "Nebelgeist", "damage": "Gebäude deaktiviert, Tempel kann reinigen (4h)" },
+      "frostdrache": { "name": "Frostdrache", "damage": "Globaler Produktionsstopp" },
+      "schattenmagier": { "name": "Schattenmagier", "damage": "2-5 Protein + Proteinfarm stoppt" },
+      "uralterGolem": { "name": "Uralter Golem", "damage": "Rathaus deaktiviert" },
+      "verderbnisHydra": { "name": "Verderbnis-Hydra", "damage": "Alle Ressourcen-Typen -50%" }
+    }
+  },
+  "stall": {
+    "adjacencyBonus": "Neben Feld → Tiere produzieren +10% Nahrung passiv"
+  },
+  "animalSheet": {
+    "releaseTitle": "{{name}} freilassen",
+    "releaseMessage": "Möchtest du {{name}} wirklich freilassen? Diese Aktion ist nicht rückgängig zu machen.",
+    "releaseCancel": "Abbrechen",
+    "releaseConfirm": "Freilassen",
+    "bonusProduction": "+{{pct}}% Produktion",
+    "bonusStorage": "+{{pct}}% Lager",
+    "bonusSpeed": "+{{pct}}% Geschw.",
+    "bonusGlobal": "+{{pct}}% Global",
+    "assignmentBuilding": "Gebäude (nicht gefunden)",
+    "assignmentUnknown": "Unbekannt",
+    "releaseButton": "Freilassen"
   }
 }

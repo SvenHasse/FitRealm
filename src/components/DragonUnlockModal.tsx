@@ -6,6 +6,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withDelay, withSequence,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
 import { ANIMAL_CONFIGS } from '../config/GameConfig';
 
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function DragonUnlockModal({ visible, onClose }: Props) {
+  const { t } = useTranslation();
   const [showButton, setShowButton] = useState(false);
 
   // Animationswerte
@@ -83,7 +85,7 @@ export default function DragonUnlockModal({ visible, onClose }: Props) {
 
           {/* Flavor-Text */}
           <Animated.View style={[styles.flavorBox, flavorStyle]}>
-            <Text style={styles.flavorText}>{dragonConfig.flavorText}</Text>
+            <Text style={styles.flavorText}>{t(dragonConfig.flavorTextKey)}</Text>
           </Animated.View>
 
           {/* Weiter-Button */}

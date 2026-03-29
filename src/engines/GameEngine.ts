@@ -33,7 +33,7 @@ const STATE_KEY = 'fitrealmGameState';
 export function makeDefaultZones(): ExplorationZone[] {
   return zoneConfigs.map((cfg, i) => ({
     id: i + 1,
-    name: cfg.name,
+    name: cfg.nameKey,
     isUnlocked: false,
     explorationEndDate: null,
     hasReward: false,
@@ -730,7 +730,7 @@ function _grantStreakAnimal(state: GameState, animalType: AnimalType): void {
   const animal: Animal = {
     id: `animal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
     type: animalType,
-    name: config.name,
+    name: config.nameKey,
     rarity: config.rarity,
     assignment: { type: 'idle' },
     obtainedAt: Date.now(),

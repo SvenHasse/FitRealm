@@ -363,7 +363,7 @@ function AnimalSection({ building }: { building: Building }) {
         <Text style={{ fontSize: 36 }}>{cfg.emoji}</Text>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>{cfg.name}</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>{t(cfg.nameKey)}</Text>
             <View style={{ paddingHorizontal: 6, paddingVertical: 2, backgroundColor: `${rarityColor}25`, borderRadius: 5, borderWidth: 1, borderColor: rarityColor }}>
               <Text style={{ fontSize: 9, fontWeight: '700', color: rarityColor }}>
                 {t(`animals.rarity${cfg.rarity.charAt(0).toUpperCase() + cfg.rarity.slice(1)}`)}
@@ -375,9 +375,9 @@ function AnimalSection({ building }: { building: Building }) {
               {t('animalSection.bonus', { pct: cfg.buildingBonus.bonusPercent, bonusType: bonusTypeLabel })}
             </Text>
           )}
-          {cfg.flavorText ? (
+          {cfg.flavorTextKey ? (
             <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontStyle: 'italic', marginTop: 4 }} numberOfLines={2}>
-              {cfg.flavorText}
+              {t(cfg.flavorTextKey)}
             </Text>
           ) : null}
         </View>

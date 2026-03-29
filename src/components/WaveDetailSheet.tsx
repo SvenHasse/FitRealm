@@ -96,7 +96,7 @@ export default function WaveDetailSheet({ visible, wave, defense, onClose }: Pro
                   <View key={i} style={styles.monsterRow}>
                     <Text style={styles.monsterEmoji}>{cfg.emoji}</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.monsterName}>{cfg.name}</Text>
+                      <Text style={styles.monsterName}>{t(cfg.nameKey)}</Text>
                       <Text style={styles.monsterTarget}>{t('waves.target')}: {cfg.target}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
