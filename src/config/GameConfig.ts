@@ -42,9 +42,13 @@ export const Decay = {
 };
 
 // MARK: - Earn
+// @deprecated — Earn constants are superseded by the Progress Point (PP) system
+// in src/utils/progressPoints.ts. Kept for backward compatibility / reference.
 export const Earn = {
+  /** @deprecated Use PP_REWARDS.muskelmassePerPP instead */
   basePerMinute: 2.0,
 
+  /** @deprecated HR intensity is now folded into PP focus weights */
   hrMultiplier(heartRate: number | null): number {
     if (heartRate == null) return 1.0;
     if (heartRate < 100) return 1.0;
@@ -53,9 +57,13 @@ export const Earn = {
     return 2.0;
   },
 
+  /** @deprecated Replaced by DAILY_TARGETS.steps in progressPoints.ts */
   stepsPerGram: 1000.0,
+  /** @deprecated Replaced by PP steps metric */
   maxStepBonus: 10.0,
+  /** @deprecated Replaced by PP_REWARDS.proteinThreshold */
   proteinMinHR: 150.0,
+  /** @deprecated Replaced by PP_REWARDS.proteinThreshold */
   proteinMinMinutes: 20.0,
 };
 

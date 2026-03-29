@@ -11,8 +11,9 @@ import {
   Animal, AnimalEgg, AnimalAssignment, MonsterWave, WaveResult, DamageEffect, DefenseBreakdown,
   LootDrop, EggRarity, Trophy,
   Goal, SeasonalGoal, GoalStatus,
-  UserProfile,
+  UserProfile, FitnessFocus,
 } from '../models/types';
+import { generateFitnessGoals } from '../config/GoalConfig';
 import { calculateHRmax, DEFAULT_HRMAX } from '../utils/hrMax';
 import { ANIMAL_CONFIGS, STALL_CONFIG, WAVE_CONFIG, DEFENSE_CONFIG } from '../config/EntityConfig';
 import { waveService } from '../services/WaveService';
@@ -339,6 +340,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (profileJson) {
         userProfile = JSON.parse(profileJson) as UserProfile;
         hasCompletedOnboarding = userProfile.onboardingCompleted;
+        // Migrate existing users without fitnessFocus → default 'workouts'
+        if (!userProfile.fitnessFocus) {
+          userProfile.fitnessFocus = 'workouts';
+          AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(userProfile));
+        }
       }
     } catch { /* ignore parse errors */ }
 
@@ -346,6 +352,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!hasCompletedOnboarding && gs.buildings.length > 0) {
       hasCompletedOnboarding = true;
     }
+
+    // Generate fitness goals based on focus (or default)
+    const focus: FitnessFocus = userProfile?.fitnessFocus ?? 'workouts';
+    const fitnessGoals = generateFitnessGoals(focus);
+    const villageGoals = INITIAL_GOALS.filter(g => g.category !== 'fitness');
 
     set({
       gameState: gs,
@@ -357,6 +368,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       storageCap: getTotalStorageCap(gs.buildings),
       userProfile,
       hasCompletedOnboarding,
+      goals: [...fitnessGoals, ...villageGoals],
     });
 
     // If mock mode, load the mock game state with pre-built buildings
@@ -568,7 +580,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({ ...mockState });
 
         // Forward workouts to game engine
-        const gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX);
+        const gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, get().userProfile?.fitnessFocus ?? 'workouts');
         set({ gameState: gs, storageCap: getTotalStorageCap(gs.buildings) });
         GE.saveGameState(gs);
       } else {
@@ -657,7 +669,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Process through game engine (calculates muskelmasse, protein, streak, etc.)
     const prevGs = get().gameState;
-    const newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX);
+    const newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, get().userProfile?.fitnessFocus ?? 'workouts');
     set({ gameState: newGs, storageCap: getTotalStorageCap(newGs.buildings) });
     GE.saveGameState(newGs);
 
@@ -1298,12 +1310,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setUserProfile(profile) {
     const hrMax = calculateHRmax(profile.age);
+    const focus: FitnessFocus = profile.fitnessFocus ?? 'workouts';
     const userProfile: UserProfile = {
       ...profile,
       hrMax,
       onboardingCompleted: true,
+      fitnessFocus: focus,
     };
-    set({ userProfile, hasCompletedOnboarding: true });
+    // Regenerate fitness goals based on chosen focus
+    const fitnessGoals = generateFitnessGoals(focus);
+    const villageGoals = get().goals.filter(g => g.category !== 'fitness');
+    set({ userProfile, hasCompletedOnboarding: true, goals: [...fitnessGoals, ...villageGoals] });
     AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(userProfile));
   },
 
@@ -1316,6 +1333,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     set({ userProfile: updated });
     AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(updated));
+
+    // If fitnessFocus changed, regenerate fitness goals
+    if (partial.fitnessFocus !== undefined && partial.fitnessFocus !== current.fitnessFocus) {
+      const fitnessGoals = generateFitnessGoals(updated.fitnessFocus);
+      const villageGoals = get().goals.filter(g => g.category !== 'fitness');
+      set({ goals: [...fitnessGoals, ...villageGoals] });
+    }
   },
 
   getUserHRmax() {
@@ -1411,11 +1435,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     const now = Date.now();
     const cutoff30d = now - 30 * 24 * 60 * 60 * 1000;
+    const cutoff7d  = now - 7 * 24 * 60 * 60 * 1000;
     const workouts30d = state.recentWorkouts.filter(w => new Date(w.date).getTime() >= cutoff30d);
+    const workouts7d  = state.recentWorkouts.filter(w => new Date(w.date).getTime() >= cutoff7d);
     const intenseWorkouts = workouts30d.filter(
       w => (w.averageHeartRate ?? 0) >= 140 && w.durationMinutes >= 20
     ).length;
-    const steps = state.healthSnapshot.stepsToday * 30; // approximation
+    const intenseWorkouts7d = workouts7d.filter(
+      w => (w.averageHeartRate ?? 0) >= 140 && w.durationMinutes >= 20
+    ).length;
+    const stepsToday = state.healthSnapshot.stepsToday;
+    const steps7d = stepsToday * 7; // approximation
+    const caloriesToday = state.healthSnapshot.activeCaloriesToday;
+    const calories7d = workouts7d.reduce((sum, w) => sum + w.caloriesBurned, 0);
     const gs = state.gameState;
     const level2Buildings = gs.buildings.filter(b => b.level >= 2).length;
     const workerCount = gs.workers?.length ?? 0;
@@ -1425,9 +1457,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (goal.status === 'claimed') return goal;
       let currentValue = goal.currentValue;
       switch (goal.id) {
+        // Legacy goal IDs
         case 'fitness-weekly-workouts': currentValue = workouts30d.length; break;
-        case 'fitness-steps':          currentValue = steps; break;
+        case 'fitness-steps':          currentValue = stepsToday * 30; break;
         case 'fitness-intense':        currentValue = intenseWorkouts; break;
+        // Focus-based goal IDs — Steps
+        case 'focus-steps-daily':      currentValue = stepsToday; break;
+        case 'focus-steps-weekly':     currentValue = steps7d; break;
+        // Focus-based goal IDs — Workouts
+        case 'focus-workouts-weekly':  currentValue = workouts7d.length; break;
+        case 'focus-workouts-intense': currentValue = intenseWorkouts7d; break;
+        // Focus-based goal IDs — Calories
+        case 'focus-calories-daily':   currentValue = caloriesToday; break;
+        case 'focus-calories-weekly':  currentValue = calories7d; break;
+        // Secondary goal IDs
+        case 'secondary-steps':        currentValue = stepsToday; break;
+        case 'secondary-workouts':     currentValue = workouts7d.length; break;
+        case 'secondary-calories':     currentValue = caloriesToday; break;
+        // Village goals
         case 'village-builder':        currentValue = level2Buildings; break;
         case 'village-workers':        currentValue = workerCount; break;
         case 'village-resources':      currentValue = holzAmount; break;

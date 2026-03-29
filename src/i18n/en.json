@@ -46,7 +46,10 @@
     "bpm": "bpm",
     "vs30dAgo": "vs 30d ago",
     "syncing": "Syncing...",
-    "syncHealthData": "Sync Health Data"
+    "syncHealthData": "Sync Health Data",
+    "primarySteps": "Daily Steps",
+    "primaryWorkouts": "Workout Minutes Today",
+    "primaryCalories": "Active Calories Today"
   },
   "realm": {
     "tapToPlace": "Tap an empty cell: {{building}}",
@@ -196,6 +199,25 @@
       "steps":          { "title": "Step Master",       "desc": "150,000 steps in 30 days" },
       "intense":        { "title": "Intense Trainer",   "desc": "5 intense workouts (≥70% HRmax, 20+ min)" }
     },
+    "focus": {
+      "steps": {
+        "daily":  { "title": "Daily March",        "desc": "10,000 steps today" },
+        "weekly": { "title": "Weekly Walker",       "desc": "70,000 steps in 7 days" }
+      },
+      "workouts": {
+        "weekly":  { "title": "Training Plan",      "desc": "5 workouts in 7 days" },
+        "intense": { "title": "Power Week",         "desc": "3 intense workouts in 7 days" }
+      },
+      "calories": {
+        "daily":  { "title": "Calorie Burner",      "desc": "500 active kcal today" },
+        "weekly": { "title": "Weekly Burner",        "desc": "3,500 active kcal in 7 days" }
+      },
+      "secondary": {
+        "steps":    { "title": "Side Steps",          "desc": "5,000 steps today" },
+        "workouts": { "title": "Side Training",       "desc": "3 workouts in 7 days" },
+        "calories": { "title": "Side Calories",       "desc": "300 active kcal today" }
+      }
+    },
     "village": {
       "builder":   { "title": "Master Builder",   "desc": "Upgrade 3 buildings to level 2" },
       "workers":   { "title": "Employer",          "desc": "Train and deploy 2 workers" },
@@ -244,7 +266,11 @@
     "profileWeight": "Weight",
     "profileHeight": "Height",
     "profileGender": "Gender",
-    "profileYears": "years"
+    "profileYears": "years",
+    "fitnessFocus": "Fitness Focus",
+    "focus_steps": "Steps",
+    "focus_workouts": "Workouts",
+    "focus_calories": "Calories"
   },
   "storage": {
     "currentOf": "{{current}} / {{max}}",
@@ -582,6 +608,14 @@
     "gender": "Gender",
     "male": "Male",
     "female": "Female",
+    "focusTitle": "Your Fitness Focus",
+    "focusSubtitle": "Choose what matters most to you. Your primary goal determines how your rewards are weighted.",
+    "focusSteps": "Steps",
+    "focusStepsDesc": "Daily steps are your main goal",
+    "focusWorkouts": "Workouts",
+    "focusWorkoutsDesc": "Training minutes are your main goal",
+    "focusCalories": "Calories",
+    "focusCaloriesDesc": "Active calories are your main goal",
     "resultTitle": "Your Maximum Heart Rate",
     "resultExplain": "Your HRmax is used to precisely evaluate workout intensity. Workouts above 70% HRmax count as intense.",
     "resultFormula": "Formula: 220 \u2212 {{age}} = HRmax",
