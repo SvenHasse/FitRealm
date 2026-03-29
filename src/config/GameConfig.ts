@@ -872,3 +872,60 @@ export function getDecayMultiplier(hoursSinceLastWorkout: number): number {
     .find(t => hoursSinceLastWorkout >= t.hoursWithoutWorkout);
   return threshold?.productionMultiplier ?? 1.0;
 }
+
+// ─── EXPLORATION REWARD RANGES ───────────────────────────────────────────────
+// Random reward ranges for claimExplorationReward() in GameEngine.
+export const EXPLORATION_REWARD_RANGES = {
+  muskelmasse: { min: 50, randomRange: 150 },   // 50 + random * 150
+  wood:        { min: 20, randomRange: 60 },     // 20 + random * 60
+  stone:       { min: 5,  randomRange: 25 },     // 5  + random * 25
+} as const;
+
+// ─── INTENSIVE WORKOUT TRACKER ───────────────────────────────────────────────
+// Windows and thresholds for unlocking Spähfalke / Mystischer Hirsch.
+export const INTENSIVE_TRACKER = {
+  weekWindowMs:       7 * 24 * 60 * 60 * 1000,
+  biweekWindowMs:     14 * 24 * 60 * 60 * 1000,
+  weeklyThreshold:    5,   // 5× ≥70% HRmax in 7 days  → Spähfalke
+  biweeklyThreshold:  10,  // 10× ≥70% HRmax in 14 days → Mystischer Hirsch
+} as const;
+
+// ─── STREAK ENGINE REWARDS ───────────────────────────────────────────────────
+// Streak-token / protein amounts granted directly by GameEngine on milestone.
+export const STREAK_ENGINE_REWARDS: Record<number, { streakTokens?: number; protein?: number }> = {
+  3:  { streakTokens: 2 },
+  7:  { streakTokens: 5, protein: 3 },
+};
+
+// ─── BOSS WAVE SCALING ───────────────────────────────────────────────────────
+export const BOSS_SCALING = {
+  base: 3,
+  perRathausLevel: 0.5,
+  extraWarningHours: 12,
+} as const;
+
+// ─── WAVE TIER CHANCES ───────────────────────────────────────────────────────
+// Probability of higher tiers appearing when rathaus level qualifies.
+export const WAVE_TIER_CHANCES = {
+  tier3: 0.30,
+  tier4: 0.20,
+  tier5: 0.10,
+} as const;
+
+// ─── WAVE WARNING BONUSES ────────────────────────────────────────────────────
+// Extra warning time for Wachturm levels and Spähfalke.
+export const WAVE_WARNING_BONUSES = {
+  watchtowerHoursPerLevel: 3,
+  scoutFalconHours: 6,
+} as const;
+
+// ─── STREAK COUNTDOWN THRESHOLDS ─────────────────────────────────────────────
+// UI thresholds for the streak countdown display (safe / warning / danger).
+export const STREAK_COUNTDOWN_THRESHOLDS = {
+  safeAboveMs:    24 * 3_600_000,
+  warningAboveMs: 12 * 3_600_000,
+} as const;
+
+// ─── WALL HP ─────────────────────────────────────────────────────────────────
+// HP per Mauer level (also in DEFENSE_CONFIG in EntityConfig, kept in sync).
+export const WALL_HP_PER_LEVEL = 50;

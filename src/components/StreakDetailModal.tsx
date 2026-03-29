@@ -29,6 +29,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useTranslation } from 'react-i18next';
 import { AppColors } from '../models/types';
 import { useGameStore }                        from '../store/gameStore';
 import { useGameStore as useEngineStore }       from '../store/useGameStore';
@@ -50,27 +51,27 @@ const GOLD         = AppColors.gold;
 // COLLECTED_KEY kept for backwards-compat migration; new state lives in gameStore
 const COLLECTED_KEY = 'collected_streak_rewards';
 
-// Icon + accent color per milestone name
-const MILESTONE_ICON: Record<string, string> = {
-  'Erster Schritt': 'seed-outline',
-  'Aufgewärmt':     'fire',
-  'Dranbleiber':    'arm-flex',
-  'Krieger':        'lightning-bolt',
-  'Monatsheld':     'medal',
-  'Ausdauerprofi':  'diamond-stone',
-  'Legende':        'trophy',
-  'Unsterblich':    'crown',
+// Icon + accent color per milestone days
+const MILESTONE_ICON: Record<number, string> = {
+  3:   'seed-outline',
+  7:   'fire',
+  14:  'arm-flex',
+  21:  'lightning-bolt',
+  30:  'medal',
+  50:  'diamond-stone',
+  100: 'trophy',
+  365: 'crown',
 };
 
-const MILESTONE_COLOR: Record<string, string> = {
-  'Erster Schritt': '#4CAF50',
-  'Aufgewärmt':     '#FF6B35',
-  'Dranbleiber':    '#FF9800',
-  'Krieger':        '#9C27B0',
-  'Monatsheld':     '#F5A623',
-  'Ausdauerprofi':  '#00BCD4',
-  'Legende':        '#F5A623',
-  'Unsterblich':    '#E91E63',
+const MILESTONE_COLOR: Record<number, string> = {
+  3:   '#4CAF50',
+  7:   '#FF6B35',
+  14:  '#FF9800',
+  21:  '#9C27B0',
+  30:  '#F5A623',
+  50:  '#00BCD4',
+  100: '#F5A623',
+  365: '#E91E63',
 };
 
 const LEVEL_COLORS = {
@@ -237,6 +238,7 @@ function MilestoneRow({
   animKey: number;
   index: number;
 }) {
+  const { t } = useTranslation();
   const opacity    = useSharedValue(0);
   const translateY = useSharedValue(18);
 
@@ -253,8 +255,8 @@ function MilestoneRow({
     transform: [{ translateY: translateY.value }],
   }));
 
-  const accentColor = MILESTONE_COLOR[milestone.name] ?? STREAK_COLOR;
-  const iconName    = MILESTONE_ICON[milestone.name]  ?? 'star-outline';
+  const accentColor = MILESTONE_COLOR[milestone.days] ?? STREAK_COLOR;
+  const iconName    = MILESTONE_ICON[milestone.days]  ?? 'star-outline';
 
   const isUpcoming  = status === 'upcoming';
   const iconOpacity = isUpcoming ? 0.3 : 1;
@@ -286,7 +288,7 @@ function MilestoneRow({
       <View style={styles.rowContent}>
         {/* Title row */}
         <View style={styles.rowTitleLine}>
-          <Text style={[styles.rowName, { opacity: textOpacity }]}>{milestone.name}</Text>
+          <Text style={[styles.rowName, { opacity: textOpacity }]}>{t(milestone.nameKey)}</Text>
           {status === 'next' && (
             <View style={styles.nextBadge}>
               <Text style={styles.nextBadgeText}>NÄCHSTES ZIEL</Text>
@@ -299,7 +301,7 @@ function MilestoneRow({
           {milestone.days} Tage
         </Text>
         <Text style={[styles.rowReward, { opacity: textOpacity }]} numberOfLines={2}>
-          {milestone.reward}
+          {t(milestone.rewardDescKey)}
         </Text>
 
         {/* Progress bar for 'next' */}
