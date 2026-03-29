@@ -121,6 +121,16 @@ export interface SeasonalGoal {
   deadline: string;
 }
 
+// MARK: - UserProfile
+export interface UserProfile {
+  age: number;
+  weight: number;
+  height: number;
+  gender: 'male' | 'female';
+  hrMax: number;
+  onboardingCompleted: boolean;
+}
+
 // MARK: - ResourceType
 export enum ResourceType {
   muskelmasse = 'muskelmasse',

@@ -2,7 +2,7 @@
 // FitRealm - App settings + single consolidated dev tools section.
 
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
@@ -10,14 +10,80 @@ import { AppColors } from '../models/types';
 import { setLanguage } from '../i18n';
 import DevToolsSection from '../components/DevToolsSection';
 
+function promptForValue(title: string, current: string, onConfirm: (val: string) => void) {
+  if (Platform.OS === 'ios') {
+    Alert.prompt(title, undefined, (text) => {
+      if (text && text.trim()) onConfirm(text.trim());
+    }, 'plain-text', current);
+  } else {
+    // Android fallback: Alert doesn't support prompt
+    Alert.alert(title, `${current}`, [{ text: 'OK' }]);
+  }
+}
+
 export default function SettingsScreen() {
   const { permissionStatus, recentWorkouts, useMockData, requestPermissions, toggleMockData } = useEngineStore();
+  const userProfile = useEngineStore(s => s.userProfile);
+  const updateUserProfile = useEngineStore(s => s.updateUserProfile);
   const { t, i18n } = useTranslation();
   const [allowManualStepInput, setAllowManualStepInput] = useState(false);
   const currentLang = i18n.language as 'de' | 'en';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* My Profile Card */}
+      {userProfile && (
+        <View style={styles.card}>
+          <SectionHeader title={t('settings.myProfile')} icon="person" />
+
+          <ProfileRow
+            label={t('settings.profileAge')}
+            value={`${userProfile.age}`}
+            unit={t('settings.profileYears')}
+            onEdit={() => promptForValue(t('settings.profileAge'), `${userProfile.age}`, (v) => {
+              const n = parseInt(v, 10);
+              if (n >= 14 && n <= 99) updateUserProfile({ age: n });
+            })}
+          />
+          <ProfileRow
+            label={t('settings.profileWeight')}
+            value={`${userProfile.weight}`}
+            unit="kg"
+            onEdit={() => promptForValue(t('settings.profileWeight'), `${userProfile.weight}`, (v) => {
+              const n = parseInt(v, 10);
+              if (n >= 30 && n <= 250) updateUserProfile({ weight: n });
+            })}
+          />
+          <ProfileRow
+            label={t('settings.profileHeight')}
+            value={`${userProfile.height}`}
+            unit="cm"
+            onEdit={() => promptForValue(t('settings.profileHeight'), `${userProfile.height}`, (v) => {
+              const n = parseInt(v, 10);
+              if (n >= 100 && n <= 230) updateUserProfile({ height: n });
+            })}
+          />
+          <ProfileRow
+            label={t('settings.profileGender')}
+            value={userProfile.gender === 'male' ? t('onboarding.male') : t('onboarding.female')}
+            onEdit={() => {
+              Alert.alert(t('settings.profileGender'), '', [
+                { text: t('onboarding.male'), onPress: () => updateUserProfile({ gender: 'male' }) },
+                { text: t('onboarding.female'), onPress: () => updateUserProfile({ gender: 'female' }) },
+                { text: t('common.cancel'), style: 'cancel' },
+              ]);
+            }}
+          />
+
+          {/* HRmax display */}
+          <View style={styles.hrMaxDisplay}>
+            <Text style={styles.hrMaxLabel}>HRmax</Text>
+            <Text style={styles.hrMaxValue}>{userProfile.hrMax}</Text>
+            <Text style={styles.hrMaxUnit}>bpm</Text>
+          </View>
+        </View>
+      )}
+
       {/* Language Switcher */}
       <View style={styles.card}>
         <SectionHeader title={t('settings.language')} icon="globe" />
@@ -134,6 +200,20 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ProfileRow({ label, value, unit, onEdit }: { label: string; value: string; unit?: string; onEdit: () => void }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
+      <Text style={{ fontSize: 14, color: AppColors.textSecondary, flex: 1 }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '600', color: AppColors.textPrimary }}>
+        {value}{unit ? ` ${unit}` : ''}
+      </Text>
+      <TouchableOpacity onPress={onEdit} style={{ marginLeft: 10, padding: 4 }}>
+        <Ionicons name="pencil" size={16} color={AppColors.gold} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function EmptyNotice({ message }: { message: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, backgroundColor: 'rgba(0,180,216,0.1)', borderRadius: 10, marginBottom: 12 }}>
@@ -170,5 +250,33 @@ const styles = StyleSheet.create({
   mockToggleBox: {
     padding: 12, backgroundColor: 'rgba(156,39,176,0.1)', borderRadius: 10,
     borderWidth: 1, borderColor: 'rgba(156,39,176,0.3)', marginTop: 12,
+  },
+  hrMaxDisplay: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(245,166,35,0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245,166,35,0.3)',
+  },
+  hrMaxLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: AppColors.gold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  hrMaxValue: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: AppColors.gold,
+  },
+  hrMaxUnit: {
+    fontSize: 13,
+    color: AppColors.textSecondary,
   },
 });

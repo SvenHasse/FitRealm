@@ -25,6 +25,7 @@ import RealmScreen from './src/screens/RealmScreen';
 import GoalsScreen from './src/screens/GoalsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import WorkoutRewardScreen from './src/screens/WorkoutRewardScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import MinigameScreen from './src/minigame/MinigameScreen';
 import GLBTestScreen from './src/screens/GLBTestScreen';
 import RealmScreen3D from './src/screens/RealmScreen3D';
@@ -78,9 +79,10 @@ function TabNavigator() {
 }
 
 export default function App() {
-  const initialize          = useGameStore(s => s.initialize);
+  const initialize           = useGameStore(s => s.initialize);
   const initializeWaveSystem = useGameStore(s => s.initializeWaveSystem);
   const refreshGoalProgress  = useGameStore(s => s.refreshGoalProgress);
+  const hasCompletedOnboarding = useGameStore(s => s.hasCompletedOnboarding);
 
   // Pre-load ALL icon fonts before rendering anything.
   // Without this, icons on the first screen can render as "?" on cold start.
@@ -108,6 +110,9 @@ export default function App() {
     <NavigationContainer theme={DarkTheme}>
       <StatusBar style="light" />
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        {!hasCompletedOnboarding && (
+          <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
+        )}
         <RootStack.Screen name="Main" component={TabNavigator} />
         <RootStack.Screen
           name="WorkoutReward"

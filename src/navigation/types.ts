@@ -12,6 +12,7 @@ export interface WorkoutRewardData {
 }
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   Main: undefined;
   WorkoutReward: {
     workout: WorkoutRewardData;

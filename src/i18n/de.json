@@ -238,7 +238,13 @@
     "resetTitle": "Alle Daten zurücksetzen",
     "resetMessage": "Damit werden alle Vitacoins und die Workout-Historie gelöscht. Dies kann nicht rückgängig gemacht werden.",
     "resetCancel": "Abbrechen",
-    "resetConfirm": "Zurücksetzen"
+    "resetConfirm": "Zurücksetzen",
+    "myProfile": "Mein Profil",
+    "profileAge": "Alter",
+    "profileWeight": "Gewicht",
+    "profileHeight": "Gr\u00f6\u00dfe",
+    "profileGender": "Geschlecht",
+    "profileYears": "Jahre"
   },
   "storage": {
     "currentOf": "{{current}} / {{max}}",
@@ -490,5 +496,26 @@
         "use": "Spezielle Gebäude wie Tempel und Bibliothek."
       }
     }
+  },
+  "onboarding": {
+    "welcomeTitle": "FitRealm",
+    "tagline": "Trainiere. Verdiene. Baue.",
+    "welcomeDesc": "Verwandle deine echten Workouts in Ressourcen und baue dein eigenes Dorf auf. Je h\u00e4rter du trainierst, desto st\u00e4rker wird dein Reich.",
+    "conceptTrain": "Trainieren",
+    "conceptEarn": "Verdienen",
+    "conceptBuild": "Bauen",
+    "conceptDesc": "Jedes echte Workout liefert Muskelmasse und Ressourcen. Sammle sie ein, baue Geb\u00e4ude und verteidige dein Dorf gegen Monsterwellen.",
+    "dataTitle": "Dein Profil",
+    "dataSubtitle": "Damit berechnen wir deine pers\u00f6nliche HRmax und Intensit\u00e4tszonen.",
+    "age": "Alter",
+    "weight": "Gewicht",
+    "height": "Gr\u00f6\u00dfe",
+    "gender": "Geschlecht",
+    "male": "M\u00e4nnlich",
+    "female": "Weiblich",
+    "resultTitle": "Deine maximale Herzfrequenz",
+    "resultExplain": "Deine HRmax wird genutzt, um Workout-Intensit\u00e4t pr\u00e4zise zu bewerten. Ab 70% HRmax z\u00e4hlt ein Workout als intensiv.",
+    "resultFormula": "Formel: 220 \u2212 {{age}} = HRmax",
+    "letsGo": "Los geht's!"
   }
 }

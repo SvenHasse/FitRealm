@@ -28,6 +28,7 @@ import { RootStackParamList, WorkoutRewardData } from '../navigation/types';
 import { useWorkoutReward } from '../hooks/useWorkoutReward';
 import { hrMultiplier, formatGrams } from '../utils/currencyCalculator';
 import { getWorkoutIcon } from '../utils/workoutIcons';
+import { useGameStore } from '../store/useGameStore';
 import { AppColors } from '../models/types';
 import WorkoutIcon from '../components/WorkoutIcon';
 import WorkoutSummaryRow from '../components/WorkoutSummaryRow';
@@ -65,6 +66,7 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
   const isLastInQueue = queueIndex >= queueLength - 1;
 
   const { phase, reward, collect, getNextWorkout } = useWorkoutReward(workout, queueIndex, queueLength);
+  const userHRmax = useGameStore(s => s.userProfile?.hrMax ?? 200);
   const iconInfo = getWorkoutIcon(workout.type);
 
   // ── Animations ────────────────────────────────────────────────────────────
@@ -255,7 +257,7 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
             {reward.protein > 0 && (
               <CurrencyCalculationRow
                 icon={<MaterialCommunityIcons name="diamond-stone" size={16} color={TEAL} />}
-                title={`${workout.minutesAbove70HRmax} Min bei ≥70% HRmax`}
+                title={`${workout.minutesAbove70HRmax} Min bei ≥${Math.round(userHRmax * 0.7)} bpm (70% HRmax)`}
                 formula={`Basis (20 Min) + Extra (${workout.minutesAbove70HRmax - 20} Min)`}
                 finalValue={reward.protein}
                 unit=" Protein"

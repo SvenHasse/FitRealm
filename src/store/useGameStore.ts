@@ -11,7 +11,9 @@ import {
   Animal, AnimalEgg, AnimalAssignment, MonsterWave, WaveResult, DamageEffect, DefenseBreakdown,
   LootDrop, EggRarity, Trophy,
   Goal, SeasonalGoal, GoalStatus,
+  UserProfile,
 } from '../models/types';
+import { calculateHRmax, DEFAULT_HRMAX } from '../utils/hrMax';
 import { ANIMAL_CONFIGS, STALL_CONFIG, WAVE_CONFIG, DEFENSE_CONFIG } from '../config/EntityConfig';
 import { waveService } from '../services/WaveService';
 import { combatService } from '../services/CombatService';
@@ -24,6 +26,10 @@ import { ResourceCost, StorageCapacity, getTotalStorageCap, buildCost, upgradeCo
 import { useGameStore as useCurrencyStore } from './gameStore';
 
 interface GameStore {
+  // User Profile & Onboarding
+  userProfile: UserProfile | null;
+  hasCompletedOnboarding: boolean;
+
   // Game State
   gameState: GameState;
   isProcessing: boolean;
@@ -165,6 +171,11 @@ interface GameStore {
   claimSeasonalTier: (tier: 'bronze' | 'silver' | 'gold') => void;
   refreshGoalProgress: () => void;
 
+  // Actions - User Profile
+  setUserProfile: (profile: Omit<UserProfile, 'hrMax' | 'onboardingCompleted'>) => void;
+  updateUserProfile: (partial: Partial<Omit<UserProfile, 'hrMax' | 'onboardingCompleted'>>) => void;
+  getUserHRmax: () => number;
+
   // Helpers
   canAfford: (cost: ResourceCost) => boolean;
   hourlyProductionRate: (building: Building) => number;
@@ -273,6 +284,8 @@ const CURRENT_SEASONAL_GOAL: SeasonalGoal = {
 
 export const useGameStore = create<GameStore>((set, get) => ({
   // Initial state
+  userProfile: null,
+  hasCompletedOnboarding: false,
   gameState: createDefaultGameState(),
   isProcessing: false,
   totalVitacoins: 0,
@@ -318,6 +331,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Load obstacles
     const obstacles = await OM.loadObstacles();
 
+    // Load user profile from AsyncStorage
+    let userProfile: UserProfile | null = null;
+    let hasCompletedOnboarding = false;
+    try {
+      const profileJson = await AsyncStorage.getItem('fitrealm_user_profile');
+      if (profileJson) {
+        userProfile = JSON.parse(profileJson) as UserProfile;
+        hasCompletedOnboarding = userProfile.onboardingCompleted;
+      }
+    } catch { /* ignore parse errors */ }
+
+    // Existing users who already have buildings but no profile → treat as onboarded
+    if (!hasCompletedOnboarding && gs.buildings.length > 0) {
+      hasCompletedOnboarding = true;
+    }
+
     set({
       gameState: gs,
       totalVitacoins: vs.totalVitacoins ?? 0,
@@ -326,6 +355,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       useMockData: mockData,
       obstacles,
       storageCap: getTotalStorageCap(gs.buildings),
+      userProfile,
+      hasCompletedOnboarding,
     });
 
     // If mock mode, load the mock game state with pre-built buildings
@@ -537,7 +568,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({ ...mockState });
 
         // Forward workouts to game engine
-        const gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot);
+        const gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX);
         set({ gameState: gs, storageCap: getTotalStorageCap(gs.buildings) });
         GE.saveGameState(gs);
       } else {
@@ -626,7 +657,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Process through game engine (calculates muskelmasse, protein, streak, etc.)
     const prevGs = get().gameState;
-    const newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot);
+    const newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX);
     set({ gameState: newGs, storageCap: getTotalStorageCap(newGs.buildings) });
     GE.saveGameState(newGs);
 
@@ -641,8 +672,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const eggs = gs.eggs;
     if (eggs.length > 0) {
       const workoutDate = new Date(workout.date);
-      // Annäherung: averageHeartRate / 200 * 100 als % HRmax
-      const workoutHRmax = workout.averageHeartRate ? (workout.averageHeartRate / 200) * 100 : 0;
+      // averageHeartRate / userHRmax * 100 als % HRmax
+      const userHRmax = get().userProfile?.hrMax ?? DEFAULT_HRMAX;
+      const workoutHRmax = workout.averageHeartRate ? (workout.averageHeartRate / userHRmax) * 100 : 0;
 
       for (const egg of eggs) {
         if (egg.workoutsCompleted >= egg.workoutsRequired) continue;
@@ -1236,8 +1268,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let workoutVP = 0;
     for (const w of workouts) {
       if (new Date(w.date).getTime() < cutoff24h) continue;
-      // ~70% HRmax → ≥140bpm gilt als "intensiv"
-      const intense = (w.averageHeartRate ?? 0) >= 140;
+      // ~70% HRmax gilt als "intensiv"
+      const hrMaxThreshold = Math.round((get().userProfile?.hrMax ?? DEFAULT_HRMAX) * 0.7);
+      const intense = (w.averageHeartRate ?? 0) >= hrMaxThreshold;
       const rate = intense ? DEFENSE_CONFIG.vpPerIntenseMinute : DEFENSE_CONFIG.vpPerWorkoutMinute;
       workoutVP += w.durationMinutes * rate;
     }
@@ -1259,6 +1292,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const totalVP = Math.round((basisVP + workoutVP + workerVP + animalVP) * (1 + streakBonus));
 
     return { basisVP, workoutVP, workerVP, animalVP, streakBonus, totalVP };
+  },
+
+  // MARK: - User Profile
+
+  setUserProfile(profile) {
+    const hrMax = calculateHRmax(profile.age);
+    const userProfile: UserProfile = {
+      ...profile,
+      hrMax,
+      onboardingCompleted: true,
+    };
+    set({ userProfile, hasCompletedOnboarding: true });
+    AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(userProfile));
+  },
+
+  updateUserProfile(partial) {
+    const current = get().userProfile;
+    if (!current) return;
+    const updated: UserProfile = { ...current, ...partial };
+    if (partial.age !== undefined) {
+      updated.hrMax = calculateHRmax(updated.age);
+    }
+    set({ userProfile: updated });
+    AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(updated));
+  },
+
+  getUserHRmax() {
+    return get().userProfile?.hrMax ?? DEFAULT_HRMAX;
   },
 
   // MARK: - Helpers
