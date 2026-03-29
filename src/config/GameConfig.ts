@@ -504,3 +504,371 @@ export const WorldConstants = {
   waterPadding: 160,
   get totalSize() { return this.gridSize * this.cellSize + 2 * this.waterPadding; },
 };
+
+// ════════════════════════════════════════════════════════════════════════════
+// GAME CONFIG v2 — Table-driven building and game data
+// ────────────────────────────────────────────────────────────────────────────
+// All user-facing strings are i18n keys — never hardcoded text.
+// Uses 'buildingConfig.*' namespace so existing flat 'buildings.*' keys keep working.
+// Stufe 2 (vor Release): Diese Werte aus Supabase laden.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Resource cost using German-named optional fields (distinct from ResourceCost) */
+export interface BuildingCost {
+  muskelmasse?: number;
+  holz?: number;
+  nahrung?: number;
+  stein?: number;
+  protein?: number;
+  streakTokens?: number;
+}
+
+export interface BuildingLevelConfig {
+  level: number;
+  /** null = starter building (rathaus L1, costs nothing) */
+  upgradeCost: BuildingCost | null;
+  buildTimeMinutes: number;
+  /** buildings first unlocked when rathaus reaches this level (rathaus only) */
+  unlocks?: BuildingType[];
+  /** rounded hourly output for production buildings */
+  productionPerHour?: number;
+  /** building-internal storage cap (production bldgs) or storage bonus added to inventory (lager bldgs) */
+  maxStorage?: number;
+  /** max workers allowed at this kaserne level */
+  maxWorkers?: number;
+  /** i18n key for the level-specific effect description */
+  effectKey?: string;
+}
+
+export interface BuildingConfig {
+  maxInstances: number;
+  nameKey: string;        // e.g. 'buildingConfig.rathaus.name'
+  descriptionKey: string; // e.g. 'buildingConfig.rathaus.description'
+  levels: BuildingLevelConfig[];
+}
+
+// ─── BUILDINGS ───────────────────────────────────────────────────────────────
+// upgradeCost at level 1 = initial build cost; level N = upgrade from N-1→N.
+// All numeric values taken from existing GameConfig functions (code is authoritative).
+export const BUILDINGS: Record<BuildingType, BuildingConfig> = {
+  rathaus: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.rathaus.name',
+    descriptionKey: 'buildingConfig.rathaus.description',
+    levels: [
+      { level: 1, upgradeCost: null, buildTimeMinutes: 2,
+        unlocks: [BuildingType.holzfaeller, BuildingType.feld, BuildingType.kornkammer,
+                  BuildingType.holzlager, BuildingType.nahrungslager, BuildingType.stall] },
+      { level: 2, upgradeCost: { muskelmasse: 500, protein: 5 }, buildTimeMinutes: 5,
+        unlocks: [BuildingType.kaserne, BuildingType.steinbruch, BuildingType.steinlager, BuildingType.wachturm],
+        effectKey: 'buildingConfig.rathaus.levels.2.effect' },
+      { level: 3, upgradeCost: { muskelmasse: 1000, protein: 10 }, buildTimeMinutes: 10,
+        unlocks: [BuildingType.tempel, BuildingType.bibliothek, BuildingType.marktplatz, BuildingType.mauer],
+        effectKey: 'buildingConfig.rathaus.levels.3.effect' },
+      { level: 4, upgradeCost: { muskelmasse: 2000, protein: 20 }, buildTimeMinutes: 20,
+        unlocks: [BuildingType.proteinfarm],
+        effectKey: 'buildingConfig.rathaus.levels.4.effect' },
+      { level: 5, upgradeCost: { muskelmasse: 4000, protein: 40 }, buildTimeMinutes: 40,
+        unlocks: [BuildingType.stammeshaus],
+        effectKey: 'buildingConfig.rathaus.levels.5.effect' },
+    ],
+  },
+
+  holzfaeller: {
+    maxInstances: 2,
+    nameKey: 'buildingConfig.holzfaeller.name',
+    descriptionKey: 'buildingConfig.holzfaeller.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 40 },         buildTimeMinutes: 1,  productionPerHour: 20,    maxStorage: 1000 },
+      { level: 2, upgradeCost: { muskelmasse: 80 },         buildTimeMinutes: 2,  productionPerHour: 30,    maxStorage: 2000 },
+      { level: 3, upgradeCost: { muskelmasse: 160 },        buildTimeMinutes: 4,  productionPerHour: 45,    maxStorage: 4000 },
+      { level: 4, upgradeCost: { muskelmasse: 240 },        buildTimeMinutes: 8,  productionPerHour: 67.5,  maxStorage: 8000 },
+      { level: 5, upgradeCost: { muskelmasse: 320 },        buildTimeMinutes: 16, productionPerHour: 101.3, maxStorage: 16000 },
+    ],
+  },
+
+  kornkammer: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.kornkammer.name',
+    descriptionKey: 'buildingConfig.kornkammer.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 50, holz: 30 },  buildTimeMinutes: 1,  productionPerHour: 10,   maxStorage: 500 },
+      { level: 2, upgradeCost: { muskelmasse: 100, holz: 10 }, buildTimeMinutes: 2,  productionPerHour: 15,   maxStorage: 1000 },
+      { level: 3, upgradeCost: { muskelmasse: 200, holz: 20 }, buildTimeMinutes: 4,  productionPerHour: 22.5, maxStorage: 2000 },
+      { level: 4, upgradeCost: { muskelmasse: 300, holz: 30 }, buildTimeMinutes: 8,  productionPerHour: 33.8, maxStorage: 4000 },
+      { level: 5, upgradeCost: { muskelmasse: 400, holz: 40 }, buildTimeMinutes: 16, productionPerHour: 50.6, maxStorage: 8000 },
+    ],
+  },
+
+  steinbruch: {
+    maxInstances: 2,
+    nameKey: 'buildingConfig.steinbruch.name',
+    descriptionKey: 'buildingConfig.steinbruch.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 80, holz: 20 },  buildTimeMinutes: 1.5, productionPerHour: 10,   maxStorage: 500 },
+      { level: 2, upgradeCost: { muskelmasse: 150, holz: 10 }, buildTimeMinutes: 3,   productionPerHour: 15,   maxStorage: 1000 },
+      { level: 3, upgradeCost: { muskelmasse: 300, holz: 20 }, buildTimeMinutes: 6,   productionPerHour: 22.5, maxStorage: 2000 },
+      { level: 4, upgradeCost: { muskelmasse: 450, holz: 30 }, buildTimeMinutes: 12,  productionPerHour: 33.8, maxStorage: 4000 },
+      { level: 5, upgradeCost: { muskelmasse: 600, holz: 40 }, buildTimeMinutes: 24,  productionPerHour: 50.6, maxStorage: 8000 },
+    ],
+  },
+
+  proteinfarm: {
+    maxInstances: 2,
+    nameKey: 'buildingConfig.proteinfarm.name',
+    descriptionKey: 'buildingConfig.proteinfarm.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 100, protein: 1 }, buildTimeMinutes: 2,  productionPerHour: 0.042, maxStorage: 10 },
+      { level: 2, upgradeCost: { muskelmasse: 50, protein: 2 },  buildTimeMinutes: 4,  productionPerHour: 0.063, maxStorage: 20 },
+      { level: 3, upgradeCost: { muskelmasse: 100, protein: 4 }, buildTimeMinutes: 8,  productionPerHour: 0.094, maxStorage: 40 },
+      { level: 4, upgradeCost: { muskelmasse: 150, protein: 6 }, buildTimeMinutes: 16, productionPerHour: 0.141, maxStorage: 80 },
+      { level: 5, upgradeCost: { muskelmasse: 200, protein: 8 }, buildTimeMinutes: 32, productionPerHour: 0.211, maxStorage: 160 },
+    ],
+  },
+
+  feld: {
+    maxInstances: 3,
+    nameKey: 'buildingConfig.feld.name',
+    descriptionKey: 'buildingConfig.feld.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 30 },               buildTimeMinutes: 1,  productionPerHour: 15,   maxStorage: 300 },
+      { level: 2, upgradeCost: { muskelmasse: 60, holz: 5 },      buildTimeMinutes: 2,  productionPerHour: 22.5, maxStorage: 600 },
+      { level: 3, upgradeCost: { muskelmasse: 120, holz: 10 },    buildTimeMinutes: 4,  productionPerHour: 33.8, maxStorage: 1200 },
+      { level: 4, upgradeCost: { muskelmasse: 180, holz: 15 },    buildTimeMinutes: 8,  productionPerHour: 50.6, maxStorage: 2400 },
+      { level: 5, upgradeCost: { muskelmasse: 240, holz: 20 },    buildTimeMinutes: 16, productionPerHour: 75.9, maxStorage: 4800 },
+    ],
+  },
+
+  holzlager: {
+    maxInstances: 2,
+    nameKey: 'buildingConfig.holzlager.name',
+    descriptionKey: 'buildingConfig.holzlager.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 40, holz: 20 },    buildTimeMinutes: 1,  maxStorage: 500 },
+      { level: 2, upgradeCost: { muskelmasse: 120, holz: 60 },   buildTimeMinutes: 2,  maxStorage: 1000 },
+      { level: 3, upgradeCost: { muskelmasse: 350, holz: 150 },  buildTimeMinutes: 4,  maxStorage: 2000 },
+      { level: 4, upgradeCost: { muskelmasse: 900, holz: 350 },  buildTimeMinutes: 8,  maxStorage: 4000 },
+      { level: 5, upgradeCost: { muskelmasse: 2200, holz: 800 }, buildTimeMinutes: 16, maxStorage: 8000 },
+    ],
+  },
+
+  steinlager: {
+    maxInstances: 2,
+    nameKey: 'buildingConfig.steinlager.name',
+    descriptionKey: 'buildingConfig.steinlager.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 60, holz: 30 },     buildTimeMinutes: 1.5, maxStorage: 400 },
+      { level: 2, upgradeCost: { muskelmasse: 180, holz: 80 },    buildTimeMinutes: 3,   maxStorage: 800 },
+      { level: 3, upgradeCost: { muskelmasse: 500, holz: 200 },   buildTimeMinutes: 6,   maxStorage: 1600 },
+      { level: 4, upgradeCost: { muskelmasse: 1200, holz: 450 },  buildTimeMinutes: 12,  maxStorage: 3200 },
+      { level: 5, upgradeCost: { muskelmasse: 3000, holz: 1000 }, buildTimeMinutes: 24,  maxStorage: 6400 },
+    ],
+  },
+
+  nahrungslager: {
+    maxInstances: 2,
+    nameKey: 'buildingConfig.nahrungslager.name',
+    descriptionKey: 'buildingConfig.nahrungslager.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 30, holz: 15 },    buildTimeMinutes: 1,  maxStorage: 450 },
+      { level: 2, upgradeCost: { muskelmasse: 100, holz: 50 },   buildTimeMinutes: 2,  maxStorage: 900 },
+      { level: 3, upgradeCost: { muskelmasse: 300, holz: 120 },  buildTimeMinutes: 4,  maxStorage: 1800 },
+      { level: 4, upgradeCost: { muskelmasse: 750, holz: 300 },  buildTimeMinutes: 8,  maxStorage: 3600 },
+      { level: 5, upgradeCost: { muskelmasse: 1800, holz: 700 }, buildTimeMinutes: 16, maxStorage: 7200 },
+    ],
+  },
+
+  kaserne: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.kaserne.name',
+    descriptionKey: 'buildingConfig.kaserne.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 120, holz: 40, stein: 10 },  buildTimeMinutes: 2,  maxWorkers: 1, effectKey: 'buildingConfig.kaserne.levels.1.effect' },
+      { level: 2, upgradeCost: { muskelmasse: 200, holz: 30, stein: 10 },  buildTimeMinutes: 4,  maxWorkers: 2, effectKey: 'buildingConfig.kaserne.levels.2.effect' },
+      { level: 3, upgradeCost: { muskelmasse: 400, holz: 60, stein: 20 },  buildTimeMinutes: 8,  maxWorkers: 3, effectKey: 'buildingConfig.kaserne.levels.3.effect' },
+      { level: 4, upgradeCost: { muskelmasse: 600, holz: 90, stein: 30 },  buildTimeMinutes: 16, maxWorkers: 4, effectKey: 'buildingConfig.kaserne.levels.4.effect' },
+      { level: 5, upgradeCost: { muskelmasse: 800, holz: 120, stein: 40 }, buildTimeMinutes: 32, maxWorkers: 5, effectKey: 'buildingConfig.kaserne.levels.5.effect' },
+    ],
+  },
+
+  tempel: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.tempel.name',
+    descriptionKey: 'buildingConfig.tempel.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 200, protein: 2, stein: 20 }, buildTimeMinutes: 5,  effectKey: 'buildingConfig.tempel.levels.1.effect' },
+      { level: 2, upgradeCost: { muskelmasse: 200, protein: 3 },            buildTimeMinutes: 10, effectKey: 'buildingConfig.tempel.levels.2.effect' },
+      { level: 3, upgradeCost: { muskelmasse: 400, protein: 6 },            buildTimeMinutes: 20, effectKey: 'buildingConfig.tempel.levels.3.effect' },
+      { level: 4, upgradeCost: { muskelmasse: 600, protein: 9 },            buildTimeMinutes: 40, effectKey: 'buildingConfig.tempel.levels.4.effect' },
+      { level: 5, upgradeCost: { muskelmasse: 800, protein: 12 },           buildTimeMinutes: 80, effectKey: 'buildingConfig.tempel.levels.5.effect' },
+    ],
+  },
+
+  bibliothek: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.bibliothek.name',
+    descriptionKey: 'buildingConfig.bibliothek.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 300, holz: 30, stein: 15 },  buildTimeMinutes: 5 },
+      { level: 2, upgradeCost: { muskelmasse: 300, holz: 20, stein: 10 },  buildTimeMinutes: 10 },
+      { level: 3, upgradeCost: { muskelmasse: 600, holz: 40, stein: 20 },  buildTimeMinutes: 20 },
+      { level: 4, upgradeCost: { muskelmasse: 900, holz: 60, stein: 30 },  buildTimeMinutes: 40 },
+      { level: 5, upgradeCost: { muskelmasse: 1200, holz: 80, stein: 40 }, buildTimeMinutes: 80 },
+    ],
+  },
+
+  marktplatz: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.marktplatz.name',
+    descriptionKey: 'buildingConfig.marktplatz.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 150, holz: 25, stein: 10 }, buildTimeMinutes: 4 },
+      { level: 2, upgradeCost: { muskelmasse: 200, holz: 15, stein: 10 }, buildTimeMinutes: 8 },
+      { level: 3, upgradeCost: { muskelmasse: 400, holz: 30, stein: 20 }, buildTimeMinutes: 16 },
+      { level: 4, upgradeCost: { muskelmasse: 600, holz: 45, stein: 30 }, buildTimeMinutes: 32 },
+      { level: 5, upgradeCost: { muskelmasse: 800, holz: 60, stein: 40 }, buildTimeMinutes: 64 },
+    ],
+  },
+
+  stammeshaus: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.stammeshaus.name',
+    descriptionKey: 'buildingConfig.stammeshaus.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 500, protein: 5, streakTokens: 10 },  buildTimeMinutes: 10 },
+      { level: 2, upgradeCost: { muskelmasse: 400, protein: 5, streakTokens: 10 },  buildTimeMinutes: 20 },
+      { level: 3, upgradeCost: { muskelmasse: 800, protein: 10, streakTokens: 20 }, buildTimeMinutes: 40 },
+      { level: 4, upgradeCost: { muskelmasse: 1200, protein: 15, streakTokens: 30 }, buildTimeMinutes: 80 },
+      { level: 5, upgradeCost: { muskelmasse: 1600, protein: 20, streakTokens: 40 }, buildTimeMinutes: 160 },
+    ],
+  },
+
+  stall: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.stall.name',
+    descriptionKey: 'buildingConfig.stall.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 30, holz: 15 },   buildTimeMinutes: 10 },
+      { level: 2, upgradeCost: { muskelmasse: 60, holz: 30 },   buildTimeMinutes: 30 },
+      { level: 3, upgradeCost: { muskelmasse: 120, holz: 60 },  buildTimeMinutes: 60 },
+      { level: 4, upgradeCost: { muskelmasse: 200, holz: 100 }, buildTimeMinutes: 90 },
+      { level: 5, upgradeCost: { muskelmasse: 350, holz: 175 }, buildTimeMinutes: 120 },
+    ],
+  },
+
+  wachturm: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.wachturm.name',
+    descriptionKey: 'buildingConfig.wachturm.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 150, stein: 30 },  buildTimeMinutes: 20 },
+      { level: 2, upgradeCost: { muskelmasse: 150, holz: 75 },   buildTimeMinutes: 45 },
+      { level: 3, upgradeCost: { muskelmasse: 250, holz: 125 },  buildTimeMinutes: 90 },
+      { level: 4, upgradeCost: { muskelmasse: 400, holz: 200 },  buildTimeMinutes: 180 },
+      { level: 5, upgradeCost: { muskelmasse: 600, holz: 300 },  buildTimeMinutes: 240 },
+    ],
+  },
+
+  mauer: {
+    maxInstances: 1,
+    nameKey: 'buildingConfig.mauer.name',
+    descriptionKey: 'buildingConfig.mauer.description',
+    levels: [
+      { level: 1, upgradeCost: { muskelmasse: 100, stein: 50 },  buildTimeMinutes: 30 },
+      { level: 2, upgradeCost: { muskelmasse: 200, holz: 120 },  buildTimeMinutes: 60 },
+      { level: 3, upgradeCost: { muskelmasse: 350, holz: 200 },  buildTimeMinutes: 120 },
+      { level: 4, upgradeCost: { muskelmasse: 550, holz: 300 },  buildTimeMinutes: 240 },
+      { level: 5, upgradeCost: { muskelmasse: 800, holz: 450 },  buildTimeMinutes: 360 },
+    ],
+  },
+};
+
+// ─── WORKER CONFIG ────────────────────────────────────────────────────────────
+// Source of truth: Workers object above + GameEngine worker capacity check.
+export const WORKER_CONFIG = {
+  trainingCost: { muskelmasse: 50, nahrung: 5, streakTokens: 1 },
+  upgradeCost: { muskelmasse: 100, nahrung: 10 },
+  trainingTimeMinutes: 30,
+  /** Passive food drain per worker per hour */
+  nahrungVerbrauchProStundeProWorker: 1,
+  collectionIntervals: [
+    { level: 1, intervalMinutes: 240 },
+    { level: 2, intervalMinutes: 120 },
+    { level: 3, intervalMinutes: 60 },
+  ],
+} as const;
+
+// ─── DECAY CONFIG ─────────────────────────────────────────────────────────────
+// Must match gameStateDecayMultiplier() in types.ts and Decay.productionMultiplier() above.
+export const DECAY_CONFIG = {
+  resetAfterHours: 48,
+  thresholds: [
+    { hoursWithoutWorkout: 48, productionMultiplier: 0.50 },
+    { hoursWithoutWorkout: 72, productionMultiplier: 0.25 },
+    { hoursWithoutWorkout: 96, productionMultiplier: 0.00 },
+  ],
+} as const;
+
+// ─── STREAK CONFIG ────────────────────────────────────────────────────────────
+// Reward numeric values must match STREAK_MILESTONES in streakUtils.ts.
+export const STREAK_CONFIG = {
+  resetAfterHours: 48,
+  milestones: [
+    { days: 3,   emoji: '🌱', nameKey: 'streak.milestones.3.name',   rewardDescKey: 'streak.milestones.3.reward',   reward: { muskelmasse: 50,  holz: 100 } },
+    { days: 7,   emoji: '🔥', nameKey: 'streak.milestones.7.name',   rewardDescKey: 'streak.milestones.7.reward',   reward: { protein: 3, streakShield: true } },
+    { days: 14,  emoji: '💪', nameKey: 'streak.milestones.14.name',  rewardDescKey: 'streak.milestones.14.reward',  reward: { muskelmasse: 100, holz: 200, kalorienBoost7d: true } },
+    { days: 21,  emoji: '⚡', nameKey: 'streak.milestones.21.name',  rewardDescKey: 'streak.milestones.21.reward',  reward: { protein: 5, holz: 300, profileFrame: 'Eisenkrieger' } },
+    { days: 30,  emoji: '🏅', nameKey: 'streak.milestones.30.name',  rewardDescKey: 'streak.milestones.30.reward',  reward: { muskelmasse: 200, protein: 5, holz: 500, productionBoost7d: true } },
+    { days: 50,  emoji: '💎', nameKey: 'streak.milestones.50.name',  rewardDescKey: 'streak.milestones.50.reward',  reward: { protein: 10, holz: 1000, permanentKalorienBonus: true } },
+    { days: 100, emoji: '🏆', nameKey: 'streak.milestones.100.name', rewardDescKey: 'streak.milestones.100.reward', reward: { protein: 20, holz: 2000, skin: 'Titan', permanentMuskelmasse: true } },
+    { days: 365, emoji: '👑', nameKey: 'streak.milestones.365.name', rewardDescKey: 'streak.milestones.365.reward', reward: { protein: 50, allSkins: true, permanentProduction: true } },
+  ],
+} as const;
+
+// ─── EXPLORATION ZONES ───────────────────────────────────────────────────────
+// timerHours and reward are fixed constants from explorationDuration / explorationProteinReward.
+export const EXPLORATION_ZONES = [
+  { id: 1, nameKey: 'zones.1.name', requiredRathausLevel: 1, cost: { muskelmasse: 50, holz: 5 },         timerHours: 4, reward: { protein: explorationProteinReward } },
+  { id: 2, nameKey: 'zones.2.name', requiredRathausLevel: 2, cost: { muskelmasse: 200, protein: 2 },      timerHours: 4, reward: { protein: explorationProteinReward } },
+  { id: 3, nameKey: 'zones.3.name', requiredRathausLevel: 3, cost: { protein: 5, streakTokens: 10 },      timerHours: 4, reward: { protein: explorationProteinReward } },
+  { id: 4, nameKey: 'zones.4.name', requiredRathausLevel: 3, cost: { protein: 10 },                       timerHours: 4, reward: { protein: explorationProteinReward } },
+  { id: 5, nameKey: 'zones.5.name', requiredRathausLevel: 4, cost: { protein: 20, streakTokens: 20 },     timerHours: 4, reward: { protein: explorationProteinReward } },
+  { id: 6, nameKey: 'zones.6.name', requiredRathausLevel: 5, cost: { protein: 30 },                       timerHours: 4, reward: { protein: explorationProteinReward } },
+] as const;
+
+// ─── MARKTPLATZ CONFIG ────────────────────────────────────────────────────────
+// Exchange rates: 1 Muskelmasse = base unit; others priced relative to it.
+export const MARKTPLATZ_CONFIG = {
+  rates: { muskelmasse: 1, holz: 0.5, nahrung: 0.625, stein: 0.5 },
+  dailyLimitByLevel: [0, 200, 350, 500, 1000, 1500],
+} as const;
+
+// ─── ADJACENCY BONUSES ────────────────────────────────────────────────────────
+export const ADJACENCY_BONUSES = [
+  { buildings: ['holzfaeller', 'holzlager'],  bonusKey: 'adjacency.holzfaeller_holzlager',  bonusPercent: 15 },
+  { buildings: ['kaserne', 'tempel'],         bonusKey: 'adjacency.kaserne_tempel',          bonusPercent: 10 },
+  { buildings: ['bibliothek'],                bonusKey: 'adjacency.bibliothek_any',           bonusPercent: 5  },
+  { buildings: ['feld', 'kornkammer'],        bonusKey: 'adjacency.feld_kornkammer',          bonusPercent: 10 },
+  { buildings: ['steinbruch', 'steinlager'],  bonusKey: 'adjacency.steinbruch_steinlager',    bonusPercent: 10 },
+] as const;
+
+// ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────────
+
+export function getBuildingLevelConfig(type: BuildingType, level: number): BuildingLevelConfig | undefined {
+  return BUILDINGS[type]?.levels.find(l => l.level === level);
+}
+
+export function getBuildingUpgradeCost(type: BuildingType, targetLevel: number): BuildingCost | null {
+  return getBuildingLevelConfig(type, targetLevel)?.upgradeCost ?? null;
+}
+
+export function getBuildingMaxInstances(type: BuildingType): number {
+  return BUILDINGS[type]?.maxInstances ?? 1;
+}
+
+export function getDecayMultiplier(hoursSinceLastWorkout: number): number {
+  const threshold = [...DECAY_CONFIG.thresholds]
+    .reverse()
+    .find(t => hoursSinceLastWorkout >= t.hoursWithoutWorkout);
+  return threshold?.productionMultiplier ?? 1.0;
+}
