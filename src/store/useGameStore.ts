@@ -410,7 +410,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const erntehuhn: Animal = {
         id: `animal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
         type: 'erntehuhn',
-        name: ANIMAL_CONFIGS['erntehuhn'].name,
+        name: ANIMAL_CONFIGS['erntehuhn'].nameKey,
         rarity: 'common',
         assignment: { type: 'idle' },
         obtainedAt: Date.now(),
@@ -882,7 +882,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const animal: Animal = {
       id: `animal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
       type: egg.hatchesInto,
-      name: config.name,
+      name: config.nameKey,
       rarity: egg.rarity,
       assignment: { type: 'idle' },
       obtainedAt: Date.now(),

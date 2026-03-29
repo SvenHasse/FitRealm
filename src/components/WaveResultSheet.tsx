@@ -110,7 +110,7 @@ export default function WaveResultSheet({
   const bossWon = isBoss && (outcome === 'perfect' || outcome === 'defended');
   const bossHeaderText = bossWon ? t('waves.bossDowned') : t('waves.bossDefeated');
   const bossHeaderColor = bossWon ? '#FFD700' : '#EF5350';
-  const bossName = isBoss && wave.monsters.length > 0 ? MONSTER_CONFIGS[wave.monsters[0].type].name : '';
+  const bossName = isBoss && wave.monsters.length > 0 ? t(MONSTER_CONFIGS[wave.monsters[0].type].nameKey) : '';
 
   const outcomeLabel =
     outcome === 'perfect' ? t('waves.resultPerfect') :
@@ -234,7 +234,7 @@ export default function WaveResultSheet({
                 return (
                   <View key={i} style={styles.monsterRow}>
                     <Text style={styles.monsterEmoji}>{mcfg.emoji}</Text>
-                    <Text style={styles.monsterName}>{mcfg.name}</Text>
+                    <Text style={styles.monsterName}>{t(mcfg.nameKey)}</Text>
                     <Text style={styles.monsterCount}>{m.count}×</Text>
                     <Text style={styles.monsterAK}>AK: {m.attackPower}</Text>
                   </View>

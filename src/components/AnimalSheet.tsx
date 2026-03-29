@@ -6,6 +6,7 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import {
   AppColors, Building, Animal, BuildingType, AnimalEgg,
@@ -29,15 +30,10 @@ const RARITY_COLORS: Record<string, string> = {
   legendary: '#FFD700',
 };
 
-const RARITY_LABELS: Record<string, string> = {
-  common: 'Gewöhnlich',
-  uncommon: 'Ungewöhnlich',
-  rare: 'Selten',
-  epic: 'Episch',
-  legendary: 'Legendär',
-};
+// Rarity labels now use i18n keys from animals section
 
 export default function AnimalSheet({ stall, onClose }: Props) {
+  const { t } = useTranslation();
   const store = useGameStore();
   const { gameState } = store;
   const [collectionVisible, setCollectionVisible] = useState(false);
@@ -169,6 +165,7 @@ function AnimalCard({ animal, stall, stallLevel, gameState }: {
   gameState: any;
 }) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const { t } = useTranslation();
   const store = useGameStore();
   const cfg = ANIMAL_CONFIGS[animal.type];
   const rarityColor = RARITY_COLORS[animal.rarity] ?? '#9E9E9E';
@@ -179,19 +176,19 @@ function AnimalCard({ animal, stall, stallLevel, gameState }: {
     if (animal.assignment.type === 'building') {
       const bid = (animal.assignment as any).buildingId;
       const b = gameState.buildings.find((b: any) => b.id === bid);
-      return b ? buildingDisplayName(b.type) : 'Gebäude (nicht gefunden)';
+      return b ? buildingDisplayName(b.type) : t('animalSheet.assignmentBuilding');
     }
-    return 'Unbekannt';
+    return t('animalSheet.assignmentUnknown');
   };
 
   const handleRelease = () => {
     Alert.alert(
-      `${cfg.name} freilassen`,
-      `Möchtest du ${cfg.name} wirklich freilassen? Diese Aktion ist nicht rückgängig zu machen.`,
+      t('animalSheet.releaseTitle', { name: t(cfg.nameKey) }),
+      t('animalSheet.releaseMessage', { name: t(cfg.nameKey) }),
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: t('animalSheet.releaseCancel'), style: 'cancel' },
         {
-          text: 'Freilassen',
+          text: t('animalSheet.releaseConfirm'),
           style: 'destructive',
           onPress: () => store.removeAnimal(animal.id),
         },
@@ -213,10 +210,10 @@ function AnimalCard({ animal, stall, stallLevel, gameState }: {
   };
 
   const bonusText = () => {
-    if (cfg.buildingBonus.bonusType === 'production') return `+${cfg.buildingBonus.bonusPercent}% Produktion`;
-    if (cfg.buildingBonus.bonusType === 'storage') return `+${cfg.buildingBonus.bonusPercent}% Lager`;
-    if (cfg.buildingBonus.bonusType === 'speed') return `+${cfg.buildingBonus.bonusPercent}% Geschw.`;
-    if (cfg.buildingBonus.bonusType === 'global') return `+${cfg.buildingBonus.bonusPercent}% Global`;
+    if (cfg.buildingBonus.bonusType === 'production') return t('animalSheet.bonusProduction', { pct: cfg.buildingBonus.bonusPercent });
+    if (cfg.buildingBonus.bonusType === 'storage') return t('animalSheet.bonusStorage', { pct: cfg.buildingBonus.bonusPercent });
+    if (cfg.buildingBonus.bonusType === 'speed') return t('animalSheet.bonusSpeed', { pct: cfg.buildingBonus.bonusPercent });
+    if (cfg.buildingBonus.bonusType === 'global') return t('animalSheet.bonusGlobal', { pct: cfg.buildingBonus.bonusPercent });
     return '';
   };
 
@@ -229,10 +226,10 @@ function AnimalCard({ animal, stall, stallLevel, gameState }: {
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.animalName}>{cfg.name}</Text>
+            <Text style={styles.animalName}>{t(cfg.nameKey)}</Text>
             <View style={[styles.rarityBadge, { backgroundColor: rarityColor + '30', borderColor: rarityColor }]}>
               <Text style={[styles.rarityText, { color: rarityColor }]}>
-                {RARITY_LABELS[animal.rarity]}
+                {t(`animals.rarity${animal.rarity.charAt(0).toUpperCase()}${animal.rarity.slice(1)}`)}
               </Text>
             </View>
           </View>
@@ -251,8 +248,8 @@ function AnimalCard({ animal, stall, stallLevel, gameState }: {
         <View style={styles.bonusRow}>
           <MaterialCommunityIcons name="lightning-bolt" size={13} color="#F5A623" />
           <Text style={styles.bonusText}>{bonusText()}</Text>
-          {cfg.specialAbility && (
-            <Text style={styles.abilityText}> · {cfg.specialAbility}</Text>
+          {cfg.specialAbilityKey && (
+            <Text style={styles.abilityText}> · {t(cfg.specialAbilityKey!)}</Text>
           )}
         </View>
       )}
@@ -274,7 +271,7 @@ function AnimalCard({ animal, stall, stallLevel, gameState }: {
         </TouchableOpacity>
         <TouchableOpacity style={styles.releaseBtn} onPress={handleRelease}>
           <MaterialCommunityIcons name="heart-broken" size={14} color="#ef5350" />
-          <Text style={styles.releaseBtnText}>Freilassen</Text>
+          <Text style={styles.releaseBtnText}>{t('animalSheet.releaseButton')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -350,14 +347,15 @@ function EmptySlotCard() {
 }
 
 function EggCard({ egg }: { egg: AnimalEgg }) {
+  const { t } = useTranslation();
   const rarityColor = RARITY_COLORS[egg.rarity] ?? '#9E9E9E';
   const progress = egg.workoutsRequired > 0 ? egg.workoutsCompleted / egg.workoutsRequired : 0;
   const isEpicOrLegendary = egg.rarity === 'epic' || egg.rarity === 'legendary';
   const animalName = isEpicOrLegendary
     ? '???'
-    : (ANIMAL_CONFIGS[egg.hatchesInto]?.name ?? egg.hatchesInto);
+    : (ANIMAL_CONFIGS[egg.hatchesInto]?.nameKey ? t(ANIMAL_CONFIGS[egg.hatchesInto].nameKey) : egg.hatchesInto);
 
-  const rarityLabel = RARITY_LABELS[egg.rarity] ?? egg.rarity;
+  const rarityLabel = t(`animals.rarity${egg.rarity.charAt(0).toUpperCase()}${egg.rarity.slice(1)}`);
 
   return (
     <View style={[styles.eggCard, { borderColor: rarityColor }]}>

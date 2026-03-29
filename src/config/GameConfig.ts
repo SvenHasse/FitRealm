@@ -31,10 +31,10 @@ export interface StorageCapacity {
 }
 
 export interface ZoneConfig {
-  name: string;
+  nameKey: string;
   unlockCost: ResourceCost;
   rathausRequired: number;
-  description: string;
+  descriptionKey: string;
   iconName: string;
 }
 
@@ -67,7 +67,7 @@ export interface BuildingConfig {
 
 export interface AnimalConfig {
   type: AnimalType;
-  name: string;
+  nameKey: string;
   emoji: string;
   rarity: AnimalRarity;
   buildingBonus: {
@@ -76,8 +76,8 @@ export interface AnimalConfig {
     bonusPercent: number;
   };
   defenseVP: number;
-  specialAbility: string | null;
-  flavorText: string;
+  specialAbilityKey: string | null;
+  flavorTextKey: string;
 }
 
 export interface EggHatchConfig {
@@ -89,7 +89,7 @@ export interface EggHatchConfig {
 
 export interface MonsterConfig {
   type: MonsterType;
-  name: string;
+  nameKey: string;
   emoji: string;
   tier: MonsterTier;
   requiredRathausLevel: number;
@@ -100,7 +100,7 @@ export interface MonsterConfig {
   damageOnLoss: {
     effectType: 'productionStop' | 'resourceLoss' | 'disabled';
     durationHours: number;
-    details: string;
+    detailsKey: string;
   };
   lootTable: {
     resources: { min: number; max: number };
@@ -218,45 +218,45 @@ export const MULTI_BUILD_UNLOCK: Partial<Record<BuildingType, number[]>> = {
 
 export const zones: ZoneConfig[] = [
   {
-    name: 'Der Wald',
+    nameKey: 'zones.1.name',
     unlockCost: { muskelmasse: 50, protein: 0, streakTokens: 0, wood: 5, stone: 0, food: 0 },
     rathausRequired: 1,
-    description: 'A dense forest full of resources waiting to be gathered.',
+    descriptionKey: 'zones.1.description',
     iconName: 'leaf',
   },
   {
-    name: 'Die Berge',
+    nameKey: 'zones.2.name',
     unlockCost: { muskelmasse: 200, protein: 2, streakTokens: 0, wood: 0, stone: 0, food: 0 },
     rathausRequired: 2,
-    description: 'Rugged mountain terrain rich with stone and rare minerals.',
+    descriptionKey: 'zones.2.description',
     iconName: 'triangle',
   },
   {
-    name: 'Die Ruinen',
+    nameKey: 'zones.3.name',
     unlockCost: { muskelmasse: 0, protein: 5, streakTokens: 10, wood: 0, stone: 0, food: 0 },
     rathausRequired: 3,
-    description: 'Ancient ruins hiding forgotten treasures and artefacts.',
+    descriptionKey: 'zones.3.description',
     iconName: 'business',
   },
   {
-    name: 'Der Sumpf',
+    nameKey: 'zones.4.name',
     unlockCost: { muskelmasse: 0, protein: 10, streakTokens: 0, wood: 0, stone: 0, food: 0 },
     rathausRequired: 3,
-    description: 'A murky swamp teeming with hidden dangers and rare finds.',
+    descriptionKey: 'zones.4.description',
     iconName: 'water',
   },
   {
-    name: 'Die Eiswüste',
+    nameKey: 'zones.5.name',
     unlockCost: { muskelmasse: 0, protein: 20, streakTokens: 20, wood: 0, stone: 0, food: 0 },
     rathausRequired: 4,
-    description: 'A frozen wasteland that only the most dedicated athletes can endure.',
+    descriptionKey: 'zones.5.description',
     iconName: 'snow',
   },
   {
-    name: 'Der Gipfel',
+    nameKey: 'zones.6.name',
     unlockCost: { muskelmasse: 0, protein: 30, streakTokens: 0, wood: 0, stone: 0, food: 0 },
     rathausRequired: 5,
-    description: 'The ultimate summit — conquer it to prove your dominance.',
+    descriptionKey: 'zones.6.description',
     iconName: 'arrow-up-circle',
   },
 ];
@@ -671,93 +671,93 @@ export const OBSTACLE_CONFIG = {
 export const ANIMAL_CONFIGS: Record<AnimalType, AnimalConfig> = {
   erntehuhn: {
     type: 'erntehuhn',
-    name: 'Erntehuhn',
+    nameKey: 'animals.config.erntehuhn.name',
     emoji: '🐔',
     rarity: 'common',
     buildingBonus: { targetBuilding: 'feld', bonusType: 'production', bonusPercent: 8 },
     defenseVP: 0,
-    specialAbility: null,
-    flavorText: 'Pickt eifrig die Körner auf, die neben dem Feld liegen. Unermüdlich und ein bisschen dumm.',
+    specialAbilityKey: null,
+    flavorTextKey: 'animals.config.erntehuhn.flavor',
   },
   lastesel: {
     type: 'lastesel',
-    name: 'Lastesel',
+    nameKey: 'animals.config.lastesel.name',
     emoji: '🫏',
     rarity: 'common',
     buildingBonus: { targetBuilding: 'lager', bonusType: 'storage', bonusPercent: 12 },
     defenseVP: 0,
-    specialAbility: null,
-    flavorText: 'Trägt geduldig alles, was man ihm auflädt. Beschwert sich nie — zumindest nicht hörbar.',
+    specialAbilityKey: null,
+    flavorTextKey: 'animals.config.lastesel.flavor',
   },
   holzbaer: {
     type: 'holzbaer',
-    name: 'Holzbär',
+    nameKey: 'animals.config.holzbaer.name',
     emoji: '🐻',
     rarity: 'uncommon',
     buildingBonus: { targetBuilding: 'holzfaeller', bonusType: 'production', bonusPercent: 15 },
     defenseVP: 20,
-    specialAbility: null,
-    flavorText: 'Reißt mit seinen Pranken ganze Baumstämme aus der Erde. Erstaunlich sanftmütig — solange man ihn füttert.',
+    specialAbilityKey: null,
+    flavorTextKey: 'animals.config.holzbaer.flavor',
   },
   spaehfalke: {
     type: 'spaehfalke',
-    name: 'Spähfalke',
+    nameKey: 'animals.config.spaehfalke.name',
     emoji: '🦅',
     rarity: 'uncommon',
     buildingBonus: { targetBuilding: 'wachturm', bonusType: 'production', bonusPercent: 0 },
     defenseVP: 10,
-    specialAbility: 'Frühwarnung +6h, Angreifer -10% Angriffskraft',
-    flavorText: 'Kreist hoch über dem Dorf und sieht alles. Sein durchdringender Schrei warnt vor nahender Gefahr.',
+    specialAbilityKey: 'animals.config.spaehfalke.ability',
+    flavorTextKey: 'animals.config.spaehfalke.flavor',
   },
   steinbock: {
     type: 'steinbock',
-    name: 'Steinbock',
+    nameKey: 'animals.config.steinbock.name',
     emoji: '🐐',
     rarity: 'rare',
     buildingBonus: { targetBuilding: 'steinbruch', bonusType: 'production', bonusPercent: 15 },
     defenseVP: 15,
-    specialAbility: 'Mauer hält +20% mehr aus',
-    flavorText: 'Klettert auf Felsen, die kein Mensch besteigen könnte. Sein Fell ist so hart wie der Stein selbst.',
+    specialAbilityKey: 'animals.config.steinbock.ability',
+    flavorTextKey: 'animals.config.steinbock.flavor',
   },
   mystischerHirsch: {
     type: 'mystischerHirsch',
-    name: 'Mystischer Hirsch',
+    nameKey: 'animals.config.mystischerHirsch.name',
     emoji: '🦌',
     rarity: 'rare',
     buildingBonus: { targetBuilding: 'tempel', bonusType: 'production', bonusPercent: 10 },
     defenseVP: 25,
-    specialAbility: 'Heilaura: Repariert 5% Gebäudeschaden nach Angriff',
-    flavorText: 'Sein Geweih leuchtet in der Dämmerung silbern. Wo er steht, wächst das Gras schneller.',
+    specialAbilityKey: 'animals.config.mystischerHirsch.ability',
+    flavorTextKey: 'animals.config.mystischerHirsch.flavor',
   },
   kriegswolf: {
     type: 'kriegswolf',
-    name: 'Kriegswolf',
+    nameKey: 'animals.config.kriegswolf.name',
     emoji: '🐺',
     rarity: 'epic',
     buildingBonus: { targetBuilding: 'kaserne', bonusType: 'speed', bonusPercent: 20 },
     defenseVP: 40,
-    specialAbility: 'Rudel-Taktik: Alle Tiere in Verteidigung +10% VP',
-    flavorText: 'Seine gelben Augen mustern jeden Fremden. Er folgt nur dem Stärksten — und das bist du.',
+    specialAbilityKey: 'animals.config.kriegswolf.ability',
+    flavorTextKey: 'animals.config.kriegswolf.flavor',
   },
   gluecksphoenixt: {
     type: 'gluecksphoenixt',
-    name: 'Glücksphönix',
+    nameKey: 'animals.config.gluecksphoenixt.name',
     emoji: '🔥',
     rarity: 'epic',
     buildingBonus: { targetBuilding: 'bibliothek', bonusType: 'production', bonusPercent: 20 },
     defenseVP: 30,
-    specialAbility: 'Wiedergeburt: 1× pro Welle ein zerstörtes Gebäude sofort repariert',
-    flavorText: 'Aus der Asche geboren, in Flammen getaucht. Sein Feuer zerstört nicht — es erneuert.',
+    specialAbilityKey: 'animals.config.gluecksphoenixt.ability',
+    flavorTextKey: 'animals.config.gluecksphoenixt.flavor',
   },
   uralterDrache: {
     type: 'uralterDrache',
-    name: 'Uralter Drache',
+    nameKey: 'animals.config.uralterDrache.name',
     emoji: '🐲',
     rarity: 'legendary',
     buildingBonus: { targetBuilding: '*', bonusType: 'global', bonusPercent: 25 },
     defenseVP: 100,
-    specialAbility: 'Drachenatem: Vernichtet 30% der Monsterwelle sofort',
-    flavorText: 'Die Legenden sprachen von ihm. Jahrhunderte schlief er unter dem Berg. Dein Kampfgeist hat ihn geweckt.',
+    specialAbilityKey: 'animals.config.uralterDrache.ability',
+    flavorTextKey: 'animals.config.uralterDrache.flavor',
   },
 };
 
@@ -779,83 +779,83 @@ export const EGG_HATCH_CONFIGS: Record<AnimalRarity, EggHatchConfig> = {
 
 export const MONSTER_CONFIGS: Record<MonsterType, MonsterConfig> = {
   sumpfgoblin: {
-    type: 'sumpfgoblin', name: 'Sumpfgoblin', emoji: '👺', tier: 1,
+    type: 'sumpfgoblin', nameKey: 'monsters.config.sumpfgoblin.name', emoji: '👺', tier: 1,
     requiredRathausLevel: 1,
     baseAttackPower: [10, 20], baseHP: 30,
     target: 'fields', countRange: [3, 6],
-    damageOnLoss: { effectType: 'productionStop', durationHours: 4, details: '-15% Nahrungsproduktion' },
+    damageOnLoss: { effectType: 'productionStop', durationHours: 4, detailsKey: 'monsters.config.sumpfgoblin.damage' },
     lootTable: { resources: { min: 20, max: 50 }, eggChance: 0.05, eggRarity: 'common', proteinChance: 0, cosmeticChance: 0 },
   },
   schattenratte: {
-    type: 'schattenratte', name: 'Schattenratte', emoji: '🐀', tier: 1,
+    type: 'schattenratte', nameKey: 'monsters.config.schattenratte.name', emoji: '🐀', tier: 1,
     requiredRathausLevel: 1,
     baseAttackPower: [5, 10], baseHP: 15,
     target: 'storage', countRange: [1, 3],
-    damageOnLoss: { effectType: 'resourceLoss', durationHours: 0, details: '5-10% der gelagerten Ressourcen' },
+    damageOnLoss: { effectType: 'resourceLoss', durationHours: 0, detailsKey: 'monsters.config.schattenratte.damage' },
     lootTable: { resources: { min: 10, max: 30 }, eggChance: 0, eggRarity: null, proteinChance: 0, cosmeticChance: 0 },
   },
   skelettkrieger: {
-    type: 'skelettkrieger', name: 'Skelettkrieger', emoji: '💀', tier: 2,
+    type: 'skelettkrieger', nameKey: 'monsters.config.skelettkrieger.name', emoji: '💀', tier: 2,
     requiredRathausLevel: 2,
     baseAttackPower: [25, 40], baseHP: 60,
     target: 'production', countRange: [2, 4],
-    damageOnLoss: { effectType: 'productionStop', durationHours: 6, details: 'Gebäude stoppt Produktion' },
+    damageOnLoss: { effectType: 'productionStop', durationHours: 6, detailsKey: 'monsters.config.skelettkrieger.damage' },
     lootTable: { resources: { min: 40, max: 80 }, eggChance: 0.10, eggRarity: 'uncommon', proteinChance: 0, cosmeticChance: 0 },
   },
   giftwurm: {
-    type: 'giftwurm', name: 'Giftwurm', emoji: '🪱', tier: 2,
+    type: 'giftwurm', nameKey: 'monsters.config.giftwurm.name', emoji: '🪱', tier: 2,
     requiredRathausLevel: 2,
     baseAttackPower: [15, 25], baseHP: 40,
     target: 'fields', countRange: [2, 4],
-    damageOnLoss: { effectType: 'productionStop', durationHours: 8, details: 'Alle Felder -50% Produktion' },
+    damageOnLoss: { effectType: 'productionStop', durationHours: 8, detailsKey: 'monsters.config.giftwurm.damage' },
     lootTable: { resources: { min: 30, max: 60 }, eggChance: 0.05, eggRarity: 'uncommon', proteinChance: 0, cosmeticChance: 0 },
   },
   dunkelork: {
-    type: 'dunkelork', name: 'Dunkelork', emoji: '👹', tier: 3,
+    type: 'dunkelork', nameKey: 'monsters.config.dunkelork.name', emoji: '👹', tier: 3,
     requiredRathausLevel: 3,
     baseAttackPower: [50, 80], baseHP: 120,
     target: 'production', countRange: [2, 3],
-    damageOnLoss: { effectType: 'productionStop', durationHours: 8, details: '2 Gebäude stoppen + Ressourcenverlust' },
+    damageOnLoss: { effectType: 'productionStop', durationHours: 8, detailsKey: 'monsters.config.dunkelork.damage' },
     lootTable: { resources: { min: 80, max: 150 }, eggChance: 0.15, eggRarity: 'rare', proteinChance: 0.10, cosmeticChance: 0.05 },
   },
   nebelgeist: {
-    type: 'nebelgeist', name: 'Nebelgeist', emoji: '👻', tier: 3,
+    type: 'nebelgeist', nameKey: 'monsters.config.nebelgeist.name', emoji: '👻', tier: 3,
     requiredRathausLevel: 3,
     baseAttackPower: [30, 30], baseHP: 80,
     target: 'magic', countRange: [1, 2],
-    damageOnLoss: { effectType: 'disabled', durationHours: 12, details: 'Gebäude deaktiviert, Tempel kann reinigen (4h)' },
+    damageOnLoss: { effectType: 'disabled', durationHours: 12, detailsKey: 'monsters.config.nebelgeist.damage' },
     lootTable: { resources: { min: 50, max: 100 }, eggChance: 0.10, eggRarity: 'rare', proteinChance: 0.20, cosmeticChance: 0 },
   },
   frostdrache: {
-    type: 'frostdrache', name: 'Frostdrache', emoji: '🐉', tier: 4,
+    type: 'frostdrache', nameKey: 'monsters.config.frostdrache.name', emoji: '🐉', tier: 4,
     requiredRathausLevel: 4,
     baseAttackPower: [100, 150], baseHP: 250,
     target: 'all', countRange: [1, 1],
-    damageOnLoss: { effectType: 'productionStop', durationHours: 4, details: 'Globaler Produktionsstopp' },
+    damageOnLoss: { effectType: 'productionStop', durationHours: 4, detailsKey: 'monsters.config.frostdrache.damage' },
     lootTable: { resources: { min: 150, max: 300 }, eggChance: 0.20, eggRarity: 'epic', proteinChance: 0.30, cosmeticChance: 0.10 },
   },
   schattenmagier: {
-    type: 'schattenmagier', name: 'Schattenmagier', emoji: '🧙', tier: 4,
+    type: 'schattenmagier', nameKey: 'monsters.config.schattenmagier.name', emoji: '🧙', tier: 4,
     requiredRathausLevel: 4,
     baseAttackPower: [80, 120], baseHP: 180,
     target: 'protein', countRange: [1, 1],
-    damageOnLoss: { effectType: 'resourceLoss', durationHours: 12, details: '2-5 Protein + Proteinfarm stoppt' },
+    damageOnLoss: { effectType: 'resourceLoss', durationHours: 12, detailsKey: 'monsters.config.schattenmagier.damage' },
     lootTable: { resources: { min: 100, max: 200 }, eggChance: 0.15, eggRarity: 'epic', proteinChance: 0.40, cosmeticChance: 0.10 },
   },
   uralterGolem: {
-    type: 'uralterGolem', name: 'Uralter Golem', emoji: '🗿', tier: 5,
+    type: 'uralterGolem', nameKey: 'monsters.config.uralterGolem.name', emoji: '🗿', tier: 5,
     requiredRathausLevel: 5,
     baseAttackPower: [300, 300], baseHP: 800,
     target: 'rathaus', countRange: [1, 1],
-    damageOnLoss: { effectType: 'disabled', durationHours: 24, details: 'Rathaus deaktiviert' },
+    damageOnLoss: { effectType: 'disabled', durationHours: 24, detailsKey: 'monsters.config.uralterGolem.damage' },
     lootTable: { resources: { min: 500, max: 800 }, eggChance: 1.0, eggRarity: 'epic', proteinChance: 0.50, cosmeticChance: 0.30 },
   },
   verderbnisHydra: {
-    type: 'verderbnisHydra', name: 'Verderbnis-Hydra', emoji: '🐍', tier: 5,
+    type: 'verderbnisHydra', nameKey: 'monsters.config.verderbnisHydra.name', emoji: '🐍', tier: 5,
     requiredRathausLevel: 5,
     baseAttackPower: [120, 120], baseHP: 600,
     target: 'all', countRange: [1, 1],
-    damageOnLoss: { effectType: 'productionStop', durationHours: 12, details: 'Alle Ressourcen-Typen -50%' },
+    damageOnLoss: { effectType: 'productionStop', durationHours: 12, detailsKey: 'monsters.config.verderbnisHydra.damage' },
     lootTable: { resources: { min: 600, max: 1000 }, eggChance: 1.0, eggRarity: 'legendary', proteinChance: 0.80, cosmeticChance: 0.50 },
   },
 };
@@ -919,6 +919,6 @@ export const STALL_CONFIG = {
   adjacencyBonus: {
     targetBuilding: 'feld',
     bonusPercent: 10,
-    description: 'Neben Feld → Tiere produzieren +10% Nahrung passiv',
+    descriptionKey: 'stall.adjacencyBonus',
   },
 };
