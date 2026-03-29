@@ -28,7 +28,7 @@ import {
   workerStatus, WorkerStatus,
   zoneIsExploring,
 } from '../models/types';
-import { WorldConstants } from '../config/GameConfig';
+import { WorldConstants, WALL_REPAIR_COST_FACTOR } from '../config/GameConfig';
 import { canBuild } from '../engines/GameEngine';
 import { formatDuration } from '../utils/formatDuration';
 import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
@@ -716,7 +716,7 @@ export default function RealmScreen() {
                 if (missingHP <= 0) return;
                 const mauerBuilding = gameState.buildings.find(b => b.type === 'mauer' && b.level >= 1 && !b.isUnderConstruction);
                 if (!mauerBuilding) return;
-                const repairCost = Math.ceil(missingHP * 20 / gameState.wallHP.max * mauerBuilding.level);
+                const repairCost = Math.ceil(missingHP * WALL_REPAIR_COST_FACTOR / gameState.wallHP.max * mauerBuilding.level);
                 Alert.alert(
                   t('wall.repairTitle'),
                   t('wall.repairCostMessage', { cost: repairCost, wood: Math.floor(gameState.wood) }),

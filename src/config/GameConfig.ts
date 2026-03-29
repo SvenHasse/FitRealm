@@ -150,140 +150,8 @@ export function storageBuildingResource(type: BuildingType): 'wood' | 'stone' | 
   }
 }
 
-// MARK: - Build Costs
-export function buildCost(type: BuildingType): ResourceCost {
-  switch (type) {
-    case BuildingType.rathaus:
-      return createResourceCost();
-    case BuildingType.kornkammer:
-      return createResourceCost({ muskelmasse: 50, wood: 30 });
-    case BuildingType.proteinfarm:
-      return createResourceCost({ muskelmasse: 100, protein: 1 });
-    case BuildingType.holzfaeller:
-      return createResourceCost({ muskelmasse: 40 });
-    case BuildingType.steinbruch:
-      return createResourceCost({ muskelmasse: 80, wood: 20 });
-    case BuildingType.feld:
-      return createResourceCost({ muskelmasse: 30 });
-    case BuildingType.holzlager:
-      return createResourceCost({ muskelmasse: 40, wood: 20 });
-    case BuildingType.steinlager:
-      return createResourceCost({ muskelmasse: 60, wood: 30 });
-    case BuildingType.nahrungslager:
-      return createResourceCost({ muskelmasse: 30, wood: 15 });
-    case BuildingType.kaserne:
-      return createResourceCost({ muskelmasse: 120, wood: 40, stone: 10 });
-    case BuildingType.tempel:
-      return createResourceCost({ muskelmasse: 200, protein: 2, stone: 20 });
-    case BuildingType.bibliothek:
-      return createResourceCost({ muskelmasse: 300, wood: 30, stone: 15 });
-    case BuildingType.marktplatz:
-      return createResourceCost({ muskelmasse: 150, wood: 25, stone: 10 });
-    case BuildingType.stammeshaus:
-      return createResourceCost({ muskelmasse: 500, protein: 5, streakTokens: 10 });
-    case BuildingType.stall:
-      return createResourceCost({ muskelmasse: 30, wood: 15 });
-    case BuildingType.wachturm:
-      return createResourceCost({ muskelmasse: 150, stone: 30 });
-    case BuildingType.mauer:
-      return createResourceCost({ muskelmasse: 100, stone: 50 });
-  }
-}
-
-// MARK: - Upgrade Costs
-export function upgradeCost(type: BuildingType, currentLevel: number): ResourceCost | null {
-  if (currentLevel >= 5) return null;
-
-  if (type === BuildingType.rathaus) {
-    switch (currentLevel) {
-      case 1: return createResourceCost({ muskelmasse: 500, protein: 5 });
-      case 2: return createResourceCost({ muskelmasse: 1000, protein: 10 });
-      case 3: return createResourceCost({ muskelmasse: 2000, protein: 20 });
-      case 4: return createResourceCost({ muskelmasse: 4000, protein: 40 });
-      default: return null;
-    }
-  }
-
-  const s = currentLevel;
-
-  switch (type) {
-    case BuildingType.kornkammer:
-      return createResourceCost({ muskelmasse: 100 * s, wood: Math.floor(10 * s) });
-    case BuildingType.proteinfarm:
-      return createResourceCost({ muskelmasse: 50 * s, protein: Math.floor(2 * s) });
-    case BuildingType.holzfaeller:
-      return createResourceCost({ muskelmasse: 80 * s });
-    case BuildingType.steinbruch:
-      return createResourceCost({ muskelmasse: 150 * s, wood: Math.floor(10 * s) });
-    case BuildingType.feld:
-      return createResourceCost({ muskelmasse: 60 * s, wood: Math.floor(5 * s) });
-    case BuildingType.holzlager: {
-      const holzCosts = [
-        createResourceCost({ muskelmasse: 120, wood: 60 }),
-        createResourceCost({ muskelmasse: 350, wood: 150 }),
-        createResourceCost({ muskelmasse: 900, wood: 350 }),
-        createResourceCost({ muskelmasse: 2200, wood: 800 }),
-      ];
-      return holzCosts[s - 1] ?? null;
-    }
-    case BuildingType.steinlager: {
-      const steinCosts = [
-        createResourceCost({ muskelmasse: 180, wood: 80 }),
-        createResourceCost({ muskelmasse: 500, wood: 200 }),
-        createResourceCost({ muskelmasse: 1200, wood: 450 }),
-        createResourceCost({ muskelmasse: 3000, wood: 1000 }),
-      ];
-      return steinCosts[s - 1] ?? null;
-    }
-    case BuildingType.nahrungslager: {
-      const nahrCosts = [
-        createResourceCost({ muskelmasse: 100, wood: 50 }),
-        createResourceCost({ muskelmasse: 300, wood: 120 }),
-        createResourceCost({ muskelmasse: 750, wood: 300 }),
-        createResourceCost({ muskelmasse: 1800, wood: 700 }),
-      ];
-      return nahrCosts[s - 1] ?? null;
-    }
-    case BuildingType.kaserne:
-      return createResourceCost({ muskelmasse: 200 * s, wood: Math.floor(30 * s), stone: Math.floor(10 * s) });
-    case BuildingType.tempel:
-      return createResourceCost({ muskelmasse: 200 * s, protein: Math.floor(3 * s) });
-    case BuildingType.bibliothek:
-      return createResourceCost({ muskelmasse: 300 * s, wood: Math.floor(20 * s), stone: Math.floor(10 * s) });
-    case BuildingType.marktplatz:
-      return createResourceCost({ muskelmasse: 200 * s, wood: Math.floor(15 * s), stone: Math.floor(10 * s) });
-    case BuildingType.stammeshaus:
-      return createResourceCost({ muskelmasse: 400 * s, protein: Math.floor(5 * s), streakTokens: Math.floor(10 * s) });
-    case BuildingType.stall: {
-      // Costs per level: [L1→L2, L2→L3, L3→L4, L4→L5]
-      const stallMM = [60, 120, 200, 350];
-      const stallWood = [30, 60, 100, 175];
-      return createResourceCost({ muskelmasse: stallMM[s - 1] ?? 0, wood: stallWood[s - 1] ?? 0 });
-    }
-    case BuildingType.wachturm: {
-      const costs = [
-        createResourceCost({ muskelmasse: 150, wood: 75 }),
-        createResourceCost({ muskelmasse: 250, wood: 125 }),
-        createResourceCost({ muskelmasse: 400, wood: 200 }),
-        createResourceCost({ muskelmasse: 600, wood: 300 }),
-      ];
-      return costs[s - 1] ?? null;
-    }
-    case BuildingType.mauer: {
-      const mauerCosts = [
-        createResourceCost({ muskelmasse: 200, wood: 120 }),
-        createResourceCost({ muskelmasse: 350, wood: 200 }),
-        createResourceCost({ muskelmasse: 550, wood: 300 }),
-        createResourceCost({ muskelmasse: 800, wood: 450 }),
-      ];
-      return mauerCosts[s - 1] ?? null;
-    }
-    default:
-      return null;
-  }
-}
-
 // MARK: - Sell Value (50% of build + all upgrade costs paid so far)
+// NOTE: buildCost() and upgradeCost() are defined after BUILDINGS table below.
 export function sellValue(type: BuildingType, currentLevel: number): ResourceCost {
   const total = { ...buildCost(type) };
   // Add every upgrade cost from level 1 up to (currentLevel - 1)
@@ -389,33 +257,12 @@ export function maxInstances(type: BuildingType): number {
   return 1;
 }
 
-// MARK: - Construction Time (seconds per level)
-export const CONSTRUCTION_TIME: Partial<Record<BuildingType, number[]>> = {
-  // [L1, L2, L3, L4, L5]
-  rathaus:       [120,  300,  600, 1200, 2400],
-  kornkammer:    [ 60,  120,  240,  480,  960],
-  proteinfarm:   [120,  240,  480,  960, 1920],
-  holzfaeller:   [ 60,  120,  240,  480,  960],
-  steinbruch:    [ 90,  180,  360,  720, 1440],
-  feld:          [ 60,  120,  240,  480,  960],
-  holzlager:     [ 60,  120,  240,  480,  960],
-  steinlager:    [ 90,  180,  360,  720, 1440],
-  nahrungslager: [ 60,  120,  240,  480,  960],
-  kaserne:       [120,  240,  480,  960, 1920],
-  tempel:        [300,  600, 1200, 2400, 4800],
-  bibliothek:    [300,  600, 1200, 2400, 4800],
-  marktplatz:    [240,  480,  960, 1920, 3840],
-  stammeshaus:   [600, 1200, 2400, 4800, 9600],
-  stall:         [600, 1800, 3600, 5400, 7200],      // 10min, 30min, 60min, 90min, 120min
-  wachturm:      [1200, 2700, 5400, 10800, 14400],   // 20min, 45min, 1.5h, 3h, 4h
-  mauer:         [1800, 3600, 7200, 14400, 21600],   // 30min, 1h, 2h, 4h, 6h
-};
-
+// MARK: - Construction Time (derived from BUILDINGS table)
 /** Construction time in seconds for a building at a given target level */
 export function constructionTime(type: BuildingType, targetLevel: number): number {
-  const table = CONSTRUCTION_TIME[type];
-  if (!table) return 0;
-  return table[Math.min(targetLevel - 1, table.length - 1)] ?? 0;
+  const levelCfg = BUILDINGS[type]?.levels.find(l => l.level === targetLevel);
+  if (!levelCfg) return 0;
+  return levelCfg.buildTimeMinutes * 60; // convert minutes → seconds
 }
 
 /** Protein cost to instantly complete construction */
@@ -929,3 +776,45 @@ export const STREAK_COUNTDOWN_THRESHOLDS = {
 // ─── WALL HP ─────────────────────────────────────────────────────────────────
 // HP per Mauer level (also in DEFENSE_CONFIG in EntityConfig, kept in sync).
 export const WALL_HP_PER_LEVEL = 50;
+
+// ─── WALL REPAIR ─────────────────────────────────────────────────────────────
+export const WALL_REPAIR_COST_FACTOR = 20;
+
+// ─── OBSTACLE CONFIG ─────────────────────────────────────────────────────────
+export const OBSTACLE_CONFIG = {
+  smallRemovalCost: 15,       // Muskelmasse to remove a small obstacle
+  largeRemovalTimeSeconds: 30 * 60,  // 30 minutes
+} as const;
+
+// ════════════════════════════════════════════════════════════════════════════
+// DERIVED v1 FUNCTIONS — read from BUILDINGS table (single source of truth)
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Convert BuildingCost (German optional fields) → ResourceCost (English required fields) */
+function buildingCostToResourceCost(bc: BuildingCost | null | undefined): ResourceCost {
+  if (!bc) return createResourceCost();
+  return createResourceCost({
+    muskelmasse:  bc.muskelmasse ?? 0,
+    protein:      bc.protein ?? 0,
+    streakTokens: bc.streakTokens ?? 0,
+    wood:         bc.holz ?? 0,
+    stone:        bc.stein ?? 0,
+    food:         bc.nahrung ?? 0,
+  });
+}
+
+/** Build cost = BUILDINGS[type].levels[0].upgradeCost (level 1 = initial placement) */
+export function buildCost(type: BuildingType): ResourceCost {
+  const cfg = BUILDINGS[type];
+  if (!cfg || cfg.levels.length === 0) return createResourceCost();
+  return buildingCostToResourceCost(cfg.levels[0].upgradeCost);
+}
+
+/** Upgrade cost from currentLevel → currentLevel+1, read from BUILDINGS table */
+export function upgradeCost(type: BuildingType, currentLevel: number): ResourceCost | null {
+  if (currentLevel >= 5) return null;
+  const targetLevel = currentLevel + 1;
+  const levelCfg = BUILDINGS[type]?.levels.find(l => l.level === targetLevel);
+  if (!levelCfg?.upgradeCost) return null;
+  return buildingCostToResourceCost(levelCfg.upgradeCost);
+}

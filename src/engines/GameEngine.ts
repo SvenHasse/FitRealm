@@ -14,7 +14,7 @@ import {
 import {
   ResourceCost, createResourceCost, buildCost, upgradeCost, rathausRequirement,
   UNIQUE_BUILDINGS, allowedInstances, nextInstanceUnlockLevel, sellValue,
-  Production, Storage, Earn, Workers,
+  Earn, Workers, BUILDINGS, getBuildingLevelConfig,
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
   getTotalStorageCap, storageBuildingResource, getStorageBonusArray,
   constructionTime, skipConstructionCost,
@@ -143,29 +143,15 @@ export function initializeState(state: GameState): GameState {
   return s;
 }
 
-// MARK: - Production Helpers
+// MARK: - Production Helpers (derived from BUILDINGS table)
 export function hourlyProductionRate(building: Building): number {
-  const lv = building.level;
-  switch (building.type) {
-    case BuildingType.kornkammer: return Production.rate(Production.kornkammer, lv);
-    case BuildingType.proteinfarm: return Production.rate(Production.proteinfarm, lv);
-    case BuildingType.holzfaeller: return Production.rate(Production.holzfaeller, lv);
-    case BuildingType.steinbruch: return Production.rate(Production.steinbruch, lv);
-    case BuildingType.feld: return Production.rate(Production.feld, lv);
-    default: return 0;
-  }
+  const levelCfg = getBuildingLevelConfig(building.type, building.level);
+  return levelCfg?.productionPerHour ?? 0;
 }
 
 export function buildingStorageCap(building: Building, _allBuildings: Building[]): number {
-  const lv = building.level;
-  switch (building.type) {
-    case BuildingType.kornkammer:  return Storage.cap(Storage.kornkammer, lv);
-    case BuildingType.holzfaeller: return Storage.cap(Storage.holzfaeller, lv);
-    case BuildingType.steinbruch:  return Storage.cap(Storage.steinbruch, lv);
-    case BuildingType.feld:        return Storage.cap(Storage.feld, lv);
-    case BuildingType.proteinfarm: return Storage.cap(Storage.proteinfarm, lv);
-    default: return 0;
-  }
+  const levelCfg = getBuildingLevelConfig(building.type, building.level);
+  return levelCfg?.maxStorage ?? 0;
 }
 
 // MARK: - Resource Cap Enforcement
