@@ -46,10 +46,17 @@ export default function DailyMetricCard({
 }: Props) {
   const display = useCountUp(value);
 
+  // Dynamic sizing based on ringSize
+  const isLarge = ringSize >= 120;
+  const isSmall = ringSize <= 72;
+  const valueFontSize = isLarge ? 24 : isSmall ? 14 : 17;
+  const labelFontSize = isLarge ? 13 : isSmall ? 10 : 11;
+  const strokeWidth = isLarge ? 10 : 7;
+
   const inner = (
     <View style={styles.inner}>
       {icon}
-      <Text style={[styles.value, { color }]}>{display.toLocaleString('de-DE')}</Text>
+      <Text style={[styles.value, { color, fontSize: valueFontSize }]}>{display.toLocaleString('de-DE')}</Text>
       {unit ? <Text style={[styles.unit, { color }]}>{unit}</Text> : null}
     </View>
   );
@@ -57,7 +64,7 @@ export default function DailyMetricCard({
   return (
     <View style={styles.container}>
       {progress !== undefined ? (
-        <CircularProgressRing size={ringSize} progress={progress} color={color} strokeWidth={7}>
+        <CircularProgressRing size={ringSize} progress={progress} color={color} strokeWidth={strokeWidth}>
           {inner}
         </CircularProgressRing>
       ) : (
@@ -65,7 +72,7 @@ export default function DailyMetricCard({
           {inner}
         </View>
       )}
-      <Text style={styles.label} numberOfLines={2}>{label}</Text>
+      <Text style={[styles.label, { fontSize: labelFontSize }]} numberOfLines={2}>{label}</Text>
     </View>
   );
 }

@@ -25,7 +25,7 @@ import {
   getTotalStorageCap, storageBuildingResource, getStorageBonusArray,
   constructionTime, skipConstructionCost,
 } from '../config/GameConfigHelpers';
-import { calculateTotalPP, ppToRewards, DailyMetrics } from '../utils/progressPoints';
+import { calculateTotalPP, ppToRewards, DailyMetrics, DAILY_TARGETS } from '../utils/progressPoints';
 
 const STATE_KEY = 'fitrealmGameState';
 
@@ -572,6 +572,22 @@ export function collectAllWithResult(state: GameState): { newState: GameState; r
   };
 }
 
+// MARK: - Daily Focus Target Check
+export function checkDailyFocusTarget(
+  focus: FitnessFocus,
+  snapshot: HealthSnapshot,
+  totalIntenseMinutes: number,
+): boolean {
+  switch (focus) {
+    case 'steps':
+      return snapshot.stepsToday >= DAILY_TARGETS.steps;
+    case 'workouts':
+      return totalIntenseMinutes >= DAILY_TARGETS.workouts;
+    case 'calories':
+      return snapshot.activeCaloriesToday >= DAILY_TARGETS.calories;
+  }
+}
+
 // MARK: - Workout Processing
 export function processWorkouts(state: GameState, workouts: WorkoutRecord[], snapshot: HealthSnapshot, hrMax: number = 200, fitnessFocus: FitnessFocus = 'workouts'): GameState {
   const newWorkouts = workouts.filter(w => !state.processedGameWorkoutIDs.includes(w.id));
@@ -582,20 +598,32 @@ export function processWorkouts(state: GameState, workouts: WorkoutRecord[], sna
   // Accumulate daily metrics for PP calculation
   let totalWorkoutMinutes = 0;
   let totalCalories = 0;
+  let latestWorkoutDate: Date | null = null;
 
   for (const workout of newWorkouts) {
     totalWorkoutMinutes += workout.durationMinutes;
     totalCalories += workout.caloriesBurned;
 
-    updateStreak(s, new Date(workout.date));
     awardDailyToken(s, new Date(workout.date));
     s.processedGameWorkoutIDs.push(workout.id);
+
+    // Track latest workout date for streak update
+    const wDate = new Date(workout.date);
+    if (!latestWorkoutDate || wDate > latestWorkoutDate) {
+      latestWorkoutDate = wDate;
+    }
 
     // HRmax-Tracking: >=70% of personalized HRmax gilt als intensiv
     const isIntensive = (workout.averageHeartRate ?? 0) >= Math.round(hrMax * 0.7);
     if (isIntensive) {
       _updateIntensiveTracker(s);
     }
+  }
+
+  // Update streak ONCE after loop, gated by daily focus target
+  if (latestWorkoutDate) {
+    const dailyFocusTargetMet = checkDailyFocusTarget(fitnessFocus, snapshot, totalWorkoutMinutes);
+    updateStreak(s, latestWorkoutDate, dailyFocusTargetMet);
   }
 
   // ── Progress Point (PP) based reward calculation ────────────────────────
@@ -627,7 +655,9 @@ export function processWorkouts(state: GameState, workouts: WorkoutRecord[], sna
   return capResourcesToStorage(s);
 }
 
-function updateStreak(state: GameState, date: Date): void {
+function updateStreak(state: GameState, date: Date, dailyFocusTargetMet: boolean): void {
+  if (!dailyFocusTargetMet) return;
+
   if (state.lastWorkoutDate) {
     const last = new Date(state.lastWorkoutDate);
     const startOfLast = new Date(last.getFullYear(), last.getMonth(), last.getDate());
