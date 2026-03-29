@@ -6,7 +6,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Switch, Alert, Pl
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
-import { AppColors } from '../models/types';
+import { AppColors, FitnessFocus } from '../models/types';
 import { setLanguage } from '../i18n';
 import DevToolsSection from '../components/DevToolsSection';
 
@@ -80,6 +80,26 @@ export default function SettingsScreen() {
             <Text style={styles.hrMaxLabel}>HRmax</Text>
             <Text style={styles.hrMaxValue}>{userProfile.hrMax}</Text>
             <Text style={styles.hrMaxUnit}>bpm</Text>
+          </View>
+
+          {/* Fitness Focus picker */}
+          <View style={{ marginTop: 14 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: AppColors.textSecondary, marginBottom: 8 }}>
+              {t('settings.fitnessFocus')}
+            </Text>
+            <View style={styles.focusSwitcher}>
+              {(['steps', 'workouts', 'calories'] as FitnessFocus[]).map(f => (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.focusBtn, userProfile.fitnessFocus === f && styles.focusBtnActive]}
+                  onPress={() => updateUserProfile({ fitnessFocus: f })}
+                >
+                  <Text style={[styles.focusBtnText, userProfile.fitnessFocus === f && styles.focusBtnTextActive]}>
+                    {t(`settings.focus_${f}`)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
       )}
@@ -251,6 +271,13 @@ const styles = StyleSheet.create({
     padding: 12, backgroundColor: 'rgba(156,39,176,0.1)', borderRadius: 10,
     borderWidth: 1, borderColor: 'rgba(156,39,176,0.3)', marginTop: 12,
   },
+  focusSwitcher: {
+    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 3,
+  },
+  focusBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  focusBtnActive: { backgroundColor: AppColors.gold },
+  focusBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
+  focusBtnTextActive: { color: '#000' },
   hrMaxDisplay: {
     flexDirection: 'row',
     alignItems: 'baseline',

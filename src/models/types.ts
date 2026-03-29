@@ -121,6 +121,9 @@ export interface SeasonalGoal {
   deadline: string;
 }
 
+// MARK: - FitnessFocus
+export type FitnessFocus = 'steps' | 'workouts' | 'calories';
+
 // MARK: - UserProfile
 export interface UserProfile {
   age: number;
@@ -129,6 +132,7 @@ export interface UserProfile {
   gender: 'male' | 'female';
   hrMax: number;
   onboardingCompleted: boolean;
+  fitnessFocus: FitnessFocus;
 }
 
 // MARK: - ResourceType

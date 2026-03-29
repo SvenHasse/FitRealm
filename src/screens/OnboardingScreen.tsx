@@ -1,5 +1,5 @@
 // OnboardingScreen.tsx
-// 4-page horizontal FlatList onboarding: Welcome, Concept, Data Input, Result.
+// 5-page horizontal FlatList onboarding: Welcome, Concept, Data Input, Fitness Focus, Result.
 
 import React, { useRef, useState, useEffect } from 'react';
 import {
@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useGameStore } from '../store/useGameStore';
 import { calculateHRmax } from '../utils/hrMax';
+import type { FitnessFocus } from '../models/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -36,7 +37,7 @@ const TEXT_SEC = 'rgba(255,255,255,0.6)';
 const CARD_BG = '#1a1d28';
 const INPUT_BG = '#252835';
 
-const TOTAL_PAGES = 4;
+const TOTAL_PAGES = 5;
 
 export default function OnboardingScreen() {
   const { t } = useTranslation();
@@ -49,6 +50,7 @@ export default function OnboardingScreen() {
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
+  const [fitnessFocus, setFitnessFocus] = useState<FitnessFocus | null>(null);
 
   // Animated HRmax count-up
   const animatedHR = useSharedValue(0);
@@ -74,18 +76,19 @@ export default function OnboardingScreen() {
   }
 
   function handleFinish() {
-    if (!isFormValid || !gender) return;
+    if (!isFormValid || !gender || !fitnessFocus) return;
     setUserProfile({
       age: parseInt(age, 10),
       weight: parseInt(weight, 10),
       height: parseInt(height, 10),
       gender,
+      fitnessFocus,
     });
   }
 
   // Animate HRmax count-up when reaching result page
   useEffect(() => {
-    if (currentPage === 3 && calculatedHRmax > 0) {
+    if (currentPage === 4 && calculatedHRmax > 0) {
       animatedHR.value = 0;
       setDisplayHR(0);
       animatedHR.value = withTiming(calculatedHRmax, {
@@ -245,6 +248,53 @@ export default function OnboardingScreen() {
     );
   }
 
+  function renderFocusSelection() {
+    const focusOptions: { key: FitnessFocus; icon: string; labelKey: string; descKey: string }[] = [
+      { key: 'steps',    icon: 'walk',    labelKey: 'onboarding.focusSteps',    descKey: 'onboarding.focusStepsDesc' },
+      { key: 'workouts', icon: 'barbell', labelKey: 'onboarding.focusWorkouts', descKey: 'onboarding.focusWorkoutsDesc' },
+      { key: 'calories', icon: 'flame',   labelKey: 'onboarding.focusCalories', descKey: 'onboarding.focusCaloriesDesc' },
+    ];
+
+    return (
+      <View style={[styles.page, styles.centerContent]}>
+        <Text style={styles.formTitle}>{t('onboarding.focusTitle')}</Text>
+        <Text style={[styles.formSubtitle, { marginBottom: 24 }]}>{t('onboarding.focusSubtitle')}</Text>
+
+        {focusOptions.map(opt => {
+          const isSelected = fitnessFocus === opt.key;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              style={[styles.focusCard, isSelected && styles.focusCardSelected]}
+              onPress={() => setFitnessFocus(opt.key)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.focusIconWrap}>
+                <Ionicons name={opt.icon as any} size={28} color={isSelected ? GOLD : TEXT_SEC} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.focusLabel, isSelected && { color: GOLD }]}>{t(opt.labelKey)}</Text>
+                <Text style={styles.focusDesc}>{t(opt.descKey)}</Text>
+              </View>
+              {isSelected && (
+                <Ionicons name="checkmark-circle" size={24} color={GOLD} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+
+        <TouchableOpacity
+          style={[styles.nextBtn, !fitnessFocus && styles.btnDisabled]}
+          onPress={handleNext}
+          disabled={!fitnessFocus}
+        >
+          <Text style={styles.nextBtnText}>{t('common.continue')}</Text>
+          <Ionicons name="arrow-forward" size={18} color="#000" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   function renderResult() {
     return (
       <View style={[styles.page, styles.centerContent]}>
@@ -266,7 +316,7 @@ export default function OnboardingScreen() {
     );
   }
 
-  const pages = [renderWelcome, renderConcept, renderDataInput, renderResult];
+  const pages = [renderWelcome, renderConcept, renderDataInput, renderFocusSelection, renderResult];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -439,6 +489,41 @@ const styles = StyleSheet.create({
   },
   genderBtnTextActive: {
     color: TEXT,
+  },
+  // Focus selection page
+  focusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: CARD_BG,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    width: '100%',
+  },
+  focusCardSelected: {
+    borderColor: GOLD,
+    backgroundColor: 'rgba(245,166,35,0.08)',
+  },
+  focusIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: INPUT_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  focusLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: TEXT,
+  },
+  focusDesc: {
+    fontSize: 12,
+    color: TEXT_SEC,
+    marginTop: 2,
   },
   // Result page
   resultTitle: {

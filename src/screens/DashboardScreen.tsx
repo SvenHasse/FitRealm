@@ -36,7 +36,9 @@ import {
   HealthSnapshot,
   restingHRTrend,
   vo2MaxTrend,
+  FitnessFocus,
 } from '../models/types';
+import { DAILY_TARGETS } from '../utils/progressPoints';
 import { RootStackParamList, WorkoutRewardData } from '../navigation/types';
 import { useWorkoutStore, Workout } from '../store/workoutStore';
 import { calculateReward } from '../utils/currencyCalculator';
@@ -158,6 +160,8 @@ function CompactSyncButton({
 
 export default function DashboardScreen() {
   const { recentWorkouts, healthSnapshot, isSyncing, syncHealthData } = useEngineStore();
+  const userProfile = useEngineStore(s => s.userProfile);
+  const fitnessFocus: FitnessFocus = userProfile?.fitnessFocus ?? 'workouts';
   const health = useHealthData();
   const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
@@ -204,6 +208,9 @@ export default function DashboardScreen() {
       >
         {/* ── 0. Currency Bar ────────────────────────────────────────── */}
         <CurrencyBar />
+
+        {/* ── 0b. Primary Metric Hero ──────────────────────────────── */}
+        <PrimaryMetricHero focus={fitnessFocus} health={health} t={t} />
 
         {/* ── 1. Tages-Übersicht ─────────────────────────────────────── */}
         <TouchableOpacity activeOpacity={0.85} onPress={() => setStatsModalOpen(true)}>
@@ -432,6 +439,73 @@ function TrendTile({
           </Text>
         </View>
       )}
+    </View>
+  );
+}
+
+// ─── Primary Metric Hero ─────────────────────────────────────────────────────
+
+function PrimaryMetricHero({
+  focus,
+  health,
+  t,
+}: {
+  focus: FitnessFocus;
+  health: { stepsToday: number; workoutMinutesToday: number; activeCaloriesToday: number };
+  t: (key: string) => string;
+}) {
+  let value: number;
+  let target: number;
+  let label: string;
+  let unit: string;
+  let color: string;
+  let iconName: string;
+
+  switch (focus) {
+    case 'steps':
+      value = health.stepsToday;
+      target = DAILY_TARGETS.steps;
+      label = t('dashboard.primarySteps');
+      unit = '';
+      color = '#4CAF50';
+      iconName = 'shoe-print';
+      break;
+    case 'workouts':
+      value = health.workoutMinutesToday;
+      target = DAILY_TARGETS.workouts;
+      label = t('dashboard.primaryWorkouts');
+      unit = ' min';
+      color = AppColors.teal;
+      iconName = 'dumbbell';
+      break;
+    case 'calories':
+      value = health.activeCaloriesToday;
+      target = DAILY_TARGETS.calories;
+      label = t('dashboard.primaryCalories');
+      unit = ' kcal';
+      color = '#FF9800';
+      iconName = 'fire';
+      break;
+  }
+
+  const progress = Math.min(value / target, 1);
+  const pct = Math.round(progress * 100);
+
+  return (
+    <View style={[cardBackground, { borderWidth: 1, borderColor: `${color}40` }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <MaterialCommunityIcons name={iconName as any} size={18} color={color} />
+        <Text style={{ fontSize: 14, fontWeight: '600', color: AppColors.textSecondary }}>{label}</Text>
+        <View style={{ flex: 1 }} />
+        <Text style={{ fontSize: 12, fontWeight: '500', color: AppColors.textSecondary }}>{pct}%</Text>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+        <Text style={{ fontSize: 36, fontWeight: '800', color }}>{Math.floor(value).toLocaleString()}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: AppColors.textSecondary }}>/ {target.toLocaleString()}{unit}</Text>
+      </View>
+      <View style={{ height: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 3, marginTop: 10 }}>
+        <View style={{ height: 6, backgroundColor: color, borderRadius: 3, width: `${pct}%` }} />
+      </View>
     </View>
   );
 }

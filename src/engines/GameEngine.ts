@@ -10,6 +10,7 @@ import {
   createDefaultGameState, gameStateRathausLevel, gameStateDecayMultiplier,
   findBuildingById, workerStatus,
   Animal, AnimalEgg, AnimalType,
+  FitnessFocus,
 } from '../models/types';
 import {
   ResourceCost, createResourceCost, buildCost, upgradeCost, rathausRequirement,
@@ -20,6 +21,7 @@ import {
   constructionTime, skipConstructionCost,
   EXPLORATION_REWARD_RANGES, INTENSIVE_TRACKER, STREAK_ENGINE_REWARDS,
 } from '../config/GameConfig';
+import { calculateTotalPP, ppToRewards, DailyMetrics } from '../utils/progressPoints';
 import { ANIMAL_CONFIGS } from '../config/EntityConfig';
 
 const STATE_KEY = 'fitrealmGameState';
@@ -568,43 +570,53 @@ export function collectAllWithResult(state: GameState): { newState: GameState; r
 }
 
 // MARK: - Workout Processing
-export function processWorkouts(state: GameState, workouts: WorkoutRecord[], snapshot: HealthSnapshot, hrMax: number = 200): GameState {
+export function processWorkouts(state: GameState, workouts: WorkoutRecord[], snapshot: HealthSnapshot, hrMax: number = 200, fitnessFocus: FitnessFocus = 'workouts'): GameState {
   const newWorkouts = workouts.filter(w => !state.processedGameWorkoutIDs.includes(w.id));
   if (newWorkouts.length === 0) return state;
 
   const s = { ...state, processedGameWorkoutIDs: [...state.processedGameWorkoutIDs] };
 
-  for (const workout of newWorkouts) {
-    const hrMult = Earn.hrMultiplier(workout.averageHeartRate);
-    const muskel = workout.durationMinutes * Earn.basePerMinute * hrMult;
-    s.muskelmasse += muskel;
+  // Accumulate daily metrics for PP calculation
+  let totalWorkoutMinutes = 0;
+  let totalCalories = 0;
 
-    // Protein for sustained high-HR workouts
-    if (workout.averageHeartRate != null && workout.averageHeartRate > Earn.proteinMinHR && workout.durationMinutes >= Earn.proteinMinMinutes) {
-      s.protein += 1;
-    }
+  for (const workout of newWorkouts) {
+    totalWorkoutMinutes += workout.durationMinutes;
+    totalCalories += workout.caloriesBurned;
 
     updateStreak(s, new Date(workout.date));
     awardDailyToken(s, new Date(workout.date));
     s.processedGameWorkoutIDs.push(workout.id);
 
-    // HRmax-Tracking: ≥70% of personalized HRmax gilt als intensiv
+    // HRmax-Tracking: >=70% of personalized HRmax gilt als intensiv
     const isIntensive = (workout.averageHeartRate ?? 0) >= Math.round(hrMax * 0.7);
     if (isIntensive) {
       _updateIntensiveTracker(s);
     }
   }
 
-  // Step bonus
-  const stepBonus = Math.min(Math.floor(snapshot.stepsToday / Earn.stepsPerGram), Earn.maxStepBonus);
-  if (stepBonus > 0) s.muskelmasse += stepBonus;
+  // ── Progress Point (PP) based reward calculation ────────────────────────
+  const dailyMetrics: DailyMetrics = {
+    steps: snapshot.stepsToday,
+    workoutMinutes: totalWorkoutMinutes,
+    calories: totalCalories,
+  };
+  const ppRewards = ppToRewards(calculateTotalPP(dailyMetrics, fitnessFocus));
+  s.muskelmasse += ppRewards.muskelmasse;
+  s.protein += ppRewards.protein;
 
-  // VO2 Max improvement → +5 Protein
+  // ── Legacy Earn.* formulas (kept for backward compatibility) ────────────
+  // @deprecated - Earn.basePerMinute: replaced by PP muskelmassePerPP
+  // @deprecated - Earn.hrMultiplier: HR intensity now folded into PP weights
+  // @deprecated - Earn.stepsPerGram / maxStepBonus: replaced by PP steps metric
+  // @deprecated - Earn.proteinMinHR / proteinMinMinutes: replaced by PP proteinThreshold
+
+  // VO2 Max improvement → +5 Protein (kept — not part of PP)
   const vo2Trend = snapshot.vo2MaxCurrent != null && snapshot.vo2Max30DaysAgo != null
     ? snapshot.vo2MaxCurrent - snapshot.vo2Max30DaysAgo : null;
   if (vo2Trend != null && vo2Trend > 0) s.protein += 5;
 
-  // RHR improvement ≥ 2 bpm → +5 Protein
+  // RHR improvement >= 2 bpm → +5 Protein (kept — not part of PP)
   const rhrTrend = snapshot.restingHeartRateCurrent != null && snapshot.restingHeartRate30DaysAgo != null
     ? snapshot.restingHeartRateCurrent - snapshot.restingHeartRate30DaysAgo : null;
   if (rhrTrend != null && rhrTrend <= -2) s.protein += 5;

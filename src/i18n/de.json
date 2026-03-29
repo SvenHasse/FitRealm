@@ -46,7 +46,10 @@
     "bpm": "bpm",
     "vs30dAgo": "vs. vor 30 T.",
     "syncing": "Synchronisiere...",
-    "syncHealthData": "Gesundheitsdaten synchronisieren"
+    "syncHealthData": "Gesundheitsdaten synchronisieren",
+    "primarySteps": "Tagesschritte",
+    "primaryWorkouts": "Trainingsminuten heute",
+    "primaryCalories": "Aktive Kalorien heute"
   },
   "realm": {
     "tapToPlace": "Tippe auf ein freies Feld: {{building}}",
@@ -196,6 +199,25 @@
       "steps":          { "title": "Schrittmeister",   "desc": "150.000 Schritte in 30 Tagen" },
       "intense":        { "title": "Intensivtrainer",  "desc": "5 intensive Workouts (≥70% HRmax, 20+ Min)" }
     },
+    "focus": {
+      "steps": {
+        "daily":  { "title": "Tagesmarsch",       "desc": "10.000 Schritte heute" },
+        "weekly": { "title": "Wochenl\u00e4ufer",    "desc": "70.000 Schritte in 7 Tagen" }
+      },
+      "workouts": {
+        "weekly":  { "title": "Trainingsplan",     "desc": "5 Workouts in 7 Tagen" },
+        "intense": { "title": "Power-Woche",       "desc": "3 intensive Workouts in 7 Tagen" }
+      },
+      "calories": {
+        "daily":  { "title": "Kalorienbrenner",    "desc": "500 aktive kcal heute" },
+        "weekly": { "title": "Wochenverbrenner",   "desc": "3.500 aktive kcal in 7 Tagen" }
+      },
+      "secondary": {
+        "steps":    { "title": "Nebenschritte",     "desc": "5.000 Schritte heute" },
+        "workouts": { "title": "Nebentraining",     "desc": "3 Workouts in 7 Tagen" },
+        "calories": { "title": "Nebenkalorien",     "desc": "300 aktive kcal heute" }
+      }
+    },
     "village": {
       "builder":   { "title": "Baumeister",       "desc": "3 Gebäude auf Level 2 upgraden" },
       "workers":   { "title": "Arbeitgeber",       "desc": "2 Worker trainieren und einsetzen" },
@@ -244,7 +266,11 @@
     "profileWeight": "Gewicht",
     "profileHeight": "Gr\u00f6\u00dfe",
     "profileGender": "Geschlecht",
-    "profileYears": "Jahre"
+    "profileYears": "Jahre",
+    "fitnessFocus": "Fitness-Fokus",
+    "focus_steps": "Schritte",
+    "focus_workouts": "Workouts",
+    "focus_calories": "Kalorien"
   },
   "storage": {
     "currentOf": "{{current}} / {{max}}",
@@ -582,6 +608,14 @@
     "gender": "Geschlecht",
     "male": "M\u00e4nnlich",
     "female": "Weiblich",
+    "focusTitle": "Dein Fitness-Fokus",
+    "focusSubtitle": "W\u00e4hle, was dir am wichtigsten ist. Dein Hauptziel bestimmt, wie deine Belohnungen gewichtet werden.",
+    "focusSteps": "Schritte",
+    "focusStepsDesc": "T\u00e4gliche Schritte sind dein Hauptziel",
+    "focusWorkouts": "Workouts",
+    "focusWorkoutsDesc": "Trainingsminuten sind dein Hauptziel",
+    "focusCalories": "Kalorien",
+    "focusCaloriesDesc": "Aktive Kalorien sind dein Hauptziel",
     "resultTitle": "Deine maximale Herzfrequenz",
     "resultExplain": "Deine HRmax wird genutzt, um Workout-Intensit\u00e4t pr\u00e4zise zu bewerten. Ab 70% HRmax z\u00e4hlt ein Workout als intensiv.",
     "resultFormula": "Formel: 220 \u2212 {{age}} = HRmax",
