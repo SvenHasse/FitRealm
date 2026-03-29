@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import { AppColors } from '../models/types';
-import { ANIMAL_CONFIGS, DEFENSE_CONFIG } from '../config/EntityConfig';
+import { ANIMAL_CONFIGS, DEFENSE_CONFIG } from '../config/GameConfig';
 import { formatDuration } from '../utils/formatDuration';
 
 const SCREEN_H     = Dimensions.get('window').height;

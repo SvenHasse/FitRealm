@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { AnimalType, AnimalRarity } from '../models/types';
-import { ANIMAL_CONFIGS } from '../config/EntityConfig';
+import { ANIMAL_CONFIGS } from '../config/GameConfig';
 import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
 
 interface Props {

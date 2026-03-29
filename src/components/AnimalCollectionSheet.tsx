@@ -9,7 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import { AppColors, AnimalType } from '../models/types';
-import { ANIMAL_CONFIGS } from '../config/EntityConfig';
+import { ANIMAL_CONFIGS } from '../config/GameConfig';
 import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
 
 interface Props {

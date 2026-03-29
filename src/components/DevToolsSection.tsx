@@ -18,7 +18,7 @@ import { useGameStore } from '../store/gameStore';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
 import { useWorkoutStore } from '../store/workoutStore';
 import { resetAllData, resetWithMockData } from '../utils/resetUtils';
-import { ANIMAL_CONFIGS, EGG_HATCH_CONFIGS } from '../config/EntityConfig';
+import { ANIMAL_CONFIGS, EGG_HATCH_CONFIGS } from '../config/GameConfig';
 import { saveGameState } from '../engines/GameEngine';
 import { gameStateRathausLevel } from '../models/types';
 import { waveService } from '../services/WaveService';

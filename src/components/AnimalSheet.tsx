@@ -11,7 +11,7 @@ import {
   AppColors, Building, Animal, BuildingType, AnimalEgg,
   buildingDisplayName,
 } from '../models/types';
-import { ANIMAL_CONFIGS, STALL_CONFIG } from '../config/EntityConfig';
+import { ANIMAL_CONFIGS, STALL_CONFIG } from '../config/GameConfig';
 import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
 import BuildingRenderer from '../../village-assets/components/BuildingRenderer';
 import AnimalCollectionSheet from './AnimalCollectionSheet';

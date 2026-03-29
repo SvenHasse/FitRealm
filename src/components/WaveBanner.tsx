@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { MonsterWave } from '../models/types';
-import { MONSTER_CONFIGS } from '../config/EntityConfig';
+import { MONSTER_CONFIGS } from '../config/GameConfig';
 
 interface Props {
   wave: MonsterWave;

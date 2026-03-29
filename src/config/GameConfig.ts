@@ -1,10 +1,17 @@
 // GameConfig.ts
-// FitRealm - All game balance constants and configuration values.
-// Ported 1:1 from GameConfig.swift
+// FitRealm — All game balance constants and configuration values.
+// PURE DATA ONLY. No functions, no logic, no .find(), no .filter().
+// All helper functions live in GameConfigHelpers.ts.
 
-import { BuildingType, Building } from '../models/types';
+import {
+  BuildingType,
+  AnimalType, AnimalRarity, MonsterType, MonsterTier,
+} from '../models/types';
 
-// MARK: - ResourceCost
+// ════════════════════════════════════════════════════════════════════════════
+// TYPES & INTERFACES
+// ════════════════════════════════════════════════════════════════════════════
+
 export interface ResourceCost {
   muskelmasse: number;
   protein: number;
@@ -14,88 +21,6 @@ export interface ResourceCost {
   food: number;
 }
 
-export function createResourceCost(partial: Partial<ResourceCost> = {}): ResourceCost {
-  return {
-    muskelmasse: partial.muskelmasse ?? 0,
-    protein: partial.protein ?? 0,
-    streakTokens: partial.streakTokens ?? 0,
-    wood: partial.wood ?? 0,
-    stone: partial.stone ?? 0,
-    food: partial.food ?? 0,
-  };
-}
-
-// MARK: - Decay
-export const Decay = {
-  threshold1: 48 * 3600, // seconds
-  threshold2: 72 * 3600,
-  threshold3: 96 * 3600,
-
-  productionMultiplier(lastWorkout: Date | null): number {
-    if (!lastWorkout) return 1.0;
-    const elapsed = (Date.now() - lastWorkout.getTime()) / 1000;
-    if (elapsed < this.threshold1) return 1.0;
-    if (elapsed < this.threshold2) return 0.5;
-    if (elapsed < this.threshold3) return 0.25;
-    return 0.0;
-  },
-};
-
-// MARK: - Earn
-// @deprecated — Earn constants are superseded by the Progress Point (PP) system
-// in src/utils/progressPoints.ts. Kept for backward compatibility / reference.
-export const Earn = {
-  /** @deprecated Use PP_REWARDS.muskelmassePerPP instead */
-  basePerMinute: 2.0,
-
-  /** @deprecated HR intensity is now folded into PP focus weights */
-  hrMultiplier(heartRate: number | null): number {
-    if (heartRate == null) return 1.0;
-    if (heartRate < 100) return 1.0;
-    if (heartRate < 130) return 1.3;
-    if (heartRate < 160) return 1.6;
-    return 2.0;
-  },
-
-  /** @deprecated Replaced by DAILY_TARGETS.steps in progressPoints.ts */
-  stepsPerGram: 1000.0,
-  /** @deprecated Replaced by PP steps metric */
-  maxStepBonus: 10.0,
-  /** @deprecated Replaced by PP_REWARDS.proteinThreshold */
-  proteinMinHR: 150.0,
-  /** @deprecated Replaced by PP_REWARDS.proteinThreshold */
-  proteinMinMinutes: 20.0,
-};
-
-// MARK: - Production
-export const Production = {
-  kornkammer: 10.0,
-  proteinfarm: 1.0 / 24.0,
-  holzfaeller: 20.0,
-  steinbruch: 10.0,
-  feld: 15.0,
-  levelScale: 1.5,
-
-  rate(base: number, level: number): number {
-    return base * Math.pow(this.levelScale, level - 1);
-  },
-};
-
-// MARK: - Storage
-export const Storage = {
-  kornkammer: 500.0,
-  holzfaeller: 1000.0,
-  steinbruch: 500.0,
-  feld: 300.0,
-  proteinfarm: 10.0,
-  levelScale: 2.0,
-
-  cap(base: number, level: number): number {
-    return base * Math.pow(this.levelScale, level - 1);
-  },
-};
-
-// MARK: - Global Storage Capacity (player inventory / wallet caps)
 export interface StorageCapacity {
   muskelmasse: number;
   protein: number;
@@ -105,270 +30,14 @@ export interface StorageCapacity {
   streakTokens: number;
 }
 
-// Base storage caps — Muskelmasse and Protein are unlimited (earned through real sport)
-export const BASE_STORAGE: StorageCapacity = {
-  muskelmasse: Infinity, // never capped — earned through real sport
-  protein:     Infinity, // never capped — too rare and valuable
-  wood:        300,      // ~15h production at L1 Holzfäller
-  stone:       200,      // ~20h production at L1 Steinbruch
-  food:        250,      // ~30h production at L1 Feld
-  streakTokens: Infinity,
-};
-
-// 🪵 Holzlager — Wood storage bonus per level
-export const HOLZLAGER_STORAGE = [500, 1000, 2000, 4000, 8000];
-// 🪨 Steinlager — Stone storage bonus per level
-export const STEINLAGER_STORAGE = [400, 800, 1600, 3200, 6400];
-// 🌾 Nahrungslager — Food storage bonus per level
-export const NAHRUNGSLAGER_STORAGE = [450, 900, 1800, 3600, 7200];
-
-// Helper: calculate total storage cap given current buildings
-export function getTotalStorageCap(buildings: Building[]): StorageCapacity {
-  const cap: StorageCapacity = { ...BASE_STORAGE };
-  for (const b of buildings) {
-    if (b.level < 1) continue; // Skip buildings still under initial construction
-    if (b.type === BuildingType.holzlager) {
-      cap.wood  += HOLZLAGER_STORAGE[Math.min(b.level - 1, HOLZLAGER_STORAGE.length - 1)];
-    } else if (b.type === BuildingType.steinlager) {
-      cap.stone += STEINLAGER_STORAGE[Math.min(b.level - 1, STEINLAGER_STORAGE.length - 1)];
-    } else if (b.type === BuildingType.nahrungslager) {
-      cap.food  += NAHRUNGSLAGER_STORAGE[Math.min(b.level - 1, NAHRUNGSLAGER_STORAGE.length - 1)];
-    }
-  }
-  return cap;
-}
-
-// Helper: get the storage bonus array for a specific storage building type
-export function getStorageBonusArray(type: BuildingType): number[] | null {
-  switch (type) {
-    case BuildingType.holzlager:    return HOLZLAGER_STORAGE;
-    case BuildingType.steinlager:   return STEINLAGER_STORAGE;
-    case BuildingType.nahrungslager: return NAHRUNGSLAGER_STORAGE;
-    default: return null;
-  }
-}
-
-// Helper: which resource does a storage building cap?
-export function storageBuildingResource(type: BuildingType): 'wood' | 'stone' | 'food' | null {
-  switch (type) {
-    case BuildingType.holzlager:    return 'wood';
-    case BuildingType.steinlager:   return 'stone';
-    case BuildingType.nahrungslager: return 'food';
-    default: return null;
-  }
-}
-
-// MARK: - Sell Value (50% of build + all upgrade costs paid so far)
-// NOTE: buildCost() and upgradeCost() are defined after BUILDINGS table below.
-export function sellValue(type: BuildingType, currentLevel: number): ResourceCost {
-  const total = { ...buildCost(type) };
-  // Add every upgrade cost from level 1 up to (currentLevel - 1)
-  for (let lvl = 1; lvl < currentLevel; lvl++) {
-    const up = upgradeCost(type, lvl);
-    if (up) {
-      total.muskelmasse  += up.muskelmasse;
-      total.protein      += up.protein;
-      total.wood         += up.wood;
-      total.stone        += up.stone;
-      total.food         += up.food;
-      total.streakTokens += up.streakTokens;
-    }
-  }
-  return {
-    muskelmasse:  Math.floor(total.muskelmasse  * 0.5),
-    protein:      Math.floor(total.protein      * 0.5),
-    wood:         Math.floor(total.wood          * 0.5),
-    stone:        Math.floor(total.stone         * 0.5),
-    food:         Math.floor(total.food          * 0.5),
-    streakTokens: Math.floor(total.streakTokens * 0.5),
-  };
-}
-
-// MARK: - Rathaus Requirements
-export function rathausRequirement(type: BuildingType): number {
-  switch (type) {
-    // Available from start (Rathaus L1)
-    case BuildingType.rathaus:       return 1;
-    case BuildingType.holzfaeller:   return 1;
-    case BuildingType.feld:          return 1;
-    case BuildingType.kornkammer:    return 1;
-    case BuildingType.holzlager:     return 1;
-    case BuildingType.nahrungslager: return 1;
-    // Rathaus L2
-    case BuildingType.kaserne:       return 2;
-    case BuildingType.steinbruch:    return 2;
-    case BuildingType.steinlager:    return 2;
-    // Rathaus L3 — mid-game
-    case BuildingType.tempel:        return 3;
-    case BuildingType.bibliothek:    return 3;
-    case BuildingType.marktplatz:    return 3;
-    // Rathaus L4
-    case BuildingType.proteinfarm:   return 4;
-    // Rathaus L5 — endgame
-    case BuildingType.stammeshaus:   return 5;
-    // Rathaus L2 — Stall
-    case BuildingType.stall:         return 1;
-    // Phase 5: Wachturm und Mauer freigeschaltet
-    case BuildingType.wachturm:      return 2;
-    case BuildingType.mauer:         return 3;
-    default:                         return 1;
-  }
-}
-
-// MARK: - Unique Buildings
-export const UNIQUE_BUILDINGS: Set<BuildingType> = new Set([
-  BuildingType.rathaus,
-  BuildingType.stammeshaus,
-  BuildingType.marktplatz,
-  BuildingType.bibliothek,
-  BuildingType.tempel,
-  BuildingType.stall,
-  BuildingType.wachturm,
-  BuildingType.mauer,
-]);
-
-// MARK: - Progressive Multi-Build Unlock (per Rathaus level)
-// Each index = required Rathaus level to unlock that instance
-// index 0 = 1st instance, index 1 = 2nd instance, index 2 = 3rd instance
-export const MULTI_BUILD_UNLOCK: Partial<Record<BuildingType, number[]>> = {
-  holzfaeller:   [1, 3],      // 1st free, 2nd at Rathaus L3
-  feld:          [1, 2, 4],   // 1st free, 2nd at L2, 3rd at L4
-  steinbruch:    [2, 4],      // 1st at L2, 2nd at L4
-  proteinfarm:   [4, 5],      // 1st at L4, 2nd at L5
-  kornkammer:    [1],         // only 1× ever
-  holzlager:     [1, 3],      // 1st free, 2nd at L3
-  nahrungslager: [1, 3],      // 1st free, 2nd at L3
-  steinlager:    [2, 4],      // 1st at L2, 2nd at L4
-};
-
-// Returns how many instances of this building type the player may currently build
-export function allowedInstances(type: BuildingType, rathausLevel: number): number {
-  const unlocks = MULTI_BUILD_UNLOCK[type];
-  if (!unlocks) {
-    // Default: 1 instance when rathausRequired is met, 0 otherwise
-    return rathausLevel >= rathausRequirement(type) ? 1 : 0;
-  }
-  return unlocks.filter(req => rathausLevel >= req).length;
-}
-
-// Returns the Rathaus level required to unlock the NEXT instance (for UI hints)
-export function nextInstanceUnlockLevel(type: BuildingType, currentInstances: number): number | null {
-  const unlocks = MULTI_BUILD_UNLOCK[type];
-  if (!unlocks || currentInstances >= unlocks.length) return null;
-  return unlocks[currentInstances];
-}
-
-// Total maximum instances ever possible (at max Rathaus)
-export function maxInstances(type: BuildingType): number {
-  const unlocks = MULTI_BUILD_UNLOCK[type];
-  if (unlocks) return unlocks.length;
-  return 1;
-}
-
-// MARK: - Construction Time (derived from BUILDINGS table)
-/** Construction time in seconds for a building at a given target level */
-export function constructionTime(type: BuildingType, targetLevel: number): number {
-  const levelCfg = BUILDINGS[type]?.levels.find(l => l.level === targetLevel);
-  if (!levelCfg) return 0;
-  return levelCfg.buildTimeMinutes * 60; // convert minutes → seconds
-}
-
-/** Protein cost to instantly complete construction */
-export function skipConstructionCost(_type: BuildingType, _targetLevel: number): number {
-  return 1;
-}
-
-// MARK: - Workers
-export const Workers = {
-  trainingCost: createResourceCost({ muskelmasse: 50, streakTokens: 1, food: 5 }),
-  trainingTime: 30 * 60, // seconds
-  upgradeCost: createResourceCost({ muskelmasse: 100, food: 10 }),
-
-  collectionInterval(level: number): number {
-    switch (level) {
-      case 1: return 4 * 3600;
-      case 2: return 2 * 3600;
-      case 3: return 1 * 3600;
-      default: return 4 * 3600;
-    }
-  },
-};
-
-// MARK: - Zones
 export interface ZoneConfig {
   name: string;
   unlockCost: ResourceCost;
   rathausRequired: number;
   description: string;
-  iconName: string; // Ionicons name
+  iconName: string;
 }
 
-export const zones: ZoneConfig[] = [
-  {
-    name: 'Der Wald',
-    unlockCost: createResourceCost({ muskelmasse: 50, wood: 5 }),
-    rathausRequired: 1,
-    description: 'A dense forest full of resources waiting to be gathered.',
-    iconName: 'leaf',
-  },
-  {
-    name: 'Die Berge',
-    unlockCost: createResourceCost({ muskelmasse: 200, protein: 2 }),
-    rathausRequired: 2,
-    description: 'Rugged mountain terrain rich with stone and rare minerals.',
-    iconName: 'triangle',
-  },
-  {
-    name: 'Die Ruinen',
-    unlockCost: createResourceCost({ protein: 5, streakTokens: 10 }),
-    rathausRequired: 3,
-    description: 'Ancient ruins hiding forgotten treasures and artefacts.',
-    iconName: 'business',
-  },
-  {
-    name: 'Der Sumpf',
-    unlockCost: createResourceCost({ protein: 10 }),
-    rathausRequired: 3,
-    description: 'A murky swamp teeming with hidden dangers and rare finds.',
-    iconName: 'water',
-  },
-  {
-    name: 'Die Eiswüste',
-    unlockCost: createResourceCost({ protein: 20, streakTokens: 20 }),
-    rathausRequired: 4,
-    description: 'A frozen wasteland that only the most dedicated athletes can endure.',
-    iconName: 'snow',
-  },
-  {
-    name: 'Der Gipfel',
-    unlockCost: createResourceCost({ protein: 30 }),
-    rathausRequired: 5,
-    description: 'The ultimate summit — conquer it to prove your dominance.',
-    iconName: 'arrow-up-circle',
-  },
-];
-
-// MARK: - Exploration Timing
-export const explorationDuration = 4 * 3600; // seconds
-export const explorationProteinReward = 2;
-
-// MARK: - World Constants
-export const WorldConstants = {
-  gridSize: 15,
-  cellSize: 80,
-  waterPadding: 160,
-  get totalSize() { return this.gridSize * this.cellSize + 2 * this.waterPadding; },
-};
-
-// ════════════════════════════════════════════════════════════════════════════
-// GAME CONFIG v2 — Table-driven building and game data
-// ────────────────────────────────────────────────────────────────────────────
-// All user-facing strings are i18n keys — never hardcoded text.
-// Uses 'buildingConfig.*' namespace so existing flat 'buildings.*' keys keep working.
-// Stufe 2 (vor Release): Diese Werte aus Supabase laden.
-// ════════════════════════════════════════════════════════════════════════════
-
-/** Resource cost using German-named optional fields (distinct from ResourceCost) */
 export interface BuildingCost {
   muskelmasse?: number;
   holz?: number;
@@ -380,31 +49,236 @@ export interface BuildingCost {
 
 export interface BuildingLevelConfig {
   level: number;
-  /** null = starter building (rathaus L1, costs nothing) */
   upgradeCost: BuildingCost | null;
   buildTimeMinutes: number;
-  /** buildings first unlocked when rathaus reaches this level (rathaus only) */
   unlocks?: BuildingType[];
-  /** rounded hourly output for production buildings */
   productionPerHour?: number;
-  /** building-internal storage cap (production bldgs) or storage bonus added to inventory (lager bldgs) */
   maxStorage?: number;
-  /** max workers allowed at this kaserne level */
   maxWorkers?: number;
-  /** i18n key for the level-specific effect description */
   effectKey?: string;
 }
 
 export interface BuildingConfig {
   maxInstances: number;
-  nameKey: string;        // e.g. 'buildingConfig.rathaus.name'
-  descriptionKey: string; // e.g. 'buildingConfig.rathaus.description'
+  nameKey: string;
+  descriptionKey: string;
   levels: BuildingLevelConfig[];
 }
 
-// ─── BUILDINGS ───────────────────────────────────────────────────────────────
-// upgradeCost at level 1 = initial build cost; level N = upgrade from N-1→N.
-// All numeric values taken from existing GameConfig functions (code is authoritative).
+export interface AnimalConfig {
+  type: AnimalType;
+  name: string;
+  emoji: string;
+  rarity: AnimalRarity;
+  buildingBonus: {
+    targetBuilding: string;
+    bonusType: 'production' | 'storage' | 'speed' | 'global';
+    bonusPercent: number;
+  };
+  defenseVP: number;
+  specialAbility: string | null;
+  flavorText: string;
+}
+
+export interface EggHatchConfig {
+  rarity: AnimalRarity;
+  workoutsRequired: number;
+  requiresConsecutive: boolean;
+  requiresMinHRmax: number | null;
+}
+
+export interface MonsterConfig {
+  type: MonsterType;
+  name: string;
+  emoji: string;
+  tier: MonsterTier;
+  requiredRathausLevel: number;
+  baseAttackPower: [number, number];
+  baseHP: number;
+  target: string;
+  countRange: [number, number];
+  damageOnLoss: {
+    effectType: 'productionStop' | 'resourceLoss' | 'disabled';
+    durationHours: number;
+    details: string;
+  };
+  lootTable: {
+    resources: { min: number; max: number };
+    eggChance: number;
+    eggRarity: AnimalRarity | null;
+    proteinChance: number;
+    cosmeticChance: number;
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DECAY
+// ════════════════════════════════════════════════════════════════════════════
+
+export const Decay = {
+  threshold1: 48 * 3600,
+  threshold2: 72 * 3600,
+  threshold3: 96 * 3600,
+} as const;
+
+export const DECAY_CONFIG = {
+  resetAfterHours: 48,
+  thresholds: [
+    { hoursWithoutWorkout: 48, productionMultiplier: 0.50 },
+    { hoursWithoutWorkout: 72, productionMultiplier: 0.25 },
+    { hoursWithoutWorkout: 96, productionMultiplier: 0.00 },
+  ],
+} as const;
+
+// ════════════════════════════════════════════════════════════════════════════
+// EARN (deprecated — superseded by Progress Point system in progressPoints.ts)
+// ════════════════════════════════════════════════════════════════════════════
+
+export const Earn = {
+  /** @deprecated Use PP_REWARDS.muskelmassePerPP instead */
+  basePerMinute: 2.0,
+  /** @deprecated Replaced by DAILY_TARGETS.steps in progressPoints.ts */
+  stepsPerGram: 1000.0,
+  /** @deprecated Replaced by PP steps metric */
+  maxStepBonus: 10.0,
+  /** @deprecated Replaced by PP_REWARDS.proteinThreshold */
+  proteinMinHR: 150.0,
+  /** @deprecated Replaced by PP_REWARDS.proteinThreshold */
+  proteinMinMinutes: 20.0,
+} as const;
+
+// ════════════════════════════════════════════════════════════════════════════
+// PRODUCTION & STORAGE (legacy v1 base rates)
+// ════════════════════════════════════════════════════════════════════════════
+
+export const Production = {
+  kornkammer: 10.0,
+  proteinfarm: 1.0 / 24.0,
+  holzfaeller: 20.0,
+  steinbruch: 10.0,
+  feld: 15.0,
+  levelScale: 1.5,
+} as const;
+
+export const Storage = {
+  kornkammer: 500.0,
+  holzfaeller: 1000.0,
+  steinbruch: 500.0,
+  feld: 300.0,
+  proteinfarm: 10.0,
+  levelScale: 2.0,
+} as const;
+
+// ════════════════════════════════════════════════════════════════════════════
+// GLOBAL STORAGE CAPS
+// ════════════════════════════════════════════════════════════════════════════
+
+export const BASE_STORAGE: StorageCapacity = {
+  muskelmasse: Infinity,
+  protein:     Infinity,
+  wood:        300,
+  stone:       200,
+  food:        250,
+  streakTokens: Infinity,
+};
+
+export const HOLZLAGER_STORAGE = [500, 1000, 2000, 4000, 8000];
+export const STEINLAGER_STORAGE = [400, 800, 1600, 3200, 6400];
+export const NAHRUNGSLAGER_STORAGE = [450, 900, 1800, 3600, 7200];
+
+// ════════════════════════════════════════════════════════════════════════════
+// UNIQUE BUILDINGS & MULTI-BUILD UNLOCK
+// ════════════════════════════════════════════════════════════════════════════
+
+export const UNIQUE_BUILDINGS: Set<BuildingType> = new Set([
+  BuildingType.rathaus,
+  BuildingType.stammeshaus,
+  BuildingType.marktplatz,
+  BuildingType.bibliothek,
+  BuildingType.tempel,
+  BuildingType.stall,
+  BuildingType.wachturm,
+  BuildingType.mauer,
+]);
+
+export const MULTI_BUILD_UNLOCK: Partial<Record<BuildingType, number[]>> = {
+  holzfaeller:   [1, 3],
+  feld:          [1, 2, 4],
+  steinbruch:    [2, 4],
+  proteinfarm:   [4, 5],
+  kornkammer:    [1],
+  holzlager:     [1, 3],
+  nahrungslager: [1, 3],
+  steinlager:    [2, 4],
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// ZONES
+// ════════════════════════════════════════════════════════════════════════════
+
+export const zones: ZoneConfig[] = [
+  {
+    name: 'Der Wald',
+    unlockCost: { muskelmasse: 50, protein: 0, streakTokens: 0, wood: 5, stone: 0, food: 0 },
+    rathausRequired: 1,
+    description: 'A dense forest full of resources waiting to be gathered.',
+    iconName: 'leaf',
+  },
+  {
+    name: 'Die Berge',
+    unlockCost: { muskelmasse: 200, protein: 2, streakTokens: 0, wood: 0, stone: 0, food: 0 },
+    rathausRequired: 2,
+    description: 'Rugged mountain terrain rich with stone and rare minerals.',
+    iconName: 'triangle',
+  },
+  {
+    name: 'Die Ruinen',
+    unlockCost: { muskelmasse: 0, protein: 5, streakTokens: 10, wood: 0, stone: 0, food: 0 },
+    rathausRequired: 3,
+    description: 'Ancient ruins hiding forgotten treasures and artefacts.',
+    iconName: 'business',
+  },
+  {
+    name: 'Der Sumpf',
+    unlockCost: { muskelmasse: 0, protein: 10, streakTokens: 0, wood: 0, stone: 0, food: 0 },
+    rathausRequired: 3,
+    description: 'A murky swamp teeming with hidden dangers and rare finds.',
+    iconName: 'water',
+  },
+  {
+    name: 'Die Eiswüste',
+    unlockCost: { muskelmasse: 0, protein: 20, streakTokens: 20, wood: 0, stone: 0, food: 0 },
+    rathausRequired: 4,
+    description: 'A frozen wasteland that only the most dedicated athletes can endure.',
+    iconName: 'snow',
+  },
+  {
+    name: 'Der Gipfel',
+    unlockCost: { muskelmasse: 0, protein: 30, streakTokens: 0, wood: 0, stone: 0, food: 0 },
+    rathausRequired: 5,
+    description: 'The ultimate summit — conquer it to prove your dominance.',
+    iconName: 'arrow-up-circle',
+  },
+];
+
+export const explorationDuration = 4 * 3600; // seconds
+export const explorationProteinReward = 2;
+
+// ════════════════════════════════════════════════════════════════════════════
+// WORLD CONSTANTS
+// ════════════════════════════════════════════════════════════════════════════
+
+export const WorldConstants = {
+  gridSize: 15,
+  cellSize: 80,
+  waterPadding: 160,
+  totalSize: 15 * 80 + 2 * 160, // 1520
+} as const;
+
+// ════════════════════════════════════════════════════════════════════════════
+// BUILDINGS TABLE (v2 — single source of truth)
+// ════════════════════════════════════════════════════════════════════════════
+
 export const BUILDINGS: Record<BuildingType, BuildingConfig> = {
   rathaus: {
     maxInstances: 1,
@@ -638,34 +512,26 @@ export const BUILDINGS: Record<BuildingType, BuildingConfig> = {
   },
 };
 
-// ─── WORKER CONFIG ────────────────────────────────────────────────────────────
-// Source of truth: Workers object above + GameEngine worker capacity check.
+// ════════════════════════════════════════════════════════════════════════════
+// WORKER CONFIG
+// ════════════════════════════════════════════════════════════════════════════
+
 export const WORKER_CONFIG = {
-  trainingCost: { muskelmasse: 50, nahrung: 5, streakTokens: 1 },
-  upgradeCost: { muskelmasse: 100, nahrung: 10 },
-  trainingTimeMinutes: 30,
-  /** Passive food drain per worker per hour */
+  trainingCost: { muskelmasse: 50, protein: 0, streakTokens: 1, wood: 0, stone: 0, food: 5 },
+  upgradeCost: { muskelmasse: 100, protein: 0, streakTokens: 0, wood: 0, stone: 0, food: 10 },
+  trainingTimeSeconds: 30 * 60,
   nahrungVerbrauchProStundeProWorker: 1,
   collectionIntervals: [
-    { level: 1, intervalMinutes: 240 },
-    { level: 2, intervalMinutes: 120 },
-    { level: 3, intervalMinutes: 60 },
+    { level: 1, intervalSeconds: 4 * 3600 },
+    { level: 2, intervalSeconds: 2 * 3600 },
+    { level: 3, intervalSeconds: 1 * 3600 },
   ],
-} as const;
+};
 
-// ─── DECAY CONFIG ─────────────────────────────────────────────────────────────
-// Must match gameStateDecayMultiplier() in types.ts and Decay.productionMultiplier() above.
-export const DECAY_CONFIG = {
-  resetAfterHours: 48,
-  thresholds: [
-    { hoursWithoutWorkout: 48, productionMultiplier: 0.50 },
-    { hoursWithoutWorkout: 72, productionMultiplier: 0.25 },
-    { hoursWithoutWorkout: 96, productionMultiplier: 0.00 },
-  ],
-} as const;
+// ════════════════════════════════════════════════════════════════════════════
+// STREAK CONFIG
+// ════════════════════════════════════════════════════════════════════════════
 
-// ─── STREAK CONFIG ────────────────────────────────────────────────────────────
-// Reward numeric values must match STREAK_MILESTONES in streakUtils.ts.
 export const STREAK_CONFIG = {
   resetAfterHours: 48,
   milestones: [
@@ -680,8 +546,10 @@ export const STREAK_CONFIG = {
   ],
 } as const;
 
-// ─── EXPLORATION ZONES ───────────────────────────────────────────────────────
-// timerHours and reward are fixed constants from explorationDuration / explorationProteinReward.
+// ════════════════════════════════════════════════════════════════════════════
+// EXPLORATION ZONES (v2)
+// ════════════════════════════════════════════════════════════════════════════
+
 export const EXPLORATION_ZONES = [
   { id: 1, nameKey: 'zones.1.name', requiredRathausLevel: 1, cost: { muskelmasse: 50, holz: 5 },         timerHours: 4, reward: { protein: explorationProteinReward } },
   { id: 2, nameKey: 'zones.2.name', requiredRathausLevel: 2, cost: { muskelmasse: 200, protein: 2 },      timerHours: 4, reward: { protein: explorationProteinReward } },
@@ -691,14 +559,19 @@ export const EXPLORATION_ZONES = [
   { id: 6, nameKey: 'zones.6.name', requiredRathausLevel: 5, cost: { protein: 30 },                       timerHours: 4, reward: { protein: explorationProteinReward } },
 ] as const;
 
-// ─── MARKTPLATZ CONFIG ────────────────────────────────────────────────────────
-// Exchange rates: 1 Muskelmasse = base unit; others priced relative to it.
+// ════════════════════════════════════════════════════════════════════════════
+// MARKTPLATZ CONFIG
+// ════════════════════════════════════════════════════════════════════════════
+
 export const MARKTPLATZ_CONFIG = {
   rates: { muskelmasse: 1, holz: 0.5, nahrung: 0.625, stein: 0.5 },
   dailyLimitByLevel: [0, 200, 350, 500, 1000, 1500],
 } as const;
 
-// ─── ADJACENCY BONUSES ────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// ADJACENCY BONUSES
+// ════════════════════════════════════════════════════════════════════════════
+
 export const ADJACENCY_BONUSES = [
   { buildings: ['holzfaeller', 'holzlager'],  bonusKey: 'adjacency.holzfaeller_holzlager',  bonusPercent: 15 },
   { buildings: ['kaserne', 'tempel'],         bonusKey: 'adjacency.kaserne_tempel',          bonusPercent: 10 },
@@ -707,122 +580,345 @@ export const ADJACENCY_BONUSES = [
   { buildings: ['steinbruch', 'steinlager'],  bonusKey: 'adjacency.steinbruch_steinlager',    bonusPercent: 10 },
 ] as const;
 
-// ─── HELPER FUNCTIONS ─────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// EXPLORATION REWARD RANGES
+// ════════════════════════════════════════════════════════════════════════════
 
-export function getBuildingLevelConfig(type: BuildingType, level: number): BuildingLevelConfig | undefined {
-  return BUILDINGS[type]?.levels.find(l => l.level === level);
-}
-
-export function getBuildingUpgradeCost(type: BuildingType, targetLevel: number): BuildingCost | null {
-  return getBuildingLevelConfig(type, targetLevel)?.upgradeCost ?? null;
-}
-
-export function getBuildingMaxInstances(type: BuildingType): number {
-  return BUILDINGS[type]?.maxInstances ?? 1;
-}
-
-export function getDecayMultiplier(hoursSinceLastWorkout: number): number {
-  const threshold = [...DECAY_CONFIG.thresholds]
-    .reverse()
-    .find(t => hoursSinceLastWorkout >= t.hoursWithoutWorkout);
-  return threshold?.productionMultiplier ?? 1.0;
-}
-
-// ─── EXPLORATION REWARD RANGES ───────────────────────────────────────────────
-// Random reward ranges for claimExplorationReward() in GameEngine.
 export const EXPLORATION_REWARD_RANGES = {
-  muskelmasse: { min: 50, randomRange: 150 },   // 50 + random * 150
-  wood:        { min: 20, randomRange: 60 },     // 20 + random * 60
-  stone:       { min: 5,  randomRange: 25 },     // 5  + random * 25
+  muskelmasse: { min: 50, randomRange: 150 },
+  wood:        { min: 20, randomRange: 60 },
+  stone:       { min: 5,  randomRange: 25 },
 } as const;
 
-// ─── INTENSIVE WORKOUT TRACKER ───────────────────────────────────────────────
-// Windows and thresholds for unlocking Spähfalke / Mystischer Hirsch.
+// ════════════════════════════════════════════════════════════════════════════
+// INTENSIVE WORKOUT TRACKER
+// ════════════════════════════════════════════════════════════════════════════
+
 export const INTENSIVE_TRACKER = {
   weekWindowMs:       7 * 24 * 60 * 60 * 1000,
   biweekWindowMs:     14 * 24 * 60 * 60 * 1000,
-  weeklyThreshold:    5,   // 5× ≥70% HRmax in 7 days  → Spähfalke
-  biweeklyThreshold:  10,  // 10× ≥70% HRmax in 14 days → Mystischer Hirsch
+  weeklyThreshold:    5,
+  biweeklyThreshold:  10,
 } as const;
 
-// ─── STREAK ENGINE REWARDS ───────────────────────────────────────────────────
-// Streak-token / protein amounts granted directly by GameEngine on milestone.
+// ════════════════════════════════════════════════════════════════════════════
+// STREAK ENGINE REWARDS
+// ════════════════════════════════════════════════════════════════════════════
+
 export const STREAK_ENGINE_REWARDS: Record<number, { streakTokens?: number; protein?: number }> = {
   3:  { streakTokens: 2 },
   7:  { streakTokens: 5, protein: 3 },
 };
 
-// ─── BOSS WAVE SCALING ───────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// BOSS WAVE SCALING
+// ════════════════════════════════════════════════════════════════════════════
+
 export const BOSS_SCALING = {
   base: 3,
   perRathausLevel: 0.5,
   extraWarningHours: 12,
 } as const;
 
-// ─── WAVE TIER CHANCES ───────────────────────────────────────────────────────
-// Probability of higher tiers appearing when rathaus level qualifies.
+// ════════════════════════════════════════════════════════════════════════════
+// WAVE TIER CHANCES
+// ════════════════════════════════════════════════════════════════════════════
+
 export const WAVE_TIER_CHANCES = {
   tier3: 0.30,
   tier4: 0.20,
   tier5: 0.10,
 } as const;
 
-// ─── WAVE WARNING BONUSES ────────────────────────────────────────────────────
-// Extra warning time for Wachturm levels and Spähfalke.
+// ════════════════════════════════════════════════════════════════════════════
+// WAVE WARNING BONUSES
+// ════════════════════════════════════════════════════════════════════════════
+
 export const WAVE_WARNING_BONUSES = {
   watchtowerHoursPerLevel: 3,
   scoutFalconHours: 6,
 } as const;
 
-// ─── STREAK COUNTDOWN THRESHOLDS ─────────────────────────────────────────────
-// UI thresholds for the streak countdown display (safe / warning / danger).
+// ════════════════════════════════════════════════════════════════════════════
+// STREAK COUNTDOWN THRESHOLDS
+// ════════════════════════════════════════════════════════════════════════════
+
 export const STREAK_COUNTDOWN_THRESHOLDS = {
   safeAboveMs:    24 * 3_600_000,
   warningAboveMs: 12 * 3_600_000,
 } as const;
 
-// ─── WALL HP ─────────────────────────────────────────────────────────────────
-// HP per Mauer level (also in DEFENSE_CONFIG in EntityConfig, kept in sync).
-export const WALL_HP_PER_LEVEL = 50;
+// ════════════════════════════════════════════════════════════════════════════
+// WALL
+// ════════════════════════════════════════════════════════════════════════════
 
-// ─── WALL REPAIR ─────────────────────────────────────────────────────────────
+export const WALL_HP_PER_LEVEL = 50;
 export const WALL_REPAIR_COST_FACTOR = 20;
 
-// ─── OBSTACLE CONFIG ─────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// OBSTACLE CONFIG
+// ════════════════════════════════════════════════════════════════════════════
+
 export const OBSTACLE_CONFIG = {
-  smallRemovalCost: 15,       // Muskelmasse to remove a small obstacle
-  largeRemovalTimeSeconds: 30 * 60,  // 30 minutes
+  smallRemovalCost: 15,
+  largeRemovalTimeSeconds: 30 * 60,
 } as const;
 
 // ════════════════════════════════════════════════════════════════════════════
-// DERIVED v1 FUNCTIONS — read from BUILDINGS table (single source of truth)
+// ANIMAL CONFIG (moved from EntityConfig.ts)
 // ════════════════════════════════════════════════════════════════════════════
 
-/** Convert BuildingCost (German optional fields) → ResourceCost (English required fields) */
-function buildingCostToResourceCost(bc: BuildingCost | null | undefined): ResourceCost {
-  if (!bc) return createResourceCost();
-  return createResourceCost({
-    muskelmasse:  bc.muskelmasse ?? 0,
-    protein:      bc.protein ?? 0,
-    streakTokens: bc.streakTokens ?? 0,
-    wood:         bc.holz ?? 0,
-    stone:        bc.stein ?? 0,
-    food:         bc.nahrung ?? 0,
-  });
-}
+export const ANIMAL_CONFIGS: Record<AnimalType, AnimalConfig> = {
+  erntehuhn: {
+    type: 'erntehuhn',
+    name: 'Erntehuhn',
+    emoji: '🐔',
+    rarity: 'common',
+    buildingBonus: { targetBuilding: 'feld', bonusType: 'production', bonusPercent: 8 },
+    defenseVP: 0,
+    specialAbility: null,
+    flavorText: 'Pickt eifrig die Körner auf, die neben dem Feld liegen. Unermüdlich und ein bisschen dumm.',
+  },
+  lastesel: {
+    type: 'lastesel',
+    name: 'Lastesel',
+    emoji: '🫏',
+    rarity: 'common',
+    buildingBonus: { targetBuilding: 'lager', bonusType: 'storage', bonusPercent: 12 },
+    defenseVP: 0,
+    specialAbility: null,
+    flavorText: 'Trägt geduldig alles, was man ihm auflädt. Beschwert sich nie — zumindest nicht hörbar.',
+  },
+  holzbaer: {
+    type: 'holzbaer',
+    name: 'Holzbär',
+    emoji: '🐻',
+    rarity: 'uncommon',
+    buildingBonus: { targetBuilding: 'holzfaeller', bonusType: 'production', bonusPercent: 15 },
+    defenseVP: 20,
+    specialAbility: null,
+    flavorText: 'Reißt mit seinen Pranken ganze Baumstämme aus der Erde. Erstaunlich sanftmütig — solange man ihn füttert.',
+  },
+  spaehfalke: {
+    type: 'spaehfalke',
+    name: 'Spähfalke',
+    emoji: '🦅',
+    rarity: 'uncommon',
+    buildingBonus: { targetBuilding: 'wachturm', bonusType: 'production', bonusPercent: 0 },
+    defenseVP: 10,
+    specialAbility: 'Frühwarnung +6h, Angreifer -10% Angriffskraft',
+    flavorText: 'Kreist hoch über dem Dorf und sieht alles. Sein durchdringender Schrei warnt vor nahender Gefahr.',
+  },
+  steinbock: {
+    type: 'steinbock',
+    name: 'Steinbock',
+    emoji: '🐐',
+    rarity: 'rare',
+    buildingBonus: { targetBuilding: 'steinbruch', bonusType: 'production', bonusPercent: 15 },
+    defenseVP: 15,
+    specialAbility: 'Mauer hält +20% mehr aus',
+    flavorText: 'Klettert auf Felsen, die kein Mensch besteigen könnte. Sein Fell ist so hart wie der Stein selbst.',
+  },
+  mystischerHirsch: {
+    type: 'mystischerHirsch',
+    name: 'Mystischer Hirsch',
+    emoji: '🦌',
+    rarity: 'rare',
+    buildingBonus: { targetBuilding: 'tempel', bonusType: 'production', bonusPercent: 10 },
+    defenseVP: 25,
+    specialAbility: 'Heilaura: Repariert 5% Gebäudeschaden nach Angriff',
+    flavorText: 'Sein Geweih leuchtet in der Dämmerung silbern. Wo er steht, wächst das Gras schneller.',
+  },
+  kriegswolf: {
+    type: 'kriegswolf',
+    name: 'Kriegswolf',
+    emoji: '🐺',
+    rarity: 'epic',
+    buildingBonus: { targetBuilding: 'kaserne', bonusType: 'speed', bonusPercent: 20 },
+    defenseVP: 40,
+    specialAbility: 'Rudel-Taktik: Alle Tiere in Verteidigung +10% VP',
+    flavorText: 'Seine gelben Augen mustern jeden Fremden. Er folgt nur dem Stärksten — und das bist du.',
+  },
+  gluecksphoenixt: {
+    type: 'gluecksphoenixt',
+    name: 'Glücksphönix',
+    emoji: '🔥',
+    rarity: 'epic',
+    buildingBonus: { targetBuilding: 'bibliothek', bonusType: 'production', bonusPercent: 20 },
+    defenseVP: 30,
+    specialAbility: 'Wiedergeburt: 1× pro Welle ein zerstörtes Gebäude sofort repariert',
+    flavorText: 'Aus der Asche geboren, in Flammen getaucht. Sein Feuer zerstört nicht — es erneuert.',
+  },
+  uralterDrache: {
+    type: 'uralterDrache',
+    name: 'Uralter Drache',
+    emoji: '🐲',
+    rarity: 'legendary',
+    buildingBonus: { targetBuilding: '*', bonusType: 'global', bonusPercent: 25 },
+    defenseVP: 100,
+    specialAbility: 'Drachenatem: Vernichtet 30% der Monsterwelle sofort',
+    flavorText: 'Die Legenden sprachen von ihm. Jahrhunderte schlief er unter dem Berg. Dein Kampfgeist hat ihn geweckt.',
+  },
+};
 
-/** Build cost = BUILDINGS[type].levels[0].upgradeCost (level 1 = initial placement) */
-export function buildCost(type: BuildingType): ResourceCost {
-  const cfg = BUILDINGS[type];
-  if (!cfg || cfg.levels.length === 0) return createResourceCost();
-  return buildingCostToResourceCost(cfg.levels[0].upgradeCost);
-}
+// ════════════════════════════════════════════════════════════════════════════
+// EGG HATCH CONFIG (moved from EntityConfig.ts)
+// ════════════════════════════════════════════════════════════════════════════
 
-/** Upgrade cost from currentLevel → currentLevel+1, read from BUILDINGS table */
-export function upgradeCost(type: BuildingType, currentLevel: number): ResourceCost | null {
-  if (currentLevel >= 5) return null;
-  const targetLevel = currentLevel + 1;
-  const levelCfg = BUILDINGS[type]?.levels.find(l => l.level === targetLevel);
-  if (!levelCfg?.upgradeCost) return null;
-  return buildingCostToResourceCost(levelCfg.upgradeCost);
-}
+export const EGG_HATCH_CONFIGS: Record<AnimalRarity, EggHatchConfig> = {
+  common:    { rarity: 'common',    workoutsRequired: 3,  requiresConsecutive: false, requiresMinHRmax: null },
+  uncommon:  { rarity: 'uncommon',  workoutsRequired: 5,  requiresConsecutive: false, requiresMinHRmax: null },
+  rare:      { rarity: 'rare',      workoutsRequired: 7,  requiresConsecutive: true,  requiresMinHRmax: null },
+  epic:      { rarity: 'epic',      workoutsRequired: 10, requiresConsecutive: false, requiresMinHRmax: 60 },
+  legendary: { rarity: 'legendary', workoutsRequired: 14, requiresConsecutive: true,  requiresMinHRmax: 70 },
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// MONSTER CONFIG (moved from EntityConfig.ts)
+// ════════════════════════════════════════════════════════════════════════════
+
+export const MONSTER_CONFIGS: Record<MonsterType, MonsterConfig> = {
+  sumpfgoblin: {
+    type: 'sumpfgoblin', name: 'Sumpfgoblin', emoji: '👺', tier: 1,
+    requiredRathausLevel: 1,
+    baseAttackPower: [10, 20], baseHP: 30,
+    target: 'fields', countRange: [3, 6],
+    damageOnLoss: { effectType: 'productionStop', durationHours: 4, details: '-15% Nahrungsproduktion' },
+    lootTable: { resources: { min: 20, max: 50 }, eggChance: 0.05, eggRarity: 'common', proteinChance: 0, cosmeticChance: 0 },
+  },
+  schattenratte: {
+    type: 'schattenratte', name: 'Schattenratte', emoji: '🐀', tier: 1,
+    requiredRathausLevel: 1,
+    baseAttackPower: [5, 10], baseHP: 15,
+    target: 'storage', countRange: [1, 3],
+    damageOnLoss: { effectType: 'resourceLoss', durationHours: 0, details: '5-10% der gelagerten Ressourcen' },
+    lootTable: { resources: { min: 10, max: 30 }, eggChance: 0, eggRarity: null, proteinChance: 0, cosmeticChance: 0 },
+  },
+  skelettkrieger: {
+    type: 'skelettkrieger', name: 'Skelettkrieger', emoji: '💀', tier: 2,
+    requiredRathausLevel: 2,
+    baseAttackPower: [25, 40], baseHP: 60,
+    target: 'production', countRange: [2, 4],
+    damageOnLoss: { effectType: 'productionStop', durationHours: 6, details: 'Gebäude stoppt Produktion' },
+    lootTable: { resources: { min: 40, max: 80 }, eggChance: 0.10, eggRarity: 'uncommon', proteinChance: 0, cosmeticChance: 0 },
+  },
+  giftwurm: {
+    type: 'giftwurm', name: 'Giftwurm', emoji: '🪱', tier: 2,
+    requiredRathausLevel: 2,
+    baseAttackPower: [15, 25], baseHP: 40,
+    target: 'fields', countRange: [2, 4],
+    damageOnLoss: { effectType: 'productionStop', durationHours: 8, details: 'Alle Felder -50% Produktion' },
+    lootTable: { resources: { min: 30, max: 60 }, eggChance: 0.05, eggRarity: 'uncommon', proteinChance: 0, cosmeticChance: 0 },
+  },
+  dunkelork: {
+    type: 'dunkelork', name: 'Dunkelork', emoji: '👹', tier: 3,
+    requiredRathausLevel: 3,
+    baseAttackPower: [50, 80], baseHP: 120,
+    target: 'production', countRange: [2, 3],
+    damageOnLoss: { effectType: 'productionStop', durationHours: 8, details: '2 Gebäude stoppen + Ressourcenverlust' },
+    lootTable: { resources: { min: 80, max: 150 }, eggChance: 0.15, eggRarity: 'rare', proteinChance: 0.10, cosmeticChance: 0.05 },
+  },
+  nebelgeist: {
+    type: 'nebelgeist', name: 'Nebelgeist', emoji: '👻', tier: 3,
+    requiredRathausLevel: 3,
+    baseAttackPower: [30, 30], baseHP: 80,
+    target: 'magic', countRange: [1, 2],
+    damageOnLoss: { effectType: 'disabled', durationHours: 12, details: 'Gebäude deaktiviert, Tempel kann reinigen (4h)' },
+    lootTable: { resources: { min: 50, max: 100 }, eggChance: 0.10, eggRarity: 'rare', proteinChance: 0.20, cosmeticChance: 0 },
+  },
+  frostdrache: {
+    type: 'frostdrache', name: 'Frostdrache', emoji: '🐉', tier: 4,
+    requiredRathausLevel: 4,
+    baseAttackPower: [100, 150], baseHP: 250,
+    target: 'all', countRange: [1, 1],
+    damageOnLoss: { effectType: 'productionStop', durationHours: 4, details: 'Globaler Produktionsstopp' },
+    lootTable: { resources: { min: 150, max: 300 }, eggChance: 0.20, eggRarity: 'epic', proteinChance: 0.30, cosmeticChance: 0.10 },
+  },
+  schattenmagier: {
+    type: 'schattenmagier', name: 'Schattenmagier', emoji: '🧙', tier: 4,
+    requiredRathausLevel: 4,
+    baseAttackPower: [80, 120], baseHP: 180,
+    target: 'protein', countRange: [1, 1],
+    damageOnLoss: { effectType: 'resourceLoss', durationHours: 12, details: '2-5 Protein + Proteinfarm stoppt' },
+    lootTable: { resources: { min: 100, max: 200 }, eggChance: 0.15, eggRarity: 'epic', proteinChance: 0.40, cosmeticChance: 0.10 },
+  },
+  uralterGolem: {
+    type: 'uralterGolem', name: 'Uralter Golem', emoji: '🗿', tier: 5,
+    requiredRathausLevel: 5,
+    baseAttackPower: [300, 300], baseHP: 800,
+    target: 'rathaus', countRange: [1, 1],
+    damageOnLoss: { effectType: 'disabled', durationHours: 24, details: 'Rathaus deaktiviert' },
+    lootTable: { resources: { min: 500, max: 800 }, eggChance: 1.0, eggRarity: 'epic', proteinChance: 0.50, cosmeticChance: 0.30 },
+  },
+  verderbnisHydra: {
+    type: 'verderbnisHydra', name: 'Verderbnis-Hydra', emoji: '🐍', tier: 5,
+    requiredRathausLevel: 5,
+    baseAttackPower: [120, 120], baseHP: 600,
+    target: 'all', countRange: [1, 1],
+    damageOnLoss: { effectType: 'productionStop', durationHours: 12, details: 'Alle Ressourcen-Typen -50%' },
+    lootTable: { resources: { min: 600, max: 1000 }, eggChance: 1.0, eggRarity: 'legendary', proteinChance: 0.80, cosmeticChance: 0.50 },
+  },
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// WAVE CONFIG (moved from EntityConfig.ts)
+// ════════════════════════════════════════════════════════════════════════════
+
+export const WAVE_CONFIG = {
+  minIntervalMs: 48 * 60 * 60 * 1000,
+  maxIntervalMs: 72 * 60 * 60 * 1000,
+  baseWarningMs: 12 * 60 * 60 * 1000,
+  difficultyPerRathausLevel: 50,
+  inactivityMultipliers: {
+    48:  1.2,
+    72:  1.4,
+    120: 1.8,
+  } as Record<number, number>,
+  difficultyVariation: 0.15,
+  bloodWaveIntervalDays: 7,
+  bloodWaveMultiplier: 1.5,
+  bossEventIntervalDays: 14,
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// DEFENSE CONFIG (moved from EntityConfig.ts)
+// ════════════════════════════════════════════════════════════════════════════
+
+export const DEFENSE_CONFIG = {
+  buildingVP: {
+    rathaus: 10,
+    kaserne: 15,
+    wachturm: 20,
+    mauer: 30,
+  } as Record<string, number>,
+  vpPerWorkoutMinute: 2,
+  vpPerIntenseMinute: 4,
+  streakBonusPerDay: 0.05,
+  vpPerWorker: 15,
+  watchtowerWarningPerLevel: 3 * 60 * 60 * 1000,
+  wallHPPerLevel: [0, 50, 100, 150, 225, 300],
+  perfectThreshold: 1.5,
+  defendedThreshold: 1.0,
+  partialThreshold: 0.5,
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// STALL CONFIG (moved from EntityConfig.ts)
+// ════════════════════════════════════════════════════════════════════════════
+
+export const STALL_CONFIG = {
+  slotsPerLevel: [0, 1, 2, 3, 4, 5],
+  buildTimeMinutes: [0, 10, 30, 60, 90, 120],
+  costs: {
+    1: { muskelmasse: 30,  holz: 15 },
+    2: { muskelmasse: 60,  holz: 30 },
+    3: { muskelmasse: 120, holz: 60 },
+    4: { muskelmasse: 200, holz: 100 },
+    5: { muskelmasse: 350, holz: 175 },
+  } as Record<number, Record<string, number>>,
+  adjacencyBonus: {
+    targetBuilding: 'feld',
+    bonusPercent: 10,
+    description: 'Neben Feld → Tiere produzieren +10% Nahrung passiv',
+  },
+};

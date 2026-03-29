@@ -15,7 +15,11 @@ import {
 } from '../models/types';
 import { generateFitnessGoals } from '../config/GoalConfig';
 import { calculateHRmax, DEFAULT_HRMAX } from '../utils/hrMax';
-import { ANIMAL_CONFIGS, STALL_CONFIG, WAVE_CONFIG, DEFENSE_CONFIG } from '../config/EntityConfig';
+import {
+  ResourceCost, StorageCapacity, UNIQUE_BUILDINGS, WALL_HP_PER_LEVEL, WALL_REPAIR_COST_FACTOR,
+  ANIMAL_CONFIGS, STALL_CONFIG, WAVE_CONFIG, DEFENSE_CONFIG,
+} from '../config/GameConfig';
+import { getTotalStorageCap, buildCost, upgradeCost, rathausRequirement, Workers } from '../config/GameConfigHelpers';
 import { waveService } from '../services/WaveService';
 import { combatService } from '../services/CombatService';
 import * as GE from '../engines/GameEngine';
@@ -23,7 +27,6 @@ import type { CollectResult, SellConsequences } from '../engines/GameEngine';
 import * as VE from '../engines/VitacoinEngine';
 import * as HK from '../engines/HealthKitManager';
 import * as OM from '../engines/ObstacleManager';
-import { ResourceCost, StorageCapacity, getTotalStorageCap, buildCost, upgradeCost, rathausRequirement, UNIQUE_BUILDINGS, Workers, WALL_HP_PER_LEVEL, WALL_REPAIR_COST_FACTOR } from '../config/GameConfig';
 import { useGameStore as useCurrencyStore } from './gameStore';
 
 interface GameStore {
@@ -1129,7 +1132,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           break;
         case 'egg': {
           // Generate an egg
-          const { EGG_HATCH_CONFIGS, ANIMAL_CONFIGS: AC } = require('../config/EntityConfig');
+          const { EGG_HATCH_CONFIGS, ANIMAL_CONFIGS: AC } = require('../config/GameConfig');
           const rarity: EggRarity = (drop.eggRarity as EggRarity) ?? 'common';
           const cfg = EGG_HATCH_CONFIGS[rarity];
           // Pick a random animal type that matches the rarity
