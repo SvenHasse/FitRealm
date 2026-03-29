@@ -11,17 +11,20 @@ import Animated, {
   withSequence,
   withSpring,
 } from 'react-native-reanimated';
-import { AppColors } from '../models/types';
+import { AppColors, FitnessFocus } from '../models/types';
+import { useTranslation } from 'react-i18next';
 
 const STREAK_COLOR = '#FF6B35';
 
 interface Props {
   streak: number;
   milestone: number; // next target day count (e.g. 7, 14, 21 …)
+  fitnessFocus?: FitnessFocus;
   onPress?: () => void;
 }
 
-export default function StreakCounter({ streak, milestone, onPress }: Props) {
+export default function StreakCounter({ streak, milestone, fitnessFocus, onPress }: Props) {
+  const { t } = useTranslation();
   const scale    = useSharedValue(1);
   const progress = milestone > 0 ? Math.min(streak / milestone, 1) : 0;
   const daysLeft = Math.max(milestone - streak, 0);
@@ -53,7 +56,11 @@ export default function StreakCounter({ streak, milestone, onPress }: Props) {
             <Text style={styles.number}>{streak}</Text>
             <Text style={styles.numberSuffix}> Tage</Text>
           </View>
-          <Text style={styles.sub}>Workout-Streak</Text>
+          <Text style={styles.sub}>
+            {fitnessFocus
+              ? t(`dashboard.streakLabel_${fitnessFocus}`)
+              : 'Workout-Streak'}
+          </Text>
         </View>
         {/* Chevron hint */}
         {onPress && (

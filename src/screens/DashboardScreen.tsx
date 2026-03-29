@@ -38,7 +38,8 @@ import {
   vo2MaxTrend,
   FitnessFocus,
 } from '../models/types';
-import { DAILY_TARGETS } from '../utils/progressPoints';
+import { DAILY_TARGETS, PPMetric } from '../utils/progressPoints';
+import { checkDailyFocusTarget } from '../engines/GameEngine';
 import { RootStackParamList, WorkoutRewardData } from '../navigation/types';
 import { useWorkoutStore, Workout } from '../store/workoutStore';
 import { calculateReward } from '../utils/currencyCalculator';
@@ -156,6 +157,57 @@ function CompactSyncButton({
   );
 }
 
+// ─── Metric ordering by focus ─────────────────────────────────────────────────
+
+interface MetricDef {
+  key: PPMetric;
+  icon: React.ReactNode;
+  value: number;
+  label: string;
+  unit: string;
+  color: string;
+  progress: number;
+}
+
+function getOrderedMetrics(
+  focus: FitnessFocus,
+  health: { stepsToday: number; workoutMinutesToday: number; activeCaloriesToday: number; stepsGoal: number; workoutTypeToday: string },
+): MetricDef[] {
+  const all: MetricDef[] = [
+    {
+      key: 'steps',
+      icon: <MaterialCommunityIcons name="shoe-print" size={18} color="#4CAF50" />,
+      value: health.stepsToday,
+      label: 'Schritte',
+      unit: '',
+      color: '#4CAF50',
+      progress: health.stepsToday / health.stepsGoal,
+    },
+    {
+      key: 'workouts',
+      icon: <Ionicons name="time-outline" size={18} color={AppColors.teal} />,
+      value: health.workoutMinutesToday,
+      label: health.workoutTypeToday,
+      unit: ' min',
+      color: AppColors.teal,
+      progress: Math.min(health.workoutMinutesToday / 60, 1),
+    },
+    {
+      key: 'calories',
+      icon: <MaterialCommunityIcons name="fire" size={18} color="#FF9800" />,
+      value: health.activeCaloriesToday,
+      label: 'Aktive kcal',
+      unit: ' kcal',
+      color: '#FF9800',
+      progress: Math.min(health.activeCaloriesToday / 600, 1),
+    },
+  ];
+  // Primary (focus) first, then the rest
+  const primary = all.find(m => m.key === focus)!;
+  const secondary = all.filter(m => m.key !== focus);
+  return [primary, ...secondary];
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
@@ -209,8 +261,7 @@ export default function DashboardScreen() {
         {/* ── 0. Currency Bar ────────────────────────────────────────── */}
         <CurrencyBar />
 
-        {/* ── 0b. Primary Metric Hero ──────────────────────────────── */}
-        <PrimaryMetricHero focus={fitnessFocus} health={health} t={t} />
+        {/* (PrimaryMetricHero removed — focus metric is now in Heute card) */}
 
         {/* ── 1. Tages-Übersicht ─────────────────────────────────────── */}
         <TouchableOpacity activeOpacity={0.85} onPress={() => setStatsModalOpen(true)}>
@@ -224,31 +275,61 @@ export default function DashboardScreen() {
             <CompactSyncButton isSyncing={isSyncing} onPress={syncHealthData} />
           </View>
 
-          <View style={styles.metricsRow}>
-            <DailyMetricCard
-              icon={<MaterialCommunityIcons name="shoe-print" size={18} color="#4CAF50" />}
-              value={health.stepsToday}
-              label="Schritte"
-              color="#4CAF50"
-              progress={health.stepsToday / health.stepsGoal}
-            />
-            <DailyMetricCard
-              icon={<MaterialCommunityIcons name="fire" size={18} color="#FF9800" />}
-              value={health.activeCaloriesToday}
-              label="Aktive kcal"
-              unit=" kcal"
-              color="#FF9800"
-              progress={Math.min(health.activeCaloriesToday / 600, 1)}
-            />
-            <DailyMetricCard
-              icon={<Ionicons name="time-outline" size={18} color={AppColors.teal} />}
-              value={health.workoutMinutesToday}
-              label={health.workoutTypeToday}
-              unit=" min"
-              color={AppColors.teal}
-              progress={Math.min(health.workoutMinutesToday / 60, 1)}
-            />
-          </View>
+          {(() => {
+            const ordered = getOrderedMetrics(fitnessFocus, health);
+            const primary = ordered[0];
+            const secondaries = ordered.slice(1);
+            const focusTargetMet = checkDailyFocusTarget(
+              fitnessFocus,
+              {
+                stepsToday: health.stepsToday,
+                activeCaloriesToday: health.activeCaloriesToday,
+                restingHeartRateCurrent: null,
+                restingHeartRate30DaysAgo: null,
+                vo2MaxCurrent: null,
+                vo2Max30DaysAgo: null,
+                lastUpdated: new Date().toISOString(),
+              },
+              health.workoutMinutesToday,
+            );
+            return (
+              <View style={styles.metricsRow}>
+                {/* Left: large focus metric */}
+                <View style={styles.focusMetricCol}>
+                  <DailyMetricCard
+                    icon={primary.icon}
+                    value={primary.value}
+                    label={primary.label}
+                    unit={primary.unit}
+                    color={primary.color}
+                    progress={primary.progress}
+                    ringSize={130}
+                  />
+                  {focusTargetMet && (
+                    <View style={styles.targetBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
+                      <Text style={styles.targetBadgeText}>{t('dashboard.dailyTargetReached')}</Text>
+                    </View>
+                  )}
+                </View>
+                {/* Right: two small secondary metrics stacked */}
+                <View style={styles.secondaryMetricCol}>
+                  {secondaries.map(m => (
+                    <DailyMetricCard
+                      key={m.key}
+                      icon={m.icon}
+                      value={m.value}
+                      label={m.label}
+                      unit={m.unit}
+                      color={m.color}
+                      progress={m.progress}
+                      ringSize={68}
+                    />
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
         </View>
         </TouchableOpacity>
 
@@ -256,6 +337,7 @@ export default function DashboardScreen() {
         <StreakCounter
           streak={currentStreak}
           milestone={streakMilestone}
+          fitnessFocus={fitnessFocus}
           onPress={() => setStreakModalOpen(true)}
         />
 
@@ -443,72 +525,7 @@ function TrendTile({
   );
 }
 
-// ─── Primary Metric Hero ─────────────────────────────────────────────────────
-
-function PrimaryMetricHero({
-  focus,
-  health,
-  t,
-}: {
-  focus: FitnessFocus;
-  health: { stepsToday: number; workoutMinutesToday: number; activeCaloriesToday: number };
-  t: (key: string) => string;
-}) {
-  let value: number;
-  let target: number;
-  let label: string;
-  let unit: string;
-  let color: string;
-  let iconName: string;
-
-  switch (focus) {
-    case 'steps':
-      value = health.stepsToday;
-      target = DAILY_TARGETS.steps;
-      label = t('dashboard.primarySteps');
-      unit = '';
-      color = '#4CAF50';
-      iconName = 'shoe-print';
-      break;
-    case 'workouts':
-      value = health.workoutMinutesToday;
-      target = DAILY_TARGETS.workouts;
-      label = t('dashboard.primaryWorkouts');
-      unit = ' min';
-      color = AppColors.teal;
-      iconName = 'dumbbell';
-      break;
-    case 'calories':
-      value = health.activeCaloriesToday;
-      target = DAILY_TARGETS.calories;
-      label = t('dashboard.primaryCalories');
-      unit = ' kcal';
-      color = '#FF9800';
-      iconName = 'fire';
-      break;
-  }
-
-  const progress = Math.min(value / target, 1);
-  const pct = Math.round(progress * 100);
-
-  return (
-    <View style={[cardBackground, { borderWidth: 1, borderColor: `${color}40` }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-        <MaterialCommunityIcons name={iconName as any} size={18} color={color} />
-        <Text style={{ fontSize: 14, fontWeight: '600', color: AppColors.textSecondary }}>{label}</Text>
-        <View style={{ flex: 1 }} />
-        <Text style={{ fontSize: 12, fontWeight: '500', color: AppColors.textSecondary }}>{pct}%</Text>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-        <Text style={{ fontSize: 36, fontWeight: '800', color }}>{Math.floor(value).toLocaleString()}</Text>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: AppColors.textSecondary }}>/ {target.toLocaleString()}{unit}</Text>
-      </View>
-      <View style={{ height: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 3, marginTop: 10 }}>
-        <View style={{ height: 6, backgroundColor: color, borderRadius: 3, width: `${pct}%` }} />
-      </View>
-    </View>
-  );
-}
+// (PrimaryMetricHero removed — replaced by asymmetric layout in Heute card)
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -542,7 +559,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  metricsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
+  metricsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  focusMetricCol: { alignItems: 'center', flex: 1 },
+  secondaryMetricCol: { justifyContent: 'space-between', gap: 12, flex: 0, width: 100 },
+  targetBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: 'rgba(76,175,80,0.15)',
+    borderRadius: 10,
+  },
+  targetBadgeText: { fontSize: 11, fontWeight: '600', color: '#4CAF50' },
 
   workoutRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   workoutIconWrap: {

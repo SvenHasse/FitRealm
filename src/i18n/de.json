@@ -49,7 +49,11 @@
     "syncHealthData": "Gesundheitsdaten synchronisieren",
     "primarySteps": "Tagesschritte",
     "primaryWorkouts": "Trainingsminuten heute",
-    "primaryCalories": "Aktive Kalorien heute"
+    "primaryCalories": "Aktive Kalorien heute",
+    "dailyTargetReached": "Tagesziel erreicht!",
+    "streakLabel_steps": "Tage mit 10k+ Schritten",
+    "streakLabel_workouts": "Tage mit Workout-Ziel",
+    "streakLabel_calories": "Tage mit 500+ kcal"
   },
   "realm": {
     "tapToPlace": "Tippe auf ein freies Feld: {{building}}",
