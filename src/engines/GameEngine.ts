@@ -13,16 +13,19 @@ import {
   FitnessFocus,
 } from '../models/types';
 import {
-  ResourceCost, createResourceCost, buildCost, upgradeCost, rathausRequirement,
-  UNIQUE_BUILDINGS, allowedInstances, nextInstanceUnlockLevel, sellValue,
-  Earn, Workers, BUILDINGS, getBuildingLevelConfig,
+  ResourceCost, UNIQUE_BUILDINGS, Earn, BUILDINGS,
   zones as zoneConfigs, explorationDuration, explorationProteinReward,
+  EXPLORATION_REWARD_RANGES, INTENSIVE_TRACKER, STREAK_ENGINE_REWARDS,
+  ANIMAL_CONFIGS,
+} from '../config/GameConfig';
+import {
+  createResourceCost, buildCost, upgradeCost, rathausRequirement,
+  allowedInstances, nextInstanceUnlockLevel, sellValue,
+  Workers, getBuildingLevelConfig,
   getTotalStorageCap, storageBuildingResource, getStorageBonusArray,
   constructionTime, skipConstructionCost,
-  EXPLORATION_REWARD_RANGES, INTENSIVE_TRACKER, STREAK_ENGINE_REWARDS,
-} from '../config/GameConfig';
+} from '../config/GameConfigHelpers';
 import { calculateTotalPP, ppToRewards, DailyMetrics } from '../utils/progressPoints';
-import { ANIMAL_CONFIGS } from '../config/EntityConfig';
 
 const STATE_KEY = 'fitrealmGameState';
 

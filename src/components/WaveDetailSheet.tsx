@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MonsterWave, DefenseBreakdown, AppColors } from '../models/types';
-import { MONSTER_CONFIGS } from '../config/EntityConfig';
+import { MONSTER_CONFIGS } from '../config/GameConfig';
 
 interface Props {
   visible: boolean;

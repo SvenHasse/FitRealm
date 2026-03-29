@@ -11,8 +11,8 @@ import {
   buildingProducesResource, ResourceType,
   findBuildingById, workerStatus, WorkerStatus,
 } from '../models/types';
-import { upgradeCost, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, constructionTime, skipConstructionCost } from '../config/GameConfig';
-import { ANIMAL_CONFIGS } from '../config/EntityConfig';
+import { ANIMAL_CONFIGS } from '../config/GameConfig';
+import { upgradeCost, getTotalStorageCap, getStorageBonusArray, storageBuildingResource, constructionTime, skipConstructionCost } from '../config/GameConfigHelpers';
 import { costString, canAfford, hourlyProductionRate, buildingStorageCap, SellConsequences } from '../engines/GameEngine';
 import SellConfirmModal from './SellConfirmModal';
 import { formatDuration } from '../utils/formatDuration';
