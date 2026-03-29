@@ -581,7 +581,7 @@ export function collectAllWithResult(state: GameState): { newState: GameState; r
 }
 
 // MARK: - Workout Processing
-export function processWorkouts(state: GameState, workouts: WorkoutRecord[], snapshot: HealthSnapshot): GameState {
+export function processWorkouts(state: GameState, workouts: WorkoutRecord[], snapshot: HealthSnapshot, hrMax: number = 200): GameState {
   const newWorkouts = workouts.filter(w => !state.processedGameWorkoutIDs.includes(w.id));
   if (newWorkouts.length === 0) return state;
 
@@ -601,8 +601,8 @@ export function processWorkouts(state: GameState, workouts: WorkoutRecord[], sna
     awardDailyToken(s, new Date(workout.date));
     s.processedGameWorkoutIDs.push(workout.id);
 
-    // HRmax-Tracking: ≥140bpm gilt als ≥70% HRmax
-    const isIntensive = (workout.averageHeartRate ?? 0) >= 140;
+    // HRmax-Tracking: ≥70% of personalized HRmax gilt als intensiv
+    const isIntensive = (workout.averageHeartRate ?? 0) >= Math.round(hrMax * 0.7);
     if (isIntensive) {
       _updateIntensiveTracker(s);
     }

@@ -238,7 +238,13 @@
     "resetTitle": "Reset All Data",
     "resetMessage": "This will delete all Vitacoins and workout history. This cannot be undone.",
     "resetCancel": "Cancel",
-    "resetConfirm": "Reset"
+    "resetConfirm": "Reset",
+    "myProfile": "My Profile",
+    "profileAge": "Age",
+    "profileWeight": "Weight",
+    "profileHeight": "Height",
+    "profileGender": "Gender",
+    "profileYears": "years"
   },
   "storage": {
     "currentOf": "{{current}} / {{max}}",
@@ -490,5 +496,26 @@
         "use": "Special buildings like Temple and Library."
       }
     }
+  },
+  "onboarding": {
+    "welcomeTitle": "FitRealm",
+    "tagline": "Train. Earn. Build.",
+    "welcomeDesc": "Turn your real workouts into resources and build your own village. The harder you train, the stronger your realm becomes.",
+    "conceptTrain": "Train",
+    "conceptEarn": "Earn",
+    "conceptBuild": "Build",
+    "conceptDesc": "Every real workout generates Muskelmasse and resources. Collect them, build structures, and defend your village against monster waves.",
+    "dataTitle": "Your Profile",
+    "dataSubtitle": "We use this to calculate your personal HRmax and intensity zones.",
+    "age": "Age",
+    "weight": "Weight",
+    "height": "Height",
+    "gender": "Gender",
+    "male": "Male",
+    "female": "Female",
+    "resultTitle": "Your Maximum Heart Rate",
+    "resultExplain": "Your HRmax is used to precisely evaluate workout intensity. Workouts above 70% HRmax count as intense.",
+    "resultFormula": "Formula: 220 \u2212 {{age}} = HRmax",
+    "letsGo": "Let's go!"
   }
 }
