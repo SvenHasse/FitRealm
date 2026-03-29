@@ -7,7 +7,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withDelay, withSequence,
 } from 'react-native-reanimated';
 import AnimalRenderer from '../../village-assets/components/AnimalRenderer';
-import { ANIMAL_CONFIGS } from '../config/EntityConfig';
+import { ANIMAL_CONFIGS } from '../config/GameConfig';
 
 interface Props {
   visible: boolean;

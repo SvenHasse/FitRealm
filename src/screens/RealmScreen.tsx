@@ -51,7 +51,7 @@ import WaveDetailSheet from '../components/WaveDetailSheet';
 import EggHatchModal from '../components/EggHatchModal';
 import DragonUnlockModal from '../components/DragonUnlockModal';
 import DefenseDashboardModal from '../components/DefenseDashboardModal';
-import { MONSTER_CONFIGS } from '../config/EntityConfig';
+import { MONSTER_CONFIGS } from '../config/GameConfig';
 import { waveService } from '../services/WaveService';
 import { Trophy } from '../models/types';
 import { BiomeId } from '../features/exploration/types';

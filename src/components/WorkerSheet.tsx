@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import { AppColors, Worker, WorkerStatus, workerStatus, findBuildingById } from '../models/types';
-import { Workers as WorkersConfig } from '../config/GameConfig';
+import { Workers as WorkersConfig } from '../config/GameConfigHelpers';
 import { canAfford, costString } from '../engines/GameEngine';
 
 interface Props {

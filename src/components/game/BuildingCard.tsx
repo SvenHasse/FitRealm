@@ -9,11 +9,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { BuildingType, GameState } from '../../models/types';
+import { ResourceCost, BUILDINGS } from '../../config/GameConfig';
 import {
   buildCost, rathausRequirement, allowedInstances, maxInstances,
-  constructionTime, BUILDINGS, getBuildingLevelConfig,
-  ResourceCost, nextInstanceUnlockLevel,
-} from '../../config/GameConfig';
+  constructionTime, getBuildingLevelConfig, nextInstanceUnlockLevel,
+} from '../../config/GameConfigHelpers';
 import { canAfford } from '../../engines/GameEngine';
 import BuildingCardFront from './BuildingCardFront';
 import BuildingCardBack from './BuildingCardBack';

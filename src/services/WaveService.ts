@@ -2,11 +2,7 @@
 // FitRealm — Generates and schedules monster waves
 
 import { MonsterWave, Monster, MonsterType } from '../models/types';
-import { MONSTER_CONFIGS, WAVE_CONFIG } from '../config/EntityConfig';
-import { BOSS_SCALING, WAVE_TIER_CHANCES, WAVE_WARNING_BONUSES } from '../config/GameConfig';
-
-// Re-export for convenience
-export { WAVE_CONFIG };
+import { MONSTER_CONFIGS, WAVE_CONFIG, BOSS_SCALING, WAVE_TIER_CHANCES, WAVE_WARNING_BONUSES } from '../config/GameConfig';
 
 const TIER1_MONSTERS: MonsterType[] = ['sumpfgoblin', 'schattenratte'];
 const TIER2_MONSTERS: MonsterType[] = ['skelettkrieger', 'giftwurm'];

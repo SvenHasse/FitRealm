@@ -9,7 +9,7 @@ import {
   AppColors, BuildingType,
   gameStateRathausLevel, workerStatus, WorkerStatus,
 } from '../models/types';
-import { allowedInstances } from '../config/GameConfig';
+import { allowedInstances } from '../config/GameConfigHelpers';
 import BuildingCard from './game/BuildingCard';
 
 type TabKey = 'production' | 'infrastructure' | 'special';

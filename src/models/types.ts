@@ -494,7 +494,7 @@ export function gameStateIsDecayActive(state: GameState): boolean {
 
 export function gameStateDecayMultiplier(state: GameState): number {
   if (!state.lastWorkoutDate) return 1.0;
-  const { DECAY_CONFIG, getDecayMultiplier } = require('../config/GameConfig');
+  const { getDecayMultiplier } = require('../config/GameConfigHelpers');
   const elapsedHours = (Date.now() - new Date(state.lastWorkoutDate).getTime()) / 3_600_000;
   return getDecayMultiplier(elapsedHours);
 }

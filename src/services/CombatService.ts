@@ -5,7 +5,7 @@ import {
   DefenseBreakdown, MonsterWave, WaveResult, DamageEffect,
   Animal, Building, LootDrop, EggRarity, BossPhaseResult,
 } from '../models/types';
-import { ANIMAL_CONFIGS, MONSTER_CONFIGS } from '../config/EntityConfig';
+import { ANIMAL_CONFIGS, MONSTER_CONFIGS } from '../config/GameConfig';
 
 export class CombatService {
 
