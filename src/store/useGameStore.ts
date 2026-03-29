@@ -22,7 +22,7 @@ import type { CollectResult, SellConsequences } from '../engines/GameEngine';
 import * as VE from '../engines/VitacoinEngine';
 import * as HK from '../engines/HealthKitManager';
 import * as OM from '../engines/ObstacleManager';
-import { ResourceCost, StorageCapacity, getTotalStorageCap, buildCost, upgradeCost, rathausRequirement, UNIQUE_BUILDINGS, Workers, WALL_HP_PER_LEVEL } from '../config/GameConfig';
+import { ResourceCost, StorageCapacity, getTotalStorageCap, buildCost, upgradeCost, rathausRequirement, UNIQUE_BUILDINGS, Workers, WALL_HP_PER_LEVEL, WALL_REPAIR_COST_FACTOR } from '../config/GameConfig';
 import { useGameStore as useCurrencyStore } from './gameStore';
 
 interface GameStore {
@@ -1172,7 +1172,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!mauerBuilding) return;
     const missingHP = gs.wallHP.max - gs.wallHP.current;
     if (missingHP <= 0) return;
-    const repairCost = Math.ceil(missingHP * 20 / gs.wallHP.max * mauerBuilding.level);
+    const repairCost = Math.ceil(missingHP * WALL_REPAIR_COST_FACTOR / gs.wallHP.max * mauerBuilding.level);
     if (gs.wood < repairCost) return;
     const newGs = {
       ...gs,

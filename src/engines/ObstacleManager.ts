@@ -5,7 +5,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { Obstacle, ObstacleType } from '../models/types';
-import { WorldConstants } from '../config/GameConfig';
+import { WorldConstants, OBSTACLE_CONFIG } from '../config/GameConfig';
 
 const OBSTACLE_KEY = 'fitrealmObstacles';
 
@@ -90,7 +90,7 @@ export function startClearingObstacle(obstacles: Obstacle[], id: string): Obstac
     return {
       ...o,
       isClearing: true,
-      clearingEndDate: new Date(Date.now() + (o.type === ObstacleType.branch || o.type === ObstacleType.smallRock || o.type === ObstacleType.mushrooms ? 0 : 30 * 60 * 1000)).toISOString(),
+      clearingEndDate: new Date(Date.now() + (o.type === ObstacleType.branch || o.type === ObstacleType.smallRock || o.type === ObstacleType.mushrooms ? 0 : OBSTACLE_CONFIG.largeRemovalTimeSeconds * 1000)).toISOString(),
     };
   });
 }

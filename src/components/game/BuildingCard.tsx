@@ -11,8 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { BuildingType, GameState } from '../../models/types';
 import {
   buildCost, rathausRequirement, allowedInstances, maxInstances,
-  constructionTime, Production,
-  HOLZLAGER_STORAGE, STEINLAGER_STORAGE, NAHRUNGSLAGER_STORAGE,
+  constructionTime, BUILDINGS, getBuildingLevelConfig,
   ResourceCost, nextInstanceUnlockLevel,
 } from '../../config/GameConfig';
 import { canAfford } from '../../engines/GameEngine';
@@ -88,16 +87,17 @@ export function computeCostLines(cost: ResourceCost, gs: GameState): CostLine[] 
 // ─── Benefit Lines ────────────────────────────────────────────────────────────
 
 export function computeBenefitLines(type: BuildingType, t: (key: string) => string): BenefitLine[] {
+  const lvl1 = getBuildingLevelConfig(type, 1);
   switch (type) {
     case BuildingType.rathaus:       return [{ iconName: 'lock-open-outline', iconColor: '#F5A623', text: t('buildCard.newBuildings') }];
-    case BuildingType.kornkammer:    return [{ iconName: 'dumbbell',          iconColor: '#F5A623', text: `+${Production.kornkammer}g/h` }];
+    case BuildingType.kornkammer:    return [{ iconName: 'dumbbell',          iconColor: '#F5A623', text: `+${lvl1?.productionPerHour ?? 0}g/h` }];
     case BuildingType.proteinfarm:   return [{ iconName: 'diamond',           iconColor: '#9B59B6', text: t('buildCard.proteinPerDay') }];
-    case BuildingType.holzfaeller:   return [{ iconName: 'tree',              iconColor: '#8B7355', text: `+${Production.holzfaeller}/h` }];
-    case BuildingType.steinbruch:    return [{ iconName: 'cube-outline',       iconColor: '#9E9E9E', text: `+${Production.steinbruch}/h` }];
-    case BuildingType.feld:          return [{ iconName: 'leaf',               iconColor: '#4CAF50', text: `+${Production.feld}/h` }];
-    case BuildingType.holzlager:     return [{ iconName: 'package-variant',    iconColor: '#607D8B', text: `+${HOLZLAGER_STORAGE[0]} ${t('resources.wood')}` }];
-    case BuildingType.steinlager:    return [{ iconName: 'package-variant',    iconColor: '#78909C', text: `+${STEINLAGER_STORAGE[0]} ${t('resources.stone')}` }];
-    case BuildingType.nahrungslager: return [{ iconName: 'package-variant',    iconColor: '#8D6E63', text: `+${NAHRUNGSLAGER_STORAGE[0]} ${t('resources.food')}` }];
+    case BuildingType.holzfaeller:   return [{ iconName: 'tree',              iconColor: '#8B7355', text: `+${lvl1?.productionPerHour ?? 0}/h` }];
+    case BuildingType.steinbruch:    return [{ iconName: 'cube-outline',       iconColor: '#9E9E9E', text: `+${lvl1?.productionPerHour ?? 0}/h` }];
+    case BuildingType.feld:          return [{ iconName: 'leaf',               iconColor: '#4CAF50', text: `+${lvl1?.productionPerHour ?? 0}/h` }];
+    case BuildingType.holzlager:     return [{ iconName: 'package-variant',    iconColor: '#607D8B', text: `+${lvl1?.maxStorage ?? 0} ${t('resources.wood')}` }];
+    case BuildingType.steinlager:    return [{ iconName: 'package-variant',    iconColor: '#78909C', text: `+${lvl1?.maxStorage ?? 0} ${t('resources.stone')}` }];
+    case BuildingType.nahrungslager: return [{ iconName: 'package-variant',    iconColor: '#8D6E63', text: `+${lvl1?.maxStorage ?? 0} ${t('resources.food')}` }];
     case BuildingType.kaserne:       return [{ iconName: 'account-hard-hat',   iconColor: '#4CAF50', text: t('buildCard.workerPlus') }];
     case BuildingType.tempel:        return [{ iconName: 'lightning-bolt',     iconColor: '#E8C948', text: t('buildCard.streakBoost') }];
     case BuildingType.bibliothek:    return [{ iconName: 'school',             iconColor: '#5C8A6A', text: t('buildCard.research') }];
