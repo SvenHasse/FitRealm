@@ -1,72 +1,24 @@
 // streakUtils.ts
 // Countdown calculation + milestone status logic for the streak system.
 
+import { STREAK_CONFIG, STREAK_COUNTDOWN_THRESHOLDS } from '../config/GameConfig';
+
 export interface StreakMilestone {
   days: number;
-  name: string;
+  nameKey: string;         // i18n key — use t(nameKey)
   emoji: string;
-  reward: string;
+  rewardDescKey: string;   // i18n key — use t(rewardDescKey)
   rewardDetails: Record<string, unknown>;
 }
 
-export const STREAK_MILESTONES: StreakMilestone[] = [
-  {
-    days: 3,
-    name: 'Erster Schritt',
-    emoji: '🌱',
-    reward: '+50g Muskelmasse + 100 Holz',
-    rewardDetails: { muskelmasse: 50, holz: 100 },
-  },
-  {
-    days: 7,
-    name: 'Aufgewärmt',
-    emoji: '🔥',
-    reward: '+3 Protein + Streak Shield',
-    rewardDetails: { protein: 3, streakShield: true },
-  },
-  {
-    days: 14,
-    name: 'Dranbleiber',
-    emoji: '💪',
-    reward: '+100g Muskelmasse + 200 Holz + 7 Tage Kalorien-Boost',
-    rewardDetails: { muskelmasse: 100, holz: 200, kalorienBoost7d: true },
-  },
-  {
-    days: 21,
-    name: 'Krieger',
-    emoji: '⚡',
-    reward: '+5 Protein + 300 Holz + Profilrahmen',
-    rewardDetails: { protein: 5, holz: 300, profileFrame: 'Eisenkrieger' },
-  },
-  {
-    days: 30,
-    name: 'Monatsheld',
-    emoji: '🏅',
-    reward: '+200g + 5 Protein + 500 Holz + 7 Tage +15% Produktion',
-    rewardDetails: { muskelmasse: 200, protein: 5, holz: 500, productionBoost7d: true },
-  },
-  {
-    days: 50,
-    name: 'Ausdauerprofi',
-    emoji: '💎',
-    reward: '+10 Protein + 1.000 Holz + Dauerhafter Kalorien-Bonus',
-    rewardDetails: { protein: 10, holz: 1000, permanentKalorienBonus: true },
-  },
-  {
-    days: 100,
-    name: 'Legende',
-    emoji: '🏆',
-    reward: '+20 Protein + 2.000 Holz + Titan Dorf-Skin + +5% Muskelmasse permanent',
-    rewardDetails: { protein: 20, holz: 2000, skin: 'Titan', permanentMuskelmasse: true },
-  },
-  {
-    days: 365,
-    name: 'Unsterblich',
-    emoji: '👑',
-    reward: '+50 Protein + alle Basis-Skins + +10% Produktion permanent',
-    rewardDetails: { protein: 50, allSkins: true, permanentProduction: true },
-  },
-];
+/** Derived from STREAK_CONFIG.milestones — single source of truth. */
+export const STREAK_MILESTONES: StreakMilestone[] = STREAK_CONFIG.milestones.map(m => ({
+  days: m.days,
+  nameKey: m.nameKey,
+  emoji: m.emoji,
+  rewardDescKey: m.rewardDescKey,
+  rewardDetails: { ...m.reward } as Record<string, unknown>,
+}));
 
 // ─── Milestone status ─────────────────────────────────────────────────────────
 
@@ -121,7 +73,7 @@ export function getCountdownInfo(lastWorkoutDate: Date | null): CountdownInfo {
     return { msRemaining: 0, level: 'expired', text: 'Streak abgelaufen' };
   }
 
-  const remaining = lastWorkoutDate.getTime() + 48 * 3_600_000 - Date.now();
+  const remaining = lastWorkoutDate.getTime() + STREAK_CONFIG.resetAfterHours * 3_600_000 - Date.now();
 
   if (remaining <= 0) {
     return { msRemaining: 0, level: 'expired', text: 'Streak abgelaufen' };
@@ -130,14 +82,14 @@ export function getCountdownInfo(lastWorkoutDate: Date | null): CountdownInfo {
   const h = Math.floor(remaining / 3_600_000);
   const m = Math.floor((remaining % 3_600_000) / 60_000);
 
-  if (remaining > 24 * 3_600_000) {
+  if (remaining > STREAK_COUNTDOWN_THRESHOLDS.safeAboveMs) {
     return {
       msRemaining: remaining,
       level: 'safe',
       text: `Noch ${h}h ${m}min bis Streak-Reset`,
     };
   }
-  if (remaining > 12 * 3_600_000) {
+  if (remaining > STREAK_COUNTDOWN_THRESHOLDS.warningAboveMs) {
     return {
       msRemaining: remaining,
       level: 'warning',

@@ -3,6 +3,7 @@
 
 import { MonsterWave, Monster, MonsterType } from '../models/types';
 import { MONSTER_CONFIGS, WAVE_CONFIG } from '../config/EntityConfig';
+import { BOSS_SCALING, WAVE_TIER_CHANCES, WAVE_WARNING_BONUSES } from '../config/GameConfig';
 
 // Re-export for convenience
 export { WAVE_CONFIG };
@@ -29,10 +30,14 @@ export class WaveService {
 
   getInactivityMultiplier(lastWorkoutTimestamp: number): number {
     const hoursElapsed = (Date.now() - lastWorkoutTimestamp) / (1000 * 60 * 60);
-    if (hoursElapsed < 48) return 1.0;
-    if (hoursElapsed < 72) return 1.2;
-    if (hoursElapsed < 120) return 1.4;
-    return 1.8;
+    // Walk thresholds in descending order; fallback to 1.0 if below the lowest
+    const thresholds = Object.keys(WAVE_CONFIG.inactivityMultipliers)
+      .map(Number)
+      .sort((a, b) => b - a);
+    for (const h of thresholds) {
+      if (hoursElapsed >= h) return WAVE_CONFIG.inactivityMultipliers[h];
+    }
+    return 1.0;
   }
 
   generateWave(
@@ -50,22 +55,19 @@ export class WaveService {
 
     if (rathausLevel >= 3) {
       availableTypes = [...availableTypes, ...TIER2_MONSTERS];
-      // 30% chance for a tier 3 monster
-      if (Math.random() < 0.30) {
+      if (Math.random() < WAVE_TIER_CHANCES.tier3) {
         availableTypes = [...availableTypes, ...TIER3_MONSTERS];
       }
     }
     if (rathausLevel >= 4) {
       availableTypes = [...availableTypes, ...TIER3_MONSTERS, ...TIER2_MONSTERS];
-      // 20% chance for a tier 4 monster
-      if (Math.random() < 0.20) {
+      if (Math.random() < WAVE_TIER_CHANCES.tier4) {
         availableTypes = [...availableTypes, ...TIER4_MONSTERS];
       }
     }
     if (rathausLevel >= 5) {
       availableTypes = [...availableTypes, ...TIER4_MONSTERS];
-      // 10% chance for boss tier
-      if (Math.random() < 0.10) {
+      if (Math.random() < WAVE_TIER_CHANCES.tier5) {
         availableTypes = [...availableTypes, ...TIER5_MONSTERS];
       }
     }
@@ -107,8 +109,8 @@ export class WaveService {
 
     // Calculate warning time: base 12h + Wachturm-Bonus (+3h/Level) + Spähfalke (+6h)
     const baseWarningHours = WAVE_CONFIG.baseWarningMs / (1000 * 60 * 60);
-    const watchtowerBonus = (watchtowerLevel ?? 0) * 3;
-    const falconBonus = hasScoutFalcon ? 6 : 0;
+    const watchtowerBonus = (watchtowerLevel ?? 0) * WAVE_WARNING_BONUSES.watchtowerHoursPerLevel;
+    const falconBonus = hasScoutFalcon ? WAVE_WARNING_BONUSES.scoutFalconHours : 0;
     const totalWarningHours = baseWarningHours + watchtowerBonus + falconBonus;
     const warningMs = totalWarningHours * 3600 * 1000;
 
@@ -158,9 +160,10 @@ export class WaveService {
     const cfg = MONSTER_CONFIGS[bossType];
 
     // Boss-Monster selbst
+    const bossScale = BOSS_SCALING.base + rathausLevel * BOSS_SCALING.perRathausLevel;
     const bossAttackPower = randInt(
-      Math.round(cfg.baseAttackPower[0] * (3 + rathausLevel * 0.5)),
-      Math.round(cfg.baseAttackPower[1] * (3 + rathausLevel * 0.5)),
+      Math.round(cfg.baseAttackPower[0] * bossScale),
+      Math.round(cfg.baseAttackPower[1] * bossScale),
     );
     const bossMonster: Monster = {
       type: bossType,
@@ -189,8 +192,8 @@ export class WaveService {
     const monsters: Monster[] = [bossMonster, ...companions];
     const totalAttackPower = monsters.reduce((sum, m) => sum + m.count * m.attackPower, 0);
 
-    // Boss-Wellen haben längere Vorlaufzeit (+12h)
-    const warningMs = (WAVE_CONFIG.baseWarningMs / (1000 * 60 * 60) + 12) * 3600 * 1000;
+    // Boss-Wellen haben längere Vorlaufzeit
+    const warningMs = (WAVE_CONFIG.baseWarningMs / (1000 * 60 * 60) + BOSS_SCALING.extraWarningHours) * 3600 * 1000;
 
     return {
       id: `boss_${now}_${Math.random().toString(36).slice(2)}`,
