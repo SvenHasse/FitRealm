@@ -695,6 +695,16 @@ export default function DevToolsSection() {
         </View>
       </TouchableOpacity>
 
+      {/* ── ONBOARDING ─────────────────────────────────────────── */}
+      <SectionLabel text="ONBOARDING" />
+      <TouchableOpacity style={s.minigameBtn} onPress={() => nav.navigate('Onboarding' as any)} activeOpacity={0.75}>
+        <MaterialCommunityIcons name="book-open-variant" size={16} color="#F5A623" />
+        <View style={{ flex: 1 }}>
+          <Text style={[s.minigameBtnTitle, { color: '#F5A623' }]}>📖 Onboarding öffnen</Text>
+          <Text style={s.minigameBtnSub}>Intro-Flow + HRmax-Eingabe</Text>
+        </View>
+      </TouchableOpacity>
+
       {/* ── SCHADENSEFFEKTE ───────────────────────────────────── */}
       <SectionLabel text="SCHADENSEFFEKTE" />
       <View style={s.grid}>

@@ -110,10 +110,12 @@ export default function App() {
     <NavigationContainer theme={DarkTheme}>
       <StatusBar style="light" />
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {!hasCompletedOnboarding && (
-          <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
-        )}
         <RootStack.Screen name="Main" component={TabNavigator} />
+        <RootStack.Screen
+          name="Onboarding"
+          component={OnboardingScreen}
+          options={{ presentation: 'fullScreenModal' }}
+        />
         <RootStack.Screen
           name="WorkoutReward"
           component={WorkoutRewardScreen}
