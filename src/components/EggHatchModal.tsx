@@ -133,15 +133,15 @@ export default function EggHatchModal({ visible, animalType, rarity, onClose }: 
           {/* Tier-Info */}
           <Animated.View style={[{ opacity: animalOpacity }, styles.infoContainer]}>
             <Text style={[styles.animalName, { color: rarityColor }]}>
-              {t('eggs.hatched', { name: config?.name ?? animalType })}
+              {t('eggs.hatched', { name: config ? t(config.nameKey) : animalType })}
             </Text>
             <View style={[styles.rarityBanner, { backgroundColor: rarityColor + '25', borderColor: rarityColor }]}>
               <Text style={[styles.rarityBannerText, { color: rarityColor }]}>
                 {rarityLabel}
               </Text>
             </View>
-            {config?.flavorText && (
-              <Text style={styles.flavorText}>{config.flavorText}</Text>
+            {config?.flavorTextKey && (
+              <Text style={styles.flavorText}>{t(config.flavorTextKey!)}</Text>
             )}
           </Animated.View>
 

@@ -123,7 +123,7 @@ export default function AnimalCollectionSheet({ visible, onClose }: Props) {
                   <View style={styles.animalNameRow}>
                     <Text style={styles.animalEmoji}>{cfg.emoji}</Text>
                     <Text style={[styles.animalName, !owned && styles.animalNameLocked]}>
-                      {cfg.name}
+                      {t(cfg.nameKey)}
                     </Text>
                     {owned && (
                       <View style={[styles.rarityBadge, { backgroundColor: rarityColor + '25', borderColor: rarityColor }]}>
@@ -226,13 +226,13 @@ function AnimalDetailModal({
 
           {/* Name + Rarity */}
           <Text style={styles.detailEmoji}>{cfg.emoji}</Text>
-          <Text style={styles.detailName}>{cfg.name}</Text>
+          <Text style={styles.detailName}>{t(cfg.nameKey)}</Text>
           <View style={[styles.rarityBadge, { backgroundColor: rarityColor + '25', borderColor: rarityColor, alignSelf: 'center', marginBottom: 12 }]}>
             <Text style={[styles.rarityText, { color: rarityColor }]}>{rarityLabel}</Text>
           </View>
 
           {/* Flavor text */}
-          <Text style={styles.flavorText}>{cfg.flavorText}</Text>
+          <Text style={styles.flavorText}>{t(cfg.flavorTextKey)}</Text>
 
           {owned ? (
             <View style={styles.detailStats}>
@@ -250,10 +250,10 @@ function AnimalDetailModal({
                   <Text style={styles.detailStatText}>{t('animals.defensePoints', { vp: cfg.defenseVP })}</Text>
                 </View>
               )}
-              {cfg.specialAbility && (
+              {cfg.specialAbilityKey && (
                 <View style={styles.detailStatRow}>
                   <MaterialCommunityIcons name="star" size={14} color="#9C27B0" />
-                  <Text style={styles.detailStatText}>{cfg.specialAbility}</Text>
+                  <Text style={styles.detailStatText}>{t(cfg.specialAbilityKey!)}</Text>
                 </View>
               )}
             </View>

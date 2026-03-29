@@ -444,6 +444,17 @@
       "kriegswolf": "🔒 21-day streak + Town Hall L3",
       "gluecksphoenixt": "🔒 Hatch a legendary egg",
       "uralterDrache": "🔒 Defeat boss + 30-day streak"
+    },
+    "config": {
+      "erntehuhn": { "name": "Harvest Chicken", "flavor": "Eagerly pecks at the grains lying next to the field. Tireless and a bit dumb." },
+      "lastesel": { "name": "Pack Donkey", "flavor": "Patiently carries everything loaded onto it. Never complains — at least not audibly." },
+      "holzbaer": { "name": "Timber Bear", "flavor": "Rips entire tree trunks from the earth with its paws. Surprisingly gentle — as long as you feed it." },
+      "spaehfalke": { "name": "Scout Falcon", "flavor": "Circles high above the village and sees everything. Its piercing cry warns of approaching danger.", "ability": "Early warning +6h, attackers -10% attack power" },
+      "steinbock": { "name": "Mountain Goat", "flavor": "Climbs rocks no human could scale. Its fur is as hard as the stone itself.", "ability": "Wall holds +20% more" },
+      "mystischerHirsch": { "name": "Mystic Stag", "flavor": "Its antlers glow silver at dusk. Where it stands, the grass grows faster.", "ability": "Healing aura: Repairs 5% building damage after attack" },
+      "kriegswolf": { "name": "War Wolf", "flavor": "Its yellow eyes study every stranger. It follows only the strongest — and that's you.", "ability": "Pack tactics: All animals in defense +10% VP" },
+      "gluecksphoenixt": { "name": "Lucky Phoenix", "flavor": "Born from ashes, bathed in flames. Its fire doesn't destroy — it renews.", "ability": "Rebirth: Once per wave instantly repairs a destroyed building" },
+      "uralterDrache": { "name": "Ancient Dragon", "flavor": "The legends spoke of it. For centuries it slept beneath the mountain. Your fighting spirit awakened it.", "ability": "Dragon breath: Instantly destroys 30% of the monster wave" }
     }
   },
   "eggs": {
@@ -582,12 +593,12 @@
     }
   },
   "zones": {
-    "1": { "name": "The Forest" },
-    "2": { "name": "The Mountains" },
-    "3": { "name": "The Ruins" },
-    "4": { "name": "The Swamp" },
-    "5": { "name": "The Ice Desert" },
-    "6": { "name": "The Summit" }
+    "1": { "name": "The Forest", "description": "A dense forest full of resources waiting to be gathered." },
+    "2": { "name": "The Mountains", "description": "Rugged mountain terrain rich with stone and rare minerals." },
+    "3": { "name": "The Ruins", "description": "Ancient ruins hiding forgotten treasures and artefacts." },
+    "4": { "name": "The Swamp", "description": "A murky swamp teeming with hidden dangers and rare finds." },
+    "5": { "name": "The Ice Desert", "description": "A frozen wasteland that only the most dedicated athletes can endure." },
+    "6": { "name": "The Summit", "description": "The ultimate summit — conquer it to prove your dominance." }
   },
   "adjacency": {
     "holzfaeller_holzlager":  "+15% Wood Storage",
@@ -595,6 +606,36 @@
     "bibliothek_any":         "+5% Library Bonus on all buildings",
     "feld_kornkammer":        "+10% Food Production",
     "steinbruch_steinlager":  "+10% Stone Storage"
+  },
+  "monsters": {
+    "config": {
+      "sumpfgoblin": { "name": "Swamp Goblin", "damage": "-15% food production" },
+      "schattenratte": { "name": "Shadow Rat", "damage": "5-10% of stored resources" },
+      "skelettkrieger": { "name": "Skeleton Warrior", "damage": "Building stops production" },
+      "giftwurm": { "name": "Poison Worm", "damage": "All fields -50% production" },
+      "dunkelork": { "name": "Dark Orc", "damage": "2 buildings stop + resource loss" },
+      "nebelgeist": { "name": "Fog Ghost", "damage": "Building disabled, Temple can cleanse (4h)" },
+      "frostdrache": { "name": "Frost Dragon", "damage": "Global production stop" },
+      "schattenmagier": { "name": "Shadow Mage", "damage": "2-5 Protein + Protein Farm stops" },
+      "uralterGolem": { "name": "Ancient Golem", "damage": "Town Hall disabled" },
+      "verderbnisHydra": { "name": "Corruption Hydra", "damage": "All resource types -50%" }
+    }
+  },
+  "stall": {
+    "adjacencyBonus": "Next to Field → Animals produce +10% food passively"
+  },
+  "animalSheet": {
+    "releaseTitle": "Release {{name}}",
+    "releaseMessage": "Do you really want to release {{name}}? This action cannot be undone.",
+    "releaseCancel": "Cancel",
+    "releaseConfirm": "Release",
+    "bonusProduction": "+{{pct}}% Production",
+    "bonusStorage": "+{{pct}}% Storage",
+    "bonusSpeed": "+{{pct}}% Speed",
+    "bonusGlobal": "+{{pct}}% Global",
+    "assignmentBuilding": "Building (not found)",
+    "assignmentUnknown": "Unknown",
+    "releaseButton": "Release"
   },
   "onboarding": {
     "welcomeTitle": "FitRealm",

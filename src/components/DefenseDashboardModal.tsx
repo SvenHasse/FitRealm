@@ -79,7 +79,7 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
   // Animals in defense
   const animalsInDefense = gameState.animals
     .filter(a => a.assignment.type === 'defense')
-    .map(a => ({ id: a.id, emoji: ANIMAL_CONFIGS[a.type].emoji, name: ANIMAL_CONFIGS[a.type].name, vp: ANIMAL_CONFIGS[a.type].defenseVP }));
+    .map(a => ({ id: a.id, emoji: ANIMAL_CONFIGS[a.type].emoji, name: t(ANIMAL_CONFIGS[a.type].nameKey), vp: ANIMAL_CONFIGS[a.type].defenseVP }));
 
   // Tips
   const hasWachturm  = gameState.buildings.some(b => b.type === 'wachturm' && b.level >= 1 && !b.isUnderConstruction);

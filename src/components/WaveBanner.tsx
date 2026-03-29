@@ -82,7 +82,7 @@ export default function WaveBanner({ wave, defenseVP, onDetails, onPrepare, isBl
           return (
             <View key={i} style={styles.monsterChip}>
               <Text style={styles.monsterEmoji}>{cfg.emoji}</Text>
-              <Text style={styles.monsterText}>{m.count}× {cfg.name}</Text>
+              <Text style={styles.monsterText}>{m.count}× {t(cfg.nameKey)}</Text>
             </View>
           );
         })}

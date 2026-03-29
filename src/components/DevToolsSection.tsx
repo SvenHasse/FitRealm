@@ -130,7 +130,7 @@ export default function DevToolsSection() {
               .map(type => ({
                 id: `dev_${type}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`,
                 type,
-                name: ANIMAL_CONFIGS[type].name,
+                name: ANIMAL_CONFIGS[type].nameKey,
                 rarity: ANIMAL_CONFIGS[type].rarity,
                 assignment: { type: 'idle' as const },
                 obtainedAt: Date.now(),
@@ -474,7 +474,7 @@ export default function DevToolsSection() {
             const dragon: Animal = {
               id: `dev_dragon_${Date.now().toString(36)}`,
               type: 'uralterDrache',
-              name: ANIMAL_CONFIGS['uralterDrache'].name,
+              name: ANIMAL_CONFIGS['uralterDrache'].nameKey,
               rarity: 'legendary',
               assignment: { type: 'idle' },
               obtainedAt: Date.now(),
