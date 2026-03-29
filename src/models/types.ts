@@ -374,11 +374,14 @@ export function obstacleDisplayName(type: ObstacleType): string {
 }
 
 export function obstacleRemovalCost(type: ObstacleType): number {
-  return obstacleIsSmall(type) ? 15 : 0;
+  // Reads from OBSTACLE_CONFIG — import inline to avoid circular dependency
+  const { OBSTACLE_CONFIG } = require('../config/GameConfig');
+  return obstacleIsSmall(type) ? OBSTACLE_CONFIG.smallRemovalCost : 0;
 }
 
 export function obstacleRemovalTime(type: ObstacleType): number {
-  return obstacleIsSmall(type) ? 0 : 30 * 60; // seconds
+  const { OBSTACLE_CONFIG } = require('../config/GameConfig');
+  return obstacleIsSmall(type) ? 0 : OBSTACLE_CONFIG.largeRemovalTimeSeconds;
 }
 
 export interface Obstacle {
@@ -481,16 +484,15 @@ export function gameStateRathausLevel(state: GameState): number {
 
 export function gameStateIsDecayActive(state: GameState): boolean {
   if (!state.lastWorkoutDate) return false;
-  return (Date.now() - new Date(state.lastWorkoutDate).getTime()) >= 48 * 3600 * 1000;
+  const { DECAY_CONFIG } = require('../config/GameConfig');
+  return (Date.now() - new Date(state.lastWorkoutDate).getTime()) >= DECAY_CONFIG.resetAfterHours * 3600 * 1000;
 }
 
 export function gameStateDecayMultiplier(state: GameState): number {
   if (!state.lastWorkoutDate) return 1.0;
-  const elapsed = (Date.now() - new Date(state.lastWorkoutDate).getTime()) / 1000;
-  if (elapsed < 48 * 3600) return 1.0;
-  if (elapsed < 72 * 3600) return 0.5;
-  if (elapsed < 96 * 3600) return 0.25;
-  return 0.0;
+  const { DECAY_CONFIG, getDecayMultiplier } = require('../config/GameConfig');
+  const elapsedHours = (Date.now() - new Date(state.lastWorkoutDate).getTime()) / 3_600_000;
+  return getDecayMultiplier(elapsedHours);
 }
 
 export function findBuilding(state: GameState, position: GridPosition): Building | undefined {
