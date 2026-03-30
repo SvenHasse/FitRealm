@@ -28,20 +28,22 @@ interface Props {
 // ── Sprite lookup ─────────────────────────────────────────────────────────────
 
 function getSpriteSource(type: BuildingType, level: number): any | null {
-  // Clamp to levels we have assets for (1–3 for most, 1–5 for rathaus)
-  const maxLevel = type === BuildingType.rathaus ? 5 : 3;
+  // Clamp to levels we have assets for
+  const maxLevels: Partial<Record<BuildingType, number>> = {
+    [BuildingType.rathaus]:    5,
+    [BuildingType.holzfaeller]: 4,
+    [BuildingType.feld]:        4,
+    [BuildingType.steinbruch]:  4,
+    [BuildingType.holzlager]:   4,
+    [BuildingType.kaserne]:     4,
+  };
+  const maxLevel = maxLevels[type] ?? 3;
   const l = Math.max(1, Math.min(maxLevel, level));
 
   // Rathaus uses legacy key name "burg"
   if (type === BuildingType.rathaus) {
     const key = `burg_level_${l}` as keyof typeof BuildingSprites;
     return BuildingSprites[key] ?? null;
-  }
-
-  // Holzfäller uses legacy key name "schmiede"
-  if (type === BuildingType.holzfaeller) {
-    const key = `schmiede_level_${l}` as keyof typeof BuildingSprites;
-    return (BuildingSprites as any)[key] ?? BuildingSprites.schmiede_level_1;
   }
 
   // All other types use {type}_level_{n}
