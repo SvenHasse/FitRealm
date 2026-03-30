@@ -15,15 +15,23 @@ export const BuildingSprites = {
   // ── Holzfäller (schmiede) — original asset ────────────────────────────────
   schmiede_level_1: require('./schmiede_level_1.png'),
 
+  // ── Holzfäller — Blender renders levels 1–4 ───────────────────────────────
+  holzfaeller_level_1: require('./holzfaeller_level_1.png'),
+  holzfaeller_level_2: require('./holzfaeller_level_2.png'),
+  holzfaeller_level_3: require('./holzfaeller_level_3.png'),
+  holzfaeller_level_4: require('./holzfaeller_level_4.png'),
+
   // ── Feld ──────────────────────────────────────────────────────────────────
   feld_level_1: require('./feld_level_1.png'),
   feld_level_2: require('./feld_level_2.png'),
   feld_level_3: require('./feld_level_3.png'),
+  feld_level_4: require('./feld_level_4.png'),
 
   // ── Steinbruch ────────────────────────────────────────────────────────────
   steinbruch_level_1: require('./steinbruch_level_1.png'),
   steinbruch_level_2: require('./steinbruch_level_2.png'),
   steinbruch_level_3: require('./steinbruch_level_3.png'),
+  steinbruch_level_4: require('./steinbruch_level_4.png'),
 
   // ── Proteinfarm ───────────────────────────────────────────────────────────
   proteinfarm_level_1: require('./proteinfarm_level_1.png'),
@@ -39,6 +47,7 @@ export const BuildingSprites = {
   kaserne_level_1: require('./kaserne_level_1.png'),
   kaserne_level_2: require('./kaserne_level_2.png'),
   kaserne_level_3: require('./kaserne_level_3.png'),
+  kaserne_level_4: require('./kaserne_level_4.png'),
 
   // ── Tempel ────────────────────────────────────────────────────────────────
   tempel_level_1: require('./tempel_level_1.png'),
@@ -64,6 +73,7 @@ export const BuildingSprites = {
   holzlager_level_1: require('./holzlager_level_1.png'),
   holzlager_level_2: require('./holzlager_level_2.png'),
   holzlager_level_3: require('./holzlager_level_3.png'),
+  holzlager_level_4: require('./holzlager_level_4.png'),
 
   // ── Steinlager ────────────────────────────────────────────────────────────
   steinlager_level_1: require('./steinlager_level_1.png'),

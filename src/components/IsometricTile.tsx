@@ -42,8 +42,8 @@ function IsometricTileInner({ x, y, variant, showGrid = false }: Props) {
       <Polygon
         points={topFace}
         fill={colors.top}
-        stroke={colors.stroke ?? (showGrid ? 'rgba(255,255,255,0.18)' : 'none')}
-        strokeWidth={colors.stroke ? 1.5 : (showGrid ? 0.7 : 0)}
+        stroke={colors.stroke ?? 'rgba(255,255,255,0.12)'}
+        strokeWidth={colors.stroke ? 1.5 : 0.5}
       />
     </>
   );
