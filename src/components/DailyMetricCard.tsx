@@ -78,7 +78,7 @@ export default function DailyMetricCard({
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', flex: 1, gap: 8 },
+  container: { alignItems: 'center', gap: 6 },
   inner: { alignItems: 'center', justifyContent: 'center', gap: 2 },
   value: { fontSize: 17, fontWeight: 'bold' },
   unit: { fontSize: 11, fontWeight: '500', opacity: 0.85 },
