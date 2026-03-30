@@ -51,19 +51,10 @@ function getSpriteSource(type: BuildingType, level: number): any | null {
   return (BuildingSprites as any)[key] ?? null;
 }
 
-// ── Per-type display scale (fraction of TILE_W for the sprite width) ──────────
-// Adjust these if a specific PNG needs more/less space.
-const SPRITE_SCALE: Partial<Record<BuildingType, number>> = {
-  [BuildingType.rathaus]:      1.15,
-  [BuildingType.stammeshaus]:  1.10,
-  [BuildingType.kaserne]:      1.05,
-  [BuildingType.tempel]:       1.05,
-  [BuildingType.bibliothek]:   1.05,
-  [BuildingType.wachturm]:     0.85,
-  [BuildingType.feld]:         0.95,
-  [BuildingType.mauer]:        0.85,
-};
-const DEFAULT_SCALE = 1.0;
+// Alle Gebäude-Sprites werden einheitlich auf 1 Kachel (TILE_W) skaliert.
+// Die PNGs werden bereits in korrekter isometrischer Größe gerendert
+// (512×512 transparent, Footprint = 140×70 isometrische Raute).
+const UNIFORM_SCALE = 1.0;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -85,8 +76,7 @@ function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffset
       if (!source) continue;
 
       const { x, y } = gridToScreen(b.position.row, b.position.col, gridSize);
-      const scale = SPRITE_SCALE[b.type] ?? DEFAULT_SCALE;
-      const size = TILE_W * scale;
+      const size = TILE_W * UNIFORM_SCALE;
 
       // Center the sprite on the tile, anchor its bottom to the tile bottom edge
       const spriteX = svgOffsetX + x + TILE_W / 2 - size / 2;
