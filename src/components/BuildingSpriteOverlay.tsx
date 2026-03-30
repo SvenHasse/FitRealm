@@ -36,6 +36,8 @@ function getSpriteSource(type: BuildingType, level: number): any | null {
     [BuildingType.steinbruch]:  4,
     [BuildingType.holzlager]:   4,
     [BuildingType.kaserne]:     4,
+    [BuildingType.proteinfarm]: 4,
+    [BuildingType.steinlager]:  4,
   };
   const maxLevel = maxLevels[type] ?? 3;
   const l = Math.max(1, Math.min(maxLevel, level));

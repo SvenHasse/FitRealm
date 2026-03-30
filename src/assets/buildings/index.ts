@@ -37,6 +37,7 @@ export const BuildingSprites = {
   proteinfarm_level_1: require('./proteinfarm_level_1.png'),
   proteinfarm_level_2: require('./proteinfarm_level_2.png'),
   proteinfarm_level_3: require('./proteinfarm_level_3.png'),
+  proteinfarm_level_4: require('./proteinfarm_level_4.png'),
 
   // ── Kornkammer ────────────────────────────────────────────────────────────
   kornkammer_level_1: require('./kornkammer_level_1.png'),
@@ -79,6 +80,7 @@ export const BuildingSprites = {
   steinlager_level_1: require('./steinlager_level_1.png'),
   steinlager_level_2: require('./steinlager_level_2.png'),
   steinlager_level_3: require('./steinlager_level_3.png'),
+  steinlager_level_4: require('./steinlager_level_4.png'),
 
   // ── Nahrungslager ─────────────────────────────────────────────────────────
   nahrungslager_level_1: require('./nahrungslager_level_1.png'),
