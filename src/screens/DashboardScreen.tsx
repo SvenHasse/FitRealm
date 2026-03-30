@@ -293,8 +293,8 @@ export default function DashboardScreen() {
               health.workoutMinutesToday,
             );
             return (
-              <View style={styles.metricsRow}>
-                {/* Left: large focus metric */}
+              <View style={styles.metricsPyramid}>
+                {/* Top: large focus metric centered */}
                 <View style={styles.focusMetricCol}>
                   <DailyMetricCard
                     icon={primary.icon}
@@ -312,8 +312,8 @@ export default function DashboardScreen() {
                     </View>
                   )}
                 </View>
-                {/* Right: two small secondary metrics stacked */}
-                <View style={styles.secondaryMetricCol}>
+                {/* Bottom: two small metrics side by side, offset below */}
+                <View style={styles.secondaryMetricRow}>
                   {secondaries.map(m => (
                     <DailyMetricCard
                       key={m.key}
@@ -559,9 +559,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  metricsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  focusMetricCol: { alignItems: 'center', flex: 1 },
-  secondaryMetricCol: { justifyContent: 'space-between', gap: 12, flex: 0, width: 100 },
+  metricsPyramid: { alignItems: 'center', gap: 4 },
+  focusMetricCol: { alignItems: 'center' },
+  secondaryMetricRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: -8 },
   targetBadge: {
     flexDirection: 'row',
     alignItems: 'center',
