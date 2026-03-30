@@ -559,9 +559,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  metricsPyramid: { alignItems: 'center', gap: 4 },
+  metricsPyramid: { alignItems: 'center', gap: 12, paddingBottom: 4 },
   focusMetricCol: { alignItems: 'center' },
-  secondaryMetricRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: -8 },
+  secondaryMetricRow: { flexDirection: 'row', justifyContent: 'center', gap: 32 },
   targetBadge: {
     flexDirection: 'row',
     alignItems: 'center',
