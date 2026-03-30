@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
 
   metricsPyramid: { alignItems: 'center', alignSelf: 'stretch' },
   focusMetricCol: { alignItems: 'center' },
-  secondaryMetricRow: { flexDirection: 'row', justifyContent: 'space-between', alignSelf: 'stretch', paddingHorizontal: 5, marginTop: -20 },
+  secondaryMetricRow: { flexDirection: 'row', justifyContent: 'space-between', alignSelf: 'stretch', paddingHorizontal: 5, marginTop: -40 },
   targetBadge: {
     flexDirection: 'row',
     alignItems: 'center',
