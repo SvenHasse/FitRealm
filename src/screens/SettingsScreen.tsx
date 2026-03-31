@@ -9,6 +9,7 @@ import { useGameStore as useEngineStore } from '../store/useGameStore';
 import { AppColors, FitnessFocus } from '../models/types';
 import { setLanguage } from '../i18n';
 import DevToolsSection from '../components/DevToolsSection';
+import { isFocusGoalLocked, getFocusGoalUnlockDaysRemaining } from '../utils/focusGoalUtils';
 
 function promptForValue(title: string, current: string, onConfirm: (val: string) => void) {
   if (Platform.OS === 'ios') {
@@ -82,25 +83,60 @@ export default function SettingsScreen() {
             <Text style={styles.hrMaxUnit}>bpm</Text>
           </View>
 
-          {/* Fitness Focus picker */}
-          <View style={{ marginTop: 14 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: AppColors.textSecondary, marginBottom: 8 }}>
-              {t('settings.fitnessFocus')}
-            </Text>
-            <View style={styles.focusSwitcher}>
-              {(['steps', 'workouts', 'calories'] as FitnessFocus[]).map(f => (
-                <TouchableOpacity
-                  key={f}
-                  style={[styles.focusBtn, userProfile.fitnessFocus === f && styles.focusBtnActive]}
-                  onPress={() => updateUserProfile({ fitnessFocus: f })}
-                >
-                  <Text style={[styles.focusBtnText, userProfile.fitnessFocus === f && styles.focusBtnTextActive]}>
-                    {t(`settings.focus_${f}`)}
+          {/* Fitness Focus picker — locked for 14 days after a change */}
+          {(() => {
+            const lastChanged = userProfile.focusGoalLastChangedAt ?? 0;
+            const focusLocked = isFocusGoalLocked(lastChanged);
+            const daysLeft    = getFocusGoalUnlockDaysRemaining(lastChanged);
+            return (
+              <View style={{ marginTop: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: AppColors.textSecondary }}>
+                    {t('settings.fitnessFocus')}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+                  {focusLocked && (
+                    <View style={styles.lockBadge}>
+                      <Ionicons name="lock-closed" size={10} color="#FF9800" />
+                      <Text style={styles.lockBadgeText}>{daysLeft}d</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={[styles.focusSwitcher, focusLocked && styles.focusSwitcherLocked]}>
+                  {(['steps', 'workouts', 'calories'] as FitnessFocus[]).map(f => (
+                    <TouchableOpacity
+                      key={f}
+                      style={[
+                        styles.focusBtn,
+                        userProfile.fitnessFocus === f && styles.focusBtnActive,
+                        focusLocked && styles.focusBtnDisabled,
+                      ]}
+                      onPress={() => {
+                        if (focusLocked) {
+                          Alert.alert(
+                            'Streak-Ziel gesperrt',
+                            `Du kannst dein Fitness-Ziel erst in ${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tagen'} wieder ändern. Halte deinen Streak konsistent!`,
+                            [{ text: 'OK' }],
+                          );
+                          return;
+                        }
+                        updateUserProfile({ fitnessFocus: f });
+                      }}
+                      activeOpacity={focusLocked ? 1 : 0.7}
+                    >
+                      <Text style={[styles.focusBtnText, userProfile.fitnessFocus === f && styles.focusBtnTextActive, focusLocked && styles.focusBtnTextDisabled]}>
+                        {t(`settings.focus_${f}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {focusLocked && (
+                  <Text style={styles.focusLockHint}>
+                    🔒 Ziel ist für {daysLeft} {daysLeft === 1 ? 'Tag' : 'Tage'} gesperrt — bleib dabei, um deinen Streak zu schützen.
+                  </Text>
+                )}
+              </View>
+            );
+          })()}
         </View>
       )}
 
@@ -274,10 +310,28 @@ const styles = StyleSheet.create({
   focusSwitcher: {
     flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 3,
   },
+  focusSwitcherLocked: {
+    opacity: 0.6,
+  },
   focusBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
   focusBtnActive: { backgroundColor: AppColors.gold },
+  focusBtnDisabled: {},
   focusBtnText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
   focusBtnTextActive: { color: '#000' },
+  focusBtnTextDisabled: {},
+  lockBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(255,152,0,0.15)',
+    borderWidth: 1, borderColor: 'rgba(255,152,0,0.4)',
+    borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  lockBadgeText: { fontSize: 10, fontWeight: '700', color: '#FF9800' },
+  focusLockHint: {
+    fontSize: 11,
+    color: 'rgba(255,152,0,0.8)',
+    marginTop: 8,
+    lineHeight: 16,
+  },
   hrMaxDisplay: {
     flexDirection: 'row',
     alignItems: 'baseline',

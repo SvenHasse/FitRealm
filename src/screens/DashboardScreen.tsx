@@ -228,7 +228,7 @@ function getOrderedMetrics(
       label: health.workoutTypeToday,
       unit: ' min',
       color: AppColors.teal,
-      progress: Math.min(health.workoutMinutesToday / 60, 1),
+      progress: Math.min(health.workoutMinutesToday / DAILY_TARGETS.workouts, 1),
     },
     {
       key: 'calories',
@@ -237,7 +237,7 @@ function getOrderedMetrics(
       label: 'Aktive kcal',
       unit: ' kcal',
       color: '#FF9800',
-      progress: Math.min(health.activeCaloriesToday / 600, 1),
+      progress: Math.min(health.activeCaloriesToday / DAILY_TARGETS.calories, 1),
     },
   ];
   // Primary (focus) first, then the rest
