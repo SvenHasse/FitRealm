@@ -56,10 +56,10 @@ export function getIntensity(activeKcal: number, activeMinutes: number): number 
   return Math.round((activeKcal / activeMinutes) * 10) / 10;
 }
 
-/** MM bis zum nächsten Protein-Schwellwert. null = max (600) bereits erreicht. */
+/** MM bis zum nächsten einzelnen Protein-Schwellwert. null = alle 3 verdient. */
 export function mmUntilNextProtein(effKcal: number): number | null {
-  if (effKcal >= 600) return null;
-  if (effKcal >= 525) return Math.ceil(600 - effKcal);
-  if (effKcal >= 450) return Math.ceil(525 - effKcal);
-  return Math.ceil(450 - effKcal);
+  if (effKcal < 450) return Math.ceil(450 - effKcal);
+  if (effKcal < 525) return Math.ceil(525 - effKcal);
+  if (effKcal < 600) return Math.ceil(600 - effKcal);
+  return null; // alle 3 verdient
 }
