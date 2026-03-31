@@ -23,8 +23,9 @@ interface GameState {
 
   // ── Streak ─────────────────────────────────────────────────────────────────
   currentStreak: number;
-  lastWorkoutDate: string | null;    // ISO string — convert with new Date()
-  collectedMilestones: number[];     // streak-day values already claimed
+  lastWorkoutDate: string | null;          // ISO string — convert with new Date()
+  collectedMilestones: number[];           // streak-day values already claimed
+  lastFocusGoalAchievedAt: number | null;  // Unix timestamp (ms) — when focus goal was last met
 
   // ── Actions ────────────────────────────────────────────────────────────────
   addMuskelmasse:   (amount: number) => void;
@@ -36,6 +37,7 @@ interface GameState {
   setStreak:        (days: number)   => void;
   setLastWorkoutDate: (date: Date)   => void;
   collectMilestone: (days: number)   => void;
+  recordFocusGoalAchieved: ()        => void;
 
   // ── Dev tools ──────────────────────────────────────────────────────────────
   devAddMuskelmasse:  (amount: number) => void;
@@ -55,9 +57,10 @@ export const useGameStore = create<GameState>()(
       holz:               200,
       nahrung:            120,
       stein:              50,
-      currentStreak:      5,
-      lastWorkoutDate:    new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
-      collectedMilestones: [3, 7],
+      currentStreak:           5,
+      lastWorkoutDate:         new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
+      collectedMilestones:     [3, 7],
+      lastFocusGoalAchievedAt: null,
 
       // ── Actions ──────────────────────────────────────────────────────────
       addMuskelmasse:  (a) => set((s) => ({ muskelmasse:  s.muskelmasse  + a })),
@@ -67,9 +70,10 @@ export const useGameStore = create<GameState>()(
       addNahrung:      (a) => set((s) => ({ nahrung:      s.nahrung      + a })),
       addStein:        (a) => set((s) => ({ stein:        s.stein        + a })),
 
-      setStreak:          (days) => set({ currentStreak:    days }),
-      setLastWorkoutDate: (date) => set({ lastWorkoutDate:  date.toISOString() }),
-      collectMilestone:   (days) => set((s) => ({
+      setStreak:               (days) => set({ currentStreak:    days }),
+      setLastWorkoutDate:      (date) => set({ lastWorkoutDate:  date.toISOString() }),
+      recordFocusGoalAchieved: ()     => set({ lastFocusGoalAchievedAt: Date.now() }),
+      collectMilestone:        (days) => set((s) => ({
         collectedMilestones: [...s.collectedMilestones, days],
       })),
 

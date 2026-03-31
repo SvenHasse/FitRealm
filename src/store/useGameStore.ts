@@ -583,9 +583,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({ ...mockState });
 
         // Forward workouts to game engine
-        const gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, get().userProfile?.fitnessFocus ?? 'workouts');
+        const focus = get().userProfile?.fitnessFocus ?? 'workouts';
+        const gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, focus);
         set({ gameState: gs, storageCap: getTotalStorageCap(gs.buildings) });
         GE.saveGameState(gs);
+
+        // Record when the focus goal was achieved so the Dashboard can show "Streak gesichert"
+        const totalMins = mockState.recentWorkouts.reduce((sum: number, w: WorkoutRecord) => sum + w.durationMinutes, 0);
+        if (GE.checkDailyFocusTarget(focus, mockState.healthSnapshot, totalMins)) {
+          useCurrencyStore.getState().recordFocusGoalAchieved();
+        }
       } else {
         // Real HealthKit sync (stubs for managed workflow)
         const snapshot = await HK.fetchHealthSnapshot();
@@ -678,6 +685,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Sync earned currencies to the currency store
     _syncAllCurrencies(newGs);
+
+    // Record focus goal achievement for Dashboard "Streak gesichert" badge
+    const snap = get().healthSnapshot;
+    const focusForGoal = get().userProfile?.fitnessFocus ?? 'workouts';
+    const todayStartMs = new Date().setHours(0, 0, 0, 0);
+    const minsToday = updatedWorkouts
+      .filter(w => new Date(w.date).getTime() >= todayStartMs)
+      .reduce((sum, w) => sum + w.durationMinutes, 0);
+    if (GE.checkDailyFocusTarget(focusForGoal, snap, minsToday)) {
+      useCurrencyStore.getState().recordFocusGoalAchieved();
+    }
 
     console.log(`[Store] Manual workout injected: ${workout.durationMinutes}min, ${workout.averageHeartRate ?? '?'}bpm → +${Math.floor(newGs.muskelmasse - prevGs.muskelmasse)}g Muskelmasse`);
     get().refreshGoalProgress();
