@@ -158,12 +158,15 @@ function CompactSyncButton({
 
 // ─── StatCard — compact number card, no ring ─────────────────────────────────
 
-function StatCard({ label, value, unit }: {
-  label: string; value: string | number; unit?: string;
+function StatCard({ label, value, unit, color }: {
+  label: string; value: string | number; unit?: string; color: string;
 }) {
   return (
-    <View style={statCardStyles.container}>
-      <Text style={statCardStyles.value}>
+    <View style={[statCardStyles.container, {
+      backgroundColor: `${color}18`,
+      borderColor: `${color}55`,
+    }]}>
+      <Text style={[statCardStyles.value, { color }]}>
         {value}
         {unit ? <Text style={statCardStyles.unit}> {unit}</Text> : null}
       </Text>
@@ -177,19 +180,19 @@ const statCardStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 14,
+    borderWidth: 1,
     paddingVertical: 14,
     paddingHorizontal: 0,
     shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  value: { fontSize: 18, fontWeight: '700', color: AppColors.textPrimary },
+  value: { fontSize: 20, fontWeight: '700' },
   unit:  { fontSize: 12, fontWeight: '400', color: AppColors.textSecondary },
-  label: { fontSize: 11, color: AppColors.textSecondary, marginTop: 2 },
+  label: { fontSize: 11, color: AppColors.textSecondary, marginTop: 3 },
 });
 
 // ─── Metric ordering by focus ─────────────────────────────────────────────────
@@ -318,8 +321,8 @@ export default function DashboardScreen() {
             const secondaries = ordered.slice(1);
             return (
               <View style={styles.metricsPyramid}>
-                {/* Top: large focus metric — this is the Streak goal */}
-                <View style={styles.focusMetricCol}>
+                {/* Top row: ring left, labels right */}
+                <View style={styles.focusRow}>
                   <DailyMetricCard
                     icon={primary.icon}
                     value={primary.value}
@@ -327,16 +330,21 @@ export default function DashboardScreen() {
                     unit={primary.unit}
                     color={primary.color}
                     progress={primary.progress}
-                    ringSize={130}
+                    ringSize={110}
                   />
-                  <Text style={styles.focusGoalLabel}>Streak-Ziel</Text>
-                  {focusGoalDoneToday && (
-                    <View style={styles.streakSafeRow}>
+                  <View style={styles.focusTextCol}>
+                    <Text style={[styles.focusValueText, { color: primary.color }]}>
+                      {primary.value.toLocaleString('de-DE')}
+                      <Text style={styles.focusUnitText}>{primary.unit}</Text>
+                    </Text>
+                    <Text style={styles.focusLabelText}>{primary.label}</Text>
+                    <Text style={styles.focusGoalLabel}>Streak-Ziel</Text>
+                    {focusGoalDoneToday && (
                       <Text style={styles.streakSafeText}>✓ Streak gesichert</Text>
-                    </View>
-                  )}
+                    )}
+                  </View>
                 </View>
-                {/* Bottom: two compact stat cards — no rings */}
+                {/* Bottom: two compact stat cards with metric accent colours */}
                 <View style={styles.secondaryMetricsRow}>
                   {secondaries.map(m => {
                     const label =
@@ -349,6 +357,7 @@ export default function DashboardScreen() {
                         label={label}
                         value={m.value.toLocaleString('de-DE')}
                         unit={unit}
+                        color={m.color}
                       />
                     );
                   })}
@@ -585,39 +594,53 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  metricsPyramid: { alignItems: 'center', alignSelf: 'stretch' },
-  focusMetricCol: { alignItems: 'center' },
+  metricsPyramid: { alignSelf: 'stretch' },
 
-  // "Streak-Ziel" label below the large ring
+  // Ring (left) + label stack (right)
+  focusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingHorizontal: 4,
+  },
+  focusTextCol: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 2,
+  },
+  focusValueText: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  focusUnitText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: AppColors.textSecondary,
+  },
+  focusLabelText: {
+    fontSize: 13,
+    color: AppColors.textSecondary,
+  },
   focusGoalLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: AppColors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginTop: 4,
   },
-
-  // "✓ Streak gesichert" badge
-  streakSafeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 2,
-  },
   streakSafeText: {
     fontSize: 12,
     fontWeight: '600',
     color: '#7D9B76',
+    marginTop: 2,
   },
 
-  // Two compact StatCards below the ring
+  // Two compact StatCards below the ring row
   secondaryMetricsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: 10,
-    marginTop: 8,
-    paddingHorizontal: 16,
+    marginTop: 12,
     width: '100%',
   },
 
