@@ -94,7 +94,7 @@ export const useGameStore = create<GameState>()(
             count: s.streakShields.count - 1,
             activeShield: {
               activatedAt: now,
-              expiresAt: now + 48 * 60 * 60 * 1000,
+              expiresAt: now + 7 * 24 * 60 * 60 * 1000,
             },
           },
         };
