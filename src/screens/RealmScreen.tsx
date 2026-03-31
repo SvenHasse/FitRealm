@@ -412,18 +412,51 @@ export default function RealmScreen() {
     }
   };
 
-  // Handle tap on the SVG canvas area — proper diamond hit-testing
-  // Tap handler — placed directly on the SVG wrapper so locationX/Y = SVG coords
+  // ── Sprite-based hit-test: check if tap lands on a building's PNG sprite ────
+  // Must match the positioning formula in BuildingSpriteOverlay exactly.
+  const findBuildingBySpriteTap = useCallback((svgX: number, svgY: number): Building | null => {
+    const size = TILE_W; // UNIFORM_SCALE = 1.0
+    const BOTTOM_PAD_FRAC = 0.12; // must match BuildingSpriteOverlay
+
+    // Sort by depth (front buildings first) so overlapping sprites pick the visible one
+    const sorted = [...gameState.buildings]
+      .filter(b => !b.isUnderConstruction)
+      .sort((a, b) => (b.position.row + b.position.col) - (a.position.row + a.position.col));
+
+    for (const building of sorted) {
+      const { x, y } = gridToScreen(building.position.row, building.position.col, GRID_SIZE);
+      const sx = SVG_OFFSET_X + x + TILE_W / 2 - size / 2;
+      const sy = SVG_OFFSET_Y + y + TILE_H - size + size * BOTTOM_PAD_FRAC;
+
+      if (svgX >= sx && svgX <= sx + size && svgY >= sy && svgY <= sy + size) {
+        return building;
+      }
+    }
+    return null;
+  }, [gameState.buildings]);
+
+  // Handle tap on the SVG canvas area — sprite hit-test first, then diamond fallback
   const handleSvgPress = useCallback((event: GestureResponderEvent) => {
     const { locationX: svgX, locationY: svgY } = event.nativeEvent;
 
-    // First pass: use screenToGrid to get approximate cell
+    // ── In placement mode, skip sprite hit-test — use grid logic only ──
+    if (!buildPlacementMode && !placingTrophy) {
+      const spriteTapped = findBuildingBySpriteTap(svgX, svgY);
+      if (spriteTapped) {
+        if (spriteTapped.type === BuildingType.stall && spriteTapped.level >= 1) {
+          setSelectedStall(spriteTapped);
+        } else {
+          setSelectedBuilding(spriteTapped);
+        }
+        return;
+      }
+    }
+
+    // ── Fallback: diamond hit-test on the ground tile ──
     const { row: rawRow, col: rawCol } = screenToGrid(svgX, svgY, GRID_SIZE);
     const approxRow = rawRow;
     const approxCol = rawCol;
 
-    // Second pass: diamond hit-test the approximate cell and its neighbors
-    // (screenToGrid can be off by 1 near tile edges)
     let bestRow = approxRow;
     let bestCol = approxCol;
     let found = false;
@@ -441,11 +474,10 @@ export default function RealmScreen() {
       }
     }
 
-    // Clamp to valid grid bounds
     const row = Math.max(0, Math.min(GRID_SIZE - 1, bestRow));
     const col = Math.max(0, Math.min(GRID_SIZE - 1, bestCol));
     handleCellPress(row, col);
-  }, [gameState, obstacles, buildPlacementMode, placingTrophy, highlightedBuildingId]);
+  }, [gameState, obstacles, buildPlacementMode, placingTrophy, highlightedBuildingId, findBuildingBySpriteTap]);
 
   const activeZone = gameState.zones.find(z => zoneIsExploring(z));
   const isWaveApproaching = activeWave != null && (activeWave.status === 'approaching' || activeWave.status === 'active');
