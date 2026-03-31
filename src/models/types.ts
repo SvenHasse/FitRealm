@@ -138,6 +138,15 @@ export interface UserProfile {
   focusGoalLastChangedAt: number;
 }
 
+// MARK: - StreakShieldState
+export interface StreakShieldState {
+  count: number;                    // Anzahl Schilder im Vorrat
+  activeShield: {
+    activatedAt: number;            // Unix-Timestamp (ms)
+    expiresAt: number;              // activatedAt + 48 * 60 * 60 * 1000
+  } | null;
+}
+
 // MARK: - ResourceType
 export enum ResourceType {
   muskelmasse = 'muskelmasse',

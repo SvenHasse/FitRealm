@@ -286,6 +286,22 @@ const CURRENT_SEASONAL_GOAL: SeasonalGoal = {
   ],
 };
 
+// ─── Shield helper (used in syncHealthData + injectManualWorkout) ─────────────
+// If the streak dropped after processWorkouts and an active shield is still
+// valid, restore the old streak and consume the shield.
+function _applyShieldIfNeeded(gs: GameState, prevStreak: number): GameState {
+  if (prevStreak <= 1 || gs.currentStreak >= prevStreak) return gs; // no drop
+  const shieldState = useCurrencyStore.getState().streakShields;
+  if (
+    shieldState.activeShield !== null &&
+    Date.now() <= shieldState.activeShield.expiresAt
+  ) {
+    useCurrencyStore.getState().consumeActiveShield();
+    return { ...gs, currentStreak: prevStreak };
+  }
+  return gs;
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   // Initial state
   userProfile: null,
@@ -589,7 +605,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         // Forward workouts to game engine
         const focus = get().userProfile?.fitnessFocus ?? 'workouts';
-        const gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, focus);
+        const prevStreakMock = get().gameState.currentStreak;
+        let gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, focus);
+        // Shield protection: if streak dropped and an active shield is valid, restore it
+        gs = _applyShieldIfNeeded(gs, prevStreakMock);
         set({ gameState: gs, storageCap: getTotalStorageCap(gs.buildings) });
         GE.saveGameState(gs);
 
@@ -684,7 +703,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Process through game engine (calculates muskelmasse, protein, streak, etc.)
     const prevGs = get().gameState;
-    const newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, get().userProfile?.fitnessFocus ?? 'workouts');
+    const prevStreakManual = prevGs.currentStreak;
+    let newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, get().userProfile?.fitnessFocus ?? 'workouts');
+    // Shield protection: if streak dropped and an active shield is valid, restore it
+    newGs = _applyShieldIfNeeded(newGs, prevStreakManual);
     set({ gameState: newGs, storageCap: getTotalStorageCap(newGs.buildings) });
     GE.saveGameState(newGs);
 
