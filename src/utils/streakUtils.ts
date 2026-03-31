@@ -9,6 +9,8 @@ export interface StreakMilestone {
   emoji: string;
   rewardDescKey: string;   // i18n key — use t(rewardDescKey)
   rewardDetails: Record<string, unknown>;
+  /** Number of streak shields granted when this milestone is collected (0 if none). */
+  shields: number;
 }
 
 /** Derived from STREAK_CONFIG.milestones — single source of truth. */
@@ -18,6 +20,7 @@ export const STREAK_MILESTONES: StreakMilestone[] = STREAK_CONFIG.milestones.map
   emoji: m.emoji,
   rewardDescKey: m.rewardDescKey,
   rewardDetails: { ...m.reward } as Record<string, unknown>,
+  shields: ('shields' in m.reward) ? (m.reward as any).shields as number : 0,
 }));
 
 // ─── Milestone status ─────────────────────────────────────────────────────────
@@ -101,6 +104,25 @@ export function getCountdownInfo(lastWorkoutDate: Date | null): CountdownInfo {
     level: 'danger',
     text: `Nur noch ${h > 0 ? `${h}h ` : ''}${m}min — Streak in Gefahr!`,
   };
+}
+
+// ─── Shield countdown ─────────────────────────────────────────────────────────
+
+/**
+ * Returns a human-readable countdown string for an active streak shield.
+ * E.g. "1T 6h", "5h 23m", "abgelaufen"
+ */
+export function formatShieldCountdown(expiresAt: number): string {
+  const remaining = expiresAt - Date.now();
+  if (remaining <= 0) return 'abgelaufen';
+  const totalMinutes = Math.floor(remaining / 60_000);
+  const hours        = Math.floor(totalMinutes / 60);
+  const minutes      = totalMinutes % 60;
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    return `${days}T ${hours % 24}h`;
+  }
+  return `${hours}h ${minutes}m`;
 }
 
 // ─── Formatting ───────────────────────────────────────────────────────────────

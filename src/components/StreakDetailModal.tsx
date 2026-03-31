@@ -38,9 +38,11 @@ import {
   computeMilestoneStatuses,
   CountdownInfo,
   formatLastWorkoutLabel,
+  formatShieldCountdown,
   getCountdownInfo,
   MilestoneStatus,
   MilestoneWithStatus,
+  STREAK_MILESTONES,
   StreakMilestone,
 } from '../utils/streakUtils';
 
@@ -356,6 +358,9 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
     collectedMilestones,
     collectMilestone,
     addStreakTokens,
+    streakShields,
+    activateStreakShield,
+    addStreakShields,
   } = useGameStore();
   const { recentWorkouts } = useEngineStore();
 
@@ -423,9 +428,14 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
     try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); } catch {}
     collectMilestone(milestoneDays);  // persisted via store middleware
     addStreakTokens(1);               // reward: +1 streak token
+    // Grant shields if this milestone includes them
+    const milestone = STREAK_MILESTONES.find(m => m.days === milestoneDays);
+    if (milestone && milestone.shields > 0) {
+      addStreakShields(milestone.shields);
+    }
     setConfettiActive(true);
     setTimeout(() => setConfettiActive(false), 1400);
-  }, [collectMilestone, addStreakTokens]);
+  }, [collectMilestone, addStreakTokens, addStreakShields]);
 
   // ── Last workout label ────────────────────────────────────────────────────
   const lastWorkoutStr = lastWorkoutDate
@@ -479,6 +489,53 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
               />
             ))}
           </View>
+
+          {/* ── Streak-Schilde ────────────────────────────────────── */}
+          {(() => {
+            const shieldActive = streakShields.activeShield !== null &&
+              Date.now() <= (streakShields.activeShield?.expiresAt ?? 0);
+            const canActivate = streakShields.count > 0 && !shieldActive;
+            const displayCount = streakShields.count + (shieldActive ? 1 : 0);
+            return (
+              <View style={styles.shieldSection}>
+                <Text style={styles.shieldTitle}>🛡️ Streak-Schilde</Text>
+
+                {/* Inventar-Icons */}
+                <View style={styles.shieldInventory}>
+                  {Array.from({ length: Math.max(displayCount, 3) }).map((_, i) => (
+                    <Text key={i} style={{ fontSize: 22, opacity: i < streakShields.count ? 1 : 0.2 }}>
+                      🛡️
+                    </Text>
+                  ))}
+                </View>
+
+                {shieldActive ? (
+                  <View style={styles.shieldActiveBox}>
+                    <Text style={styles.shieldActiveLabel}>AKTIV</Text>
+                    <Text style={styles.shieldCountdown}>
+                      Noch {formatShieldCountdown(streakShields.activeShield!.expiresAt)}
+                    </Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.shieldBtn, !canActivate && styles.shieldBtnDisabled]}
+                    onPress={canActivate ? activateStreakShield : undefined}
+                    disabled={!canActivate}
+                    activeOpacity={canActivate ? 0.8 : 1}
+                  >
+                    <Text style={[styles.shieldBtnText, !canActivate && styles.shieldBtnTextDisabled]}>
+                      {streakShields.count === 0 ? 'Kein Schild verfügbar' : 'Schild aktivieren'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <Text style={styles.shieldHint}>
+                  Ein Schild schützt deinen Streak, wenn du ein Fokusziel verpasst.{'\n'}
+                  Verdiene Schilder durch Streak-Meilensteine (Tag 7, 21, 50).
+                </Text>
+              </View>
+            );
+          })()}
 
           <View style={{ height: 32 }} />
         </ScrollView>
@@ -664,5 +721,70 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
     color: '#000',
+  },
+
+  // ── Shield section ──────────────────────────────────────────────────────────
+  shieldSection: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingTop: 20,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center',
+  },
+  shieldTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: AppColors.textPrimary,
+    marginBottom: 14,
+  },
+  shieldInventory: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  shieldActiveBox: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  shieldActiveLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#C4622D',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  shieldCountdown: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: AppColors.textPrimary,
+    marginTop: 3,
+  },
+  shieldBtn: {
+    backgroundColor: '#C4622D',
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 32,
+    marginBottom: 12,
+  },
+  shieldBtnDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  shieldBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  shieldBtnTextDisabled: {
+    color: AppColors.textSecondary,
+  },
+  shieldHint: {
+    fontSize: 11,
+    color: AppColors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 17,
+    marginTop: 2,
+    paddingHorizontal: 8,
   },
 });

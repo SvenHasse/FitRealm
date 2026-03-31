@@ -53,7 +53,7 @@ import CurrencyBar              from '../components/CurrencyBar';
 import StatsHistoryModal        from '../components/StatsHistoryModal';
 import { getWorkoutIcon }       from '../utils/workoutIcons';
 import { useGameStore }         from '../store/gameStore';
-import { STREAK_MILESTONES }    from '../utils/streakUtils';
+import { STREAK_MILESTONES, formatShieldCountdown } from '../utils/streakUtils';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -261,7 +261,7 @@ export default function DashboardScreen() {
   const [statsModalOpen,    setStatsModalOpen]     = useState(false);
 
   // Read streak + focus goal tracking from global store
-  const { currentStreak, lastFocusGoalAchievedAt } = useGameStore();
+  const { currentStreak, lastFocusGoalAchievedAt, streakShields } = useGameStore();
   const focusGoalDoneToday = lastFocusGoalAchievedAt !== null &&
     (Date.now() - lastFocusGoalAchievedAt) < 24 * 60 * 60 * 1000;
   const streakMilestone   = STREAK_MILESTONES.find(m => m.days > currentStreak)?.days
@@ -380,6 +380,29 @@ export default function DashboardScreen() {
           fitnessFocus={fitnessFocus}
           onPress={() => setStreakModalOpen(true)}
         />
+
+        {/* ── 2b. Shield badge (only when at least 1 shield available or active) */}
+        {(() => {
+          const shieldActive = streakShields.activeShield !== null &&
+            Date.now() <= (streakShields.activeShield?.expiresAt ?? 0);
+          if (streakShields.count === 0 && !shieldActive) return null;
+          return (
+            <TouchableOpacity
+              onPress={() => setStreakModalOpen(true)}
+              style={styles.shieldBadge}
+              activeOpacity={0.75}
+            >
+              <Text style={{ fontSize: 14 }}>🛡️</Text>
+              {shieldActive ? (
+                <Text style={styles.shieldActiveText}>
+                  Aktiv · {formatShieldCountdown(streakShields.activeShield!.expiresAt)}
+                </Text>
+              ) : (
+                <Text style={styles.shieldCountText}>{streakShields.count}×</Text>
+              )}
+            </TouchableOpacity>
+          );
+        })()}
 
         {/* ── 3. Workout Queue Card ──────────────────────────────────── */}
         <WorkoutQueueCard workouts={unprocessed} onPress={openQueue} />
@@ -648,6 +671,29 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 12,
     width: '100%',
+  },
+
+  shieldBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(196,98,45,0.12)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 6,
+    alignSelf: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  shieldActiveText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#C4622D',
+  },
+  shieldCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8B6F5E',
   },
 
   workoutRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },

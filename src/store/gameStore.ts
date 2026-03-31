@@ -9,6 +9,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StreakShieldState } from '../models/types';
 
 interface GameState {
   // ── Currencies ─────────────────────────────────────────────────────────────
@@ -27,6 +28,9 @@ interface GameState {
   collectedMilestones: number[];           // streak-day values already claimed
   lastFocusGoalAchievedAt: number | null;  // Unix timestamp (ms) — when focus goal was last met
 
+  // ── Streak Shields ─────────────────────────────────────────────────────────
+  streakShields: StreakShieldState;
+
   // ── Actions ────────────────────────────────────────────────────────────────
   addMuskelmasse:   (amount: number) => void;
   addProtein:       (amount: number) => void;
@@ -38,6 +42,9 @@ interface GameState {
   setLastWorkoutDate: (date: Date)   => void;
   collectMilestone: (days: number)   => void;
   recordFocusGoalAchieved: ()        => void;
+  activateStreakShield:  ()                => void;
+  consumeActiveShield:   ()                => void;
+  addStreakShields:      (count: number)   => void;
 
   // ── Dev tools ──────────────────────────────────────────────────────────────
   devAddMuskelmasse:  (amount: number) => void;
@@ -61,6 +68,7 @@ export const useGameStore = create<GameState>()(
       lastWorkoutDate:         new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
       collectedMilestones:     [3, 7],
       lastFocusGoalAchievedAt: null,
+      streakShields: { count: 0, activeShield: null },
 
       // ── Actions ──────────────────────────────────────────────────────────
       addMuskelmasse:  (a) => set((s) => ({ muskelmasse:  s.muskelmasse  + a })),
@@ -75,6 +83,29 @@ export const useGameStore = create<GameState>()(
       recordFocusGoalAchieved: ()     => set({ lastFocusGoalAchievedAt: Date.now() }),
       collectMilestone:        (days) => set((s) => ({
         collectedMilestones: [...s.collectedMilestones, days],
+      })),
+
+      // ── Streak shields ────────────────────────────────────────────────────
+      activateStreakShield: () => set((s) => {
+        if (s.streakShields.count <= 0 || s.streakShields.activeShield !== null) return s;
+        const now = Date.now();
+        return {
+          streakShields: {
+            count: s.streakShields.count - 1,
+            activeShield: {
+              activatedAt: now,
+              expiresAt: now + 48 * 60 * 60 * 1000,
+            },
+          },
+        };
+      }),
+
+      consumeActiveShield: () => set((s) => ({
+        streakShields: { ...s.streakShields, activeShield: null },
+      })),
+
+      addStreakShields: (count) => set((s) => ({
+        streakShields: { ...s.streakShields, count: s.streakShields.count + count },
       })),
 
       // ── Dev tools ─────────────────────────────────────────────────────────
