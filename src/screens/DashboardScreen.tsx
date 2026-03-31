@@ -39,7 +39,6 @@ import {
   FitnessFocus,
 } from '../models/types';
 import { DAILY_TARGETS, PPMetric } from '../utils/progressPoints';
-import { checkDailyFocusTarget } from '../engines/GameEngine';
 import { RootStackParamList, WorkoutRewardData } from '../navigation/types';
 import { useWorkoutStore, Workout } from '../store/workoutStore';
 import { calculateReward } from '../utils/currencyCalculator';
@@ -157,6 +156,44 @@ function CompactSyncButton({
   );
 }
 
+// ─── StatCard — compact number card, no ring ─────────────────────────────────
+
+function StatCard({ icon, label, value, unit }: {
+  icon: string; label: string; value: string | number; unit?: string;
+}) {
+  return (
+    <View style={statCardStyles.container}>
+      <Text style={statCardStyles.icon}>{icon}</Text>
+      <Text style={statCardStyles.value}>
+        {value}
+        {unit ? <Text style={statCardStyles.unit}> {unit}</Text> : null}
+      </Text>
+      <Text style={statCardStyles.label}>{label}</Text>
+    </View>
+  );
+}
+
+const statCardStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(26,26,46,0.6)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    minWidth: 110,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  icon:  { fontSize: 18, marginBottom: 4 },
+  value: { fontSize: 18, fontWeight: '700', color: AppColors.textPrimary },
+  unit:  { fontSize: 12, fontWeight: '400', color: AppColors.textSecondary },
+  label: { fontSize: 11, color: AppColors.textSecondary, marginTop: 2 },
+});
+
 // ─── Metric ordering by focus ─────────────────────────────────────────────────
 
 interface MetricDef {
@@ -222,8 +259,10 @@ export default function DashboardScreen() {
   const [streakModalOpen,   setStreakModalOpen]    = useState(false);
   const [statsModalOpen,    setStatsModalOpen]     = useState(false);
 
-  // Read streak from global store so Dashboard + StreakDetailModal stay in sync
-  const { currentStreak } = useGameStore();
+  // Read streak + focus goal tracking from global store
+  const { currentStreak, lastFocusGoalAchievedAt } = useGameStore();
+  const focusGoalDoneToday = lastFocusGoalAchievedAt !== null &&
+    (Date.now() - lastFocusGoalAchievedAt) < 24 * 60 * 60 * 1000;
   const streakMilestone   = STREAK_MILESTONES.find(m => m.days > currentStreak)?.days
     ?? STREAK_MILESTONES[STREAK_MILESTONES.length - 1].days;
 
@@ -279,22 +318,9 @@ export default function DashboardScreen() {
             const ordered = getOrderedMetrics(fitnessFocus, health);
             const primary = ordered[0];
             const secondaries = ordered.slice(1);
-            const focusTargetMet = checkDailyFocusTarget(
-              fitnessFocus,
-              {
-                stepsToday: health.stepsToday,
-                activeCaloriesToday: health.activeCaloriesToday,
-                restingHeartRateCurrent: null,
-                restingHeartRate30DaysAgo: null,
-                vo2MaxCurrent: null,
-                vo2Max30DaysAgo: null,
-                lastUpdated: new Date().toISOString(),
-              },
-              health.workoutMinutesToday,
-            );
             return (
               <View style={styles.metricsPyramid}>
-                {/* Top: large focus metric centered */}
+                {/* Top: large focus metric — this is the Streak goal */}
                 <View style={styles.focusMetricCol}>
                   <DailyMetricCard
                     icon={primary.icon}
@@ -305,27 +331,33 @@ export default function DashboardScreen() {
                     progress={primary.progress}
                     ringSize={130}
                   />
-                  {focusTargetMet && (
-                    <View style={styles.targetBadge}>
-                      <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
-                      <Text style={styles.targetBadgeText}>{t('dashboard.dailyTargetReached')}</Text>
+                  <Text style={styles.focusGoalLabel}>Streak-Ziel</Text>
+                  {focusGoalDoneToday && (
+                    <View style={styles.streakSafeRow}>
+                      <Text style={styles.streakSafeText}>✓ Streak gesichert</Text>
                     </View>
                   )}
                 </View>
-                {/* Bottom: two small metrics side by side, offset below */}
-                <View style={styles.secondaryMetricRow}>
-                  {secondaries.map(m => (
-                    <DailyMetricCard
-                      key={m.key}
-                      icon={m.icon}
-                      value={m.value}
-                      label={m.label}
-                      unit={m.unit}
-                      color={m.color}
-                      progress={m.progress}
-                      ringSize={68}
-                    />
-                  ))}
+                {/* Bottom: two compact stat cards — no rings */}
+                <View style={styles.secondaryMetricsRow}>
+                  {secondaries.map(m => {
+                    const icon =
+                      m.key === 'steps'    ? '👣' :
+                      m.key === 'workouts' ? '⏱️' : '🔥';
+                    const label =
+                      m.key === 'steps'    ? 'Schritte heute' :
+                      m.key === 'workouts' ? 'Workout-Zeit'   : 'Kalorien aktiv';
+                    const unit = m.unit.trim() || undefined;
+                    return (
+                      <StatCard
+                        key={m.key}
+                        icon={icon}
+                        label={label}
+                        value={m.value.toLocaleString('de-DE')}
+                        unit={unit}
+                      />
+                    );
+                  })}
                 </View>
               </View>
             );
@@ -561,18 +593,37 @@ const styles = StyleSheet.create({
 
   metricsPyramid: { alignItems: 'center', alignSelf: 'stretch' },
   focusMetricCol: { alignItems: 'center' },
-  secondaryMetricRow: { flexDirection: 'row', justifyContent: 'space-between', alignSelf: 'stretch', paddingHorizontal: 5, marginTop: -40 },
-  targetBadge: {
+
+  // "Streak-Ziel" label below the large ring
+  focusGoalLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: AppColors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: 4,
+  },
+
+  // "✓ Streak gesichert" badge
+  streakSafeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: 'rgba(76,175,80,0.15)',
-    borderRadius: 10,
+    marginTop: 4,
+    marginBottom: 2,
   },
-  targetBadgeText: { fontSize: 11, fontWeight: '600', color: '#4CAF50' },
+  streakSafeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#7D9B76',
+  },
+
+  // Two compact StatCards below the ring
+  secondaryMetricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 14,
+  },
 
   workoutRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   workoutIconWrap: {
