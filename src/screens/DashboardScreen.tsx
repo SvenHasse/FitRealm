@@ -167,17 +167,38 @@ function CompactSyncButton({
   );
 }
 
-// ─── StatCard — compact number card, no ring ─────────────────────────────────
+// ─── StatCard — compact number card with count-up animation ──────────────────
 
-function StatCard({ label, value, color }: {
-  label: string; value: string | number; color: string;
+function useStatCountUp(target: number, duration = 900): number {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (target === 0) { setVal(0); return; }
+    const steps = 50;
+    const ms = duration / steps;
+    let step = 0;
+    const id = setInterval(() => {
+      step++;
+      const eased = 1 - Math.pow(1 - step / steps, 3); // cubic ease-out
+      setVal(Math.min(Math.round(eased * target), target));
+      if (step >= steps) clearInterval(id);
+    }, ms);
+    return () => clearInterval(id);
+  }, [target]);
+  return val;
+}
+
+function StatCard({ label, numericValue, suffix, color }: {
+  label: string; numericValue: number; suffix?: string; color: string;
 }) {
+  const display = useStatCountUp(numericValue);
+  const formatted = display.toLocaleString('de-DE') + (suffix ?? '');
+
   return (
     <View style={[statCardStyles.container, {
       backgroundColor: `${color}18`,
       borderColor: `${color}55`,
     }]}>
-      <Text style={[statCardStyles.value, { color }]}>{value}</Text>
+      <Text style={[statCardStyles.value, { color }]}>{formatted}</Text>
       <Text style={statCardStyles.label}>{label}</Text>
     </View>
   );
@@ -191,16 +212,15 @@ const statCardStyles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     paddingVertical: 14,
-    paddingHorizontal: 0,
+    paddingHorizontal: 6,
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  value: { fontSize: 20, fontWeight: '700' },
-  unit:  { fontSize: 12, fontWeight: '400', color: AppColors.textSecondary },
-  label: { fontSize: 11, color: AppColors.textSecondary, marginTop: 3 },
+  value: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  label: { fontSize: 11, color: AppColors.textSecondary, marginTop: 3, textAlign: 'center' },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -324,17 +344,19 @@ export default function DashboardScreen() {
                 <View style={styles.secondaryMetricsRow}>
                   <StatCard
                     label="Schritte"
-                    value={health.stepsToday.toLocaleString('de-DE')}
+                    numericValue={health.stepsToday}
                     color="#4CAF50"
                   />
                   <StatCard
                     label="Verbrannte Kalorien"
-                    value={`${health.activeCaloriesToday} kcal`}
+                    numericValue={health.activeCaloriesToday}
+                    suffix=" kcal"
                     color="#FF9800"
                   />
                   <StatCard
                     label="Workout-Zeit"
-                    value={`${health.workoutMinutesToday} min`}
+                    numericValue={health.workoutMinutesToday}
+                    suffix=" min"
                     color={AppColors.teal}
                   />
                 </View>
