@@ -55,7 +55,7 @@ function getSpriteSource(type: BuildingType, level: number): any | null {
 // Alle Gebäude-Sprites werden einheitlich auf 1 Kachel (TILE_W) skaliert.
 // Die PNGs werden bereits in korrekter isometrischer Größe gerendert
 // (512×512 transparent, Footprint = 140×70 isometrische Raute).
-const UNIFORM_SCALE = 1.0;
+const UNIFORM_SCALE = 0.75; // 75 % of TILE_W = 105 px — visible gap between adjacent buildings
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -93,7 +93,7 @@ function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffset
         x: spriteX,
         y: spriteY,
         size,
-        zIndex: Math.round(y + TILE_H), // depth sort: lower row = higher zIndex = in front
+        zIndex: b.position.row + b.position.col, // correct isometric depth: higher = closer to viewer
       });
     }
 
