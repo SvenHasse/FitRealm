@@ -61,28 +61,6 @@ function hrColor(bpm: number): string {
   return '#F44336';
 }
 
-// ── Protein Icon Row ───────────────────────────────────────────────────────────
-
-function ProteinIcon({ earned, index }: { earned: boolean; index: number }) {
-  const opacity   = useSharedValue(0);
-  const scale     = useSharedValue(0.4);
-
-  useEffect(() => {
-    const delay = index * 200;
-    opacity.value = withDelay(delay, withTiming(earned ? 1 : 0.22, { duration: 300 }));
-    scale.value   = withDelay(delay, withSpring(1, { damping: 10, stiffness: 180 }));
-  }, []);
-
-  const style = useAnimatedStyle(() => ({
-    opacity:   opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Animated.Text style={[styles.proteinIcon, style]}>🧬</Animated.Text>
-  );
-}
-
 // ── Progress Bar ───────────────────────────────────────────────────────────────
 
 function StreakProgressBar({ effKcal, visible }: { effKcal: number; visible: boolean }) {
@@ -326,7 +304,7 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
             />
             <WorkoutSummaryRow
               icon={<MaterialCommunityIcons name="fire" size={18} color="#FF9800" />}
-              label="Aktive Kalorien"
+              label="Verbrannte Kalorien"
               value={`${workout.activeCalories} kcal`}
               delayMs={120}
             />
@@ -392,24 +370,11 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
         {/* ── 5. Protein ──────────────────────────────────────────────────── */}
         {showProtein && (
           <View style={styles.card}>
-            <View style={styles.proteinHeaderRow}>
-              <Text style={styles.proteinTitle}>Protein</Text>
-              {untilNext !== null ? (
-                <Text style={styles.proteinHint}>noch {untilNext} MM bis 🧬</Text>
-              ) : (
-                <Text style={[styles.proteinHint, { color: TEAL }]}>Maximum erreicht ✨</Text>
-              )}
-            </View>
-            <View style={styles.proteinIconRow}>
-              {[1, 2, 3].map(i => (
-                <ProteinIcon key={i} earned={i <= proteinEarned} index={i - 1} />
-              ))}
-            </View>
-            {proteinEarned === 0 && (
-              <Text style={styles.proteinThresholdHint}>
-                Erste Schwelle bei 450 MM Energie
-              </Text>
-            )}
+            {proteinEarned > 0 ? (
+              <Text style={styles.proteinHint}>🧬 {proteinEarned} Protein verdient</Text>
+            ) : untilNext !== null && untilNext > 0 ? (
+              <Text style={styles.proteinHint}>Noch {untilNext} MM bis zum nächsten Protein</Text>
+            ) : null}
           </View>
         )}
 
@@ -537,12 +502,7 @@ const styles = StyleSheet.create({
   streakSub:   { fontSize: 13, color: AppColors.textSecondary },
 
   // Protein
-  proteinHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  proteinTitle:     { fontSize: 15, fontWeight: '700', color: AppColors.textPrimary },
-  proteinHint:      { fontSize: 13, color: AppColors.textSecondary },
-  proteinIconRow:   { flexDirection: 'row', gap: 16, marginBottom: 4 },
-  proteinIcon:      { fontSize: 36 },
-  proteinThresholdHint: { fontSize: 12, color: AppColors.textSecondary, marginTop: 8 },
+  proteinHint: { fontSize: 13, color: AppColors.textSecondary, textAlign: 'center', paddingVertical: 8 },
 
   // Progress bar
   progressWrap: { gap: 8 },
