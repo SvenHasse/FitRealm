@@ -284,8 +284,6 @@ export default function RealmScreen() {
 
   // Scroll ref for map navigation
   const scrollRef = useRef<ScrollView>(null);
-  // Initial scroll position (set by Rathaus-centering useEffect, used for parallax delta)
-  const initialScrollPos = useRef({ x: 0, y: 0 });
   // Track the SVG container layout position for touch conversion
   const svgLayoutRef = useRef({ pageX: 0, pageY: 0 });
   const svgContainerRef = useRef<Animated.View>(null);
@@ -313,7 +311,6 @@ export default function RealmScreen() {
     const visualY = CONTAINER_H / 2 + (animY - CONTAINER_H / 2) * INITIAL_SCALE;
     const targetX = Math.max(0, visualX - SCREEN_W / 2);
     const targetY = Math.max(0, visualY - SCREEN_H / 2);
-    initialScrollPos.current = { x: targetX, y: targetY };
     setTimeout(() => {
       scrollRef.current?.scrollTo({ x: targetX, y: targetY, animated: false });
     }, 50);
@@ -614,10 +611,6 @@ export default function RealmScreen() {
   const svgOffsetX = SVG_OFFSET_X;
   const svgOffsetY = SVG_OFFSET_Y;
 
-  // Shared values for parallax scroll tracking
-  const parallaxScrollX = useSharedValue(0);
-  const parallaxScrollY = useSharedValue(0);
-
   // Zoom is handled entirely by ScrollView's built-in maximumZoomScale/minimumZoomScale.
   // No manual pinch gesture — avoids conflict with ScrollView zoom that causes drift.
   const zoomStyle = useAnimatedStyle(() => ({
@@ -644,11 +637,6 @@ export default function RealmScreen() {
         maximumZoomScale={2.5}
         minimumZoomScale={0.35}
         bouncesZoom
-        onScroll={(e) => {
-          const { contentOffset } = e.nativeEvent;
-          parallaxScrollX.value = contentOffset.x - initialScrollPos.current.x;
-          parallaxScrollY.value = contentOffset.y - initialScrollPos.current.y;
-        }}
       >
             <View
               ref={svgContainerRef}
@@ -719,8 +707,6 @@ export default function RealmScreen() {
             <ForestParallax
               containerWidth={CONTAINER_W}
               containerHeight={CONTAINER_H}
-              scrollX={parallaxScrollX}
-              scrollY={parallaxScrollY}
             />
 
             {/* Layer 6: Biome lock icons — positioned at transition points */}

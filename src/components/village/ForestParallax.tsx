@@ -5,9 +5,7 @@
 // The SVG grid (15x15) sits centered within the forest biome area.
 
 import React from 'react';
-import { Image, StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
+import { Image, View, StyleSheet } from 'react-native';
 
 const WORLD_FULL = require('../../assets/terrain/world_full.png');
 const WORLD_CLOUDS = require('../../assets/terrain/world_clouds.png');
@@ -15,33 +13,17 @@ const WORLD_CLOUDS = require('../../assets/terrain/world_clouds.png');
 interface ForestParallaxProps {
   containerWidth: number;   // full world container width (px)
   containerHeight: number;  // full world container height (px)
-  scrollX: SharedValue<number>;
-  scrollY: SharedValue<number>;
 }
 
 export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
   containerWidth,
   containerHeight,
-  scrollX,
-  scrollY,
 }) => {
-  // Background layer — slight parallax (moves slower than the grid)
-  const bgStyle = useAnimatedStyle(() => {
-    'worklet';
-    const factor = 0.06;
-    return {
-      transform: [
-        { translateX: scrollX.value * factor },
-        { translateY: scrollY.value * factor },
-      ],
-    };
-  });
-
   return (
     <>
-      {/* World background — parallax */}
-      <Animated.View
-        style={[styles.layer, { width: containerWidth, height: containerHeight }, bgStyle]}
+      {/* World background — no extra transform, ScrollView moves everything together */}
+      <View
+        style={[styles.layer, { width: containerWidth, height: containerHeight }]}
         pointerEvents="none"
       >
         <Image
@@ -49,10 +31,10 @@ export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
           style={{ width: containerWidth, height: containerHeight }}
           resizeMode="cover"
         />
-      </Animated.View>
+      </View>
 
-      {/* Cloud overlay — fixed relative to the world (no parallax) */}
-      <Animated.View
+      {/* Cloud overlay — fixed relative to the world */}
+      <View
         style={[styles.layer, { width: containerWidth, height: containerHeight }]}
         pointerEvents="none"
       >
@@ -61,7 +43,7 @@ export const ForestParallax: React.FC<ForestParallaxProps> = React.memo(({
           style={{ width: containerWidth, height: containerHeight }}
           resizeMode="cover"
         />
-      </Animated.View>
+      </View>
     </>
   );
 });
