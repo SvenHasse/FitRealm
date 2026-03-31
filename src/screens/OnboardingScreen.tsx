@@ -22,10 +22,14 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useGameStore } from '../store/useGameStore';
 import { calculateHRmax } from '../utils/hrMax';
 import type { FitnessFocus } from '../models/types';
+import { RootStackParamList } from '../navigation/types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -39,7 +43,7 @@ const INPUT_BG = '#252835';
 
 const TOTAL_PAGES = 5;
 
-export default function OnboardingScreen() {
+export default function OnboardingScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const setUserProfile = useGameStore(s => s.setUserProfile);
   const flatListRef = useRef<FlatList>(null);
@@ -84,6 +88,7 @@ export default function OnboardingScreen() {
       gender,
       fitnessFocus,
     });
+    navigation.replace('Main');
   }
 
   // Animate HRmax count-up when reaching result page
@@ -343,7 +348,7 @@ export default function OnboardingScreen() {
         scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
         keyExtractor={(_, i) => `page-${i}`}
-        renderItem={({ item: PageRenderer }) => <PageRenderer />}
+        renderItem={({ item: renderPage }) => renderPage()}
         onMomentumScrollEnd={(e) => {
           const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
           setCurrentPage(page);
