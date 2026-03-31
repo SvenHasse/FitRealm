@@ -332,7 +332,7 @@ export default function RealmScreen() {
   // PNG sprites are bottom-anchored; SVG cuboids also extend upward from the tile.
   // All sprites are now uniformly sized (TILE_W). A single offset shifts the
   // camera above the tile centre so the building body is visible.
-  const getSpriteVerticalOffset = (_type: BuildingType): number => -30;
+  const getSpriteVerticalOffset = (_type: BuildingType): number => -35;
 
   // Scroll map so the building sprite sits at viewport centre.
   // contentContainerStyle has zero extra padding — Animated.View is at (0, 0).

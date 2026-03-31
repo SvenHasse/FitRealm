@@ -79,9 +79,9 @@ function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffset
       const { x, y } = gridToScreen(b.position.row, b.position.col, gridSize);
       const size = TILE_W * UNIFORM_SCALE;
 
-      // Center the sprite on the tile, anchor its bottom to the tile bottom edge
+      // Center horizontally, bottom-align to tile's bottom vertex (y + TILE_H)
       const spriteX = svgOffsetX + x + TILE_W / 2 - size / 2;
-      const spriteY = svgOffsetY + y + TILE_H / 2 - size * 0.75;
+      const spriteY = svgOffsetY + y + TILE_H - size;
 
       result.push({
         key: `sprite-${b.position.row}-${b.position.col}`,
