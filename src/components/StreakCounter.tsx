@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { AppColors, FitnessFocus } from '../models/types';
 import { useTranslation } from 'react-i18next';
+import { formatShieldCountdown } from '../utils/streakUtils';
 
 const STREAK_COLOR = '#FF6B35';
 
@@ -21,9 +22,14 @@ interface Props {
   milestone: number; // next target day count (e.g. 7, 14, 21 …)
   fitnessFocus?: FitnessFocus;
   onPress?: () => void;
+  /** Set when a shield is currently active */
+  shieldActive?: boolean;
+  shieldExpiresAt?: number;
+  /** Count of shields in inventory (not yet activated) */
+  shieldCount?: number;
 }
 
-export default function StreakCounter({ streak, milestone, fitnessFocus, onPress }: Props) {
+export default function StreakCounter({ streak, milestone, fitnessFocus, onPress, shieldActive, shieldExpiresAt, shieldCount = 0 }: Props) {
   const { t } = useTranslation();
   const scale    = useSharedValue(1);
   const progress = milestone > 0 ? Math.min(streak / milestone, 1) : 0;
@@ -56,6 +62,20 @@ export default function StreakCounter({ streak, milestone, fitnessFocus, onPress
             <Text style={styles.number}>{streak}</Text>
             <Text style={styles.numberSuffix}> Tage</Text>
           </View>
+          {/* Shield status — inline below number */}
+          {shieldActive && shieldExpiresAt ? (
+            <View style={styles.shieldActivePill}>
+              <Text style={{ fontSize: 11, lineHeight: 14 }}>🛡️</Text>
+              <Text style={styles.shieldActiveText}>
+                Geschützt · {formatShieldCountdown(shieldExpiresAt)}
+              </Text>
+            </View>
+          ) : shieldCount > 0 ? (
+            <View style={styles.shieldReadyPill}>
+              <Text style={{ fontSize: 10, lineHeight: 13 }}>🛡️</Text>
+              <Text style={styles.shieldReadyText}>{shieldCount}× bereit</Text>
+            </View>
+          ) : null}
           <Text style={styles.sub}>
             {fitnessFocus
               ? t(`dashboard.streakLabel_${fitnessFocus}`)
@@ -112,7 +132,43 @@ const styles = StyleSheet.create({
     lineHeight: 42,
   },
   numberSuffix: { fontSize: 16, color: AppColors.textSecondary },
-  sub: { fontSize: 12, color: AppColors.textSecondary, marginTop: 1 },
+  sub: { fontSize: 12, color: AppColors.textSecondary, marginTop: 3 },
+  shieldActivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(196,98,45,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(196,98,45,0.45)',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginTop: 4,
+  },
+  shieldActiveText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#C4622D',
+  },
+  shieldReadyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 7,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 4,
+  },
+  shieldReadyText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.45)',
+  },
   progressWrap: { gap: 6 },
   track: {
     height: 6,
