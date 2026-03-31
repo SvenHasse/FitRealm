@@ -92,6 +92,247 @@ const MOCK = {
   collectedMilestones: [3, 7],
 };
 
+// ─── Shield constants ─────────────────────────────────────────────────────────
+const SHIELD_COLOR       = '#C4622D';  // terracotta
+const SHIELD_GLOW        = 'rgba(196,98,45,0.35)';
+const SHIELD_GLOW_LIGHT  = 'rgba(196,98,45,0.15)';
+const SHIELD_INACTIVE    = 'rgba(255,255,255,0.15)';
+
+// ─── ShieldSection component ─────────────────────────────────────────────────
+
+interface ShieldSectionProps {
+  streakShields: import('../models/types').StreakShieldState;
+  activateStreakShield: () => void;
+  animKey: number;
+}
+
+function ShieldSection({ streakShields, activateStreakShield, animKey }: ShieldSectionProps) {
+  const shieldActive = streakShields.activeShield !== null &&
+    Date.now() <= (streakShields.activeShield?.expiresAt ?? 0);
+  const canActivate  = streakShields.count > 0 && !shieldActive;
+
+  // ── Live countdown ticker ─────────────────────────────────────────────────
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!shieldActive) return;
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [shieldActive]);
+
+  // ── Staggered bounce-in per shield icon ──────────────────────────────────
+  const MAX_ICONS = Math.max(streakShields.count + (shieldActive ? 1 : 0), 3);
+  const iconScales = useRef(
+    Array.from({ length: 6 }, () => ({ scale: useSharedValue(0), opacity: useSharedValue(0) })),
+  ).current;
+
+  useEffect(() => {
+    iconScales.forEach((sv, i) => {
+      sv.scale.value   = 0;
+      sv.opacity.value = 0;
+      const delay = 80 + i * 60;
+      sv.scale.value   = withDelay(delay, withSpring(1, { damping: 10, stiffness: 180 }));
+      sv.opacity.value = withDelay(delay, withTiming(1, { duration: 200 }));
+    });
+  }, [animKey]);
+
+  // ── Active shield: breathing pulse + 3 ripple rings ──────────────────────
+  const shieldPulse = useSharedValue(1);
+  const ripple1     = useSharedValue(0);
+  const ripple2     = useSharedValue(0);
+  const ripple3     = useSharedValue(0);
+
+  useEffect(() => {
+    if (shieldActive) {
+      // Breathing pulse on the icon
+      shieldPulse.value = withRepeat(
+        withSequence(
+          withTiming(1.12, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.94, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1, false,
+      );
+      // Ripple rings with staggered delays
+      const startRipple = (sv: { value: number }, delay: number) => {
+        sv.value = 0;
+        sv.value = withDelay(delay, withRepeat(
+          withSequence(
+            withTiming(1, { duration: 1800, easing: Easing.out(Easing.cubic) }),
+            withTiming(1, { duration: 200 }), // hold briefly at end
+          ),
+          -1, false,
+        ));
+      };
+      startRipple(ripple1, 0);
+      startRipple(ripple2, 600);
+      startRipple(ripple3, 1200);
+    } else {
+      cancelAnimation(shieldPulse);
+      cancelAnimation(ripple1);
+      cancelAnimation(ripple2);
+      cancelAnimation(ripple3);
+      shieldPulse.value = withTiming(1, { duration: 300 });
+      ripple1.value = 0;
+      ripple2.value = 0;
+      ripple3.value = 0;
+    }
+  }, [shieldActive]);
+
+  const pulseStyle  = useAnimatedStyle(() => ({
+    transform: [{ scale: shieldPulse.value }],
+  }));
+  const makeRipple  = (sv: { value: number }) =>
+    useAnimatedStyle(() => ({
+      transform: [{ scale: 1 + sv.value * 0.9 }],
+      opacity: 0.6 * (1 - sv.value),
+    }));
+  const ripple1Style = makeRipple(ripple1);
+  const ripple2Style = makeRipple(ripple2);
+  const ripple3Style = makeRipple(ripple3);
+
+  // ── Activate button glow pulse ────────────────────────────────────────────
+  const btnGlow = useSharedValue(0);
+  useEffect(() => {
+    if (canActivate) {
+      btnGlow.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1, false,
+      );
+    } else {
+      cancelAnimation(btnGlow);
+      btnGlow.value = 0;
+    }
+  }, [canActivate]);
+  const btnGlowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: 0.3 + btnGlow.value * 0.5,
+    shadowRadius:  6    + btnGlow.value * 10,
+  }));
+
+  // ── Remaining fraction for arc display ───────────────────────────────────
+  const remainingFraction = shieldActive && streakShields.activeShield
+    ? Math.max(0, (streakShields.activeShield.expiresAt - Date.now()) /
+        (7 * 24 * 60 * 60 * 1000))
+    : 0;
+  const remainingPct = Math.round(remainingFraction * 100);
+
+  return (
+    <View style={shieldStyles.container}>
+      {/* Section header */}
+      <View style={shieldStyles.headerRow}>
+        <MaterialCommunityIcons name="shield-half-full" size={15} color={SHIELD_COLOR} />
+        <Text style={shieldStyles.sectionTitle}>Streak-Schilde</Text>
+      </View>
+
+      <View style={shieldStyles.card}>
+        {shieldActive ? (
+          /* ── ACTIVE STATE ── */
+          <View style={shieldStyles.activeWrap}>
+            {/* Ripple rings */}
+            <View style={shieldStyles.rippleContainer} pointerEvents="none">
+              <Animated.View style={[shieldStyles.rippleRing, ripple1Style]} />
+              <Animated.View style={[shieldStyles.rippleRing, ripple2Style]} />
+              <Animated.View style={[shieldStyles.rippleRing, ripple3Style]} />
+            </View>
+
+            {/* Pulsing shield icon */}
+            <Animated.Text style={[shieldStyles.bigShieldIcon, pulseStyle]}>🛡️</Animated.Text>
+
+            {/* AKTIV label + countdown */}
+            <View style={shieldStyles.activeTextCol}>
+              <View style={shieldStyles.activeLabelRow}>
+                <View style={shieldStyles.activeDot} />
+                <Text style={shieldStyles.activeLabel}>AKTIV</Text>
+              </View>
+              <Text style={shieldStyles.countdownLarge}>
+                {formatShieldCountdown(streakShields.activeShield!.expiresAt)}
+              </Text>
+              <Text style={shieldStyles.countdownSub}>{remainingPct}% verbleibend</Text>
+            </View>
+
+            {/* Remaining inventory */}
+            {streakShields.count > 0 && (
+              <View style={shieldStyles.stockRow}>
+                {Array.from({ length: streakShields.count }).map((_, i) => (
+                  <Text key={i} style={{ fontSize: 16 }}>🛡️</Text>
+                ))}
+                <Text style={shieldStyles.stockLabel}>im Vorrat</Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          /* ── INACTIVE STATE ── */
+          <View style={shieldStyles.inactiveWrap}>
+            {/* Shield icons with staggered bounce-in */}
+            <View style={shieldStyles.iconRow}>
+              {Array.from({ length: MAX_ICONS }).map((_, i) => {
+                const sv = iconScales[Math.min(i, iconScales.length - 1)];
+                const iconStyle = useAnimatedStyle(() => ({
+                  transform: [{ scale: sv.scale.value }],
+                  opacity: sv.opacity.value,
+                }));
+                const hasShield = i < streakShields.count;
+                return (
+                  <Animated.View key={i} style={[shieldStyles.shieldIconWrap, iconStyle]}>
+                    <View style={[
+                      shieldStyles.shieldIconBg,
+                      hasShield ? shieldStyles.shieldIconBgActive : shieldStyles.shieldIconBgEmpty,
+                    ]}>
+                      <Text style={{ fontSize: 26, opacity: hasShield ? 1 : 0.2 }}>🛡️</Text>
+                    </View>
+                    {hasShield && (
+                      <View style={shieldStyles.shieldGlowDot} />
+                    )}
+                  </Animated.View>
+                );
+              })}
+            </View>
+
+            {/* Count label */}
+            <Text style={shieldStyles.countLabel}>
+              {streakShields.count === 0
+                ? 'Keine Schilder im Vorrat'
+                : `${streakShields.count} Schild${streakShields.count > 1 ? 'e' : ''} verfügbar`}
+            </Text>
+
+            {/* Activate button */}
+            <Animated.View style={[
+              shieldStyles.btnShadow,
+              canActivate ? btnGlowStyle : undefined,
+            ]}>
+              <TouchableOpacity
+                style={[shieldStyles.activateBtn, !canActivate && shieldStyles.activateBtnDisabled]}
+                onPress={canActivate ? async () => {
+                  try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+                  activateStreakShield();
+                } : undefined}
+                disabled={!canActivate}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons
+                  name="shield-check"
+                  size={16}
+                  color={canActivate ? '#fff' : 'rgba(255,255,255,0.3)'}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[shieldStyles.activateBtnText, !canActivate && shieldStyles.activateBtnTextDisabled]}>
+                  {streakShields.count === 0 ? 'Kein Schild verfügbar' : 'Schild aktivieren'}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        )}
+
+        {/* Hint */}
+        <Text style={shieldStyles.hint}>
+          Schützt deinen Streak für 7 Tage · Verdiene Schilder bei Tag 7, 21 & 50
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 // ─── Count-up hook ────────────────────────────────────────────────────────────
 
 function useCountUp(target: number, durationMs = 700): number {
@@ -470,6 +711,13 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
           {/* ── Countdown ──────────────────────────────────────────────── */}
           <CountdownSection countdown={countdown} lastWorkoutStr={lastWorkoutStr} />
 
+          {/* ── Streak-Schilde (above milestones) ──────────────────────── */}
+          <ShieldSection
+            streakShields={streakShields}
+            activateStreakShield={activateStreakShield}
+            animKey={animKey}
+          />
+
           {/* ── Rewards board ──────────────────────────────────────────── */}
           <View style={styles.sectionRow}>
             <MaterialCommunityIcons name="trophy-outline" size={15} color={GOLD} />
@@ -489,53 +737,6 @@ export default function StreakDetailModal({ visible, onClose }: Props) {
               />
             ))}
           </View>
-
-          {/* ── Streak-Schilde ────────────────────────────────────── */}
-          {(() => {
-            const shieldActive = streakShields.activeShield !== null &&
-              Date.now() <= (streakShields.activeShield?.expiresAt ?? 0);
-            const canActivate = streakShields.count > 0 && !shieldActive;
-            const displayCount = streakShields.count + (shieldActive ? 1 : 0);
-            return (
-              <View style={styles.shieldSection}>
-                <Text style={styles.shieldTitle}>🛡️ Streak-Schilde</Text>
-
-                {/* Inventar-Icons */}
-                <View style={styles.shieldInventory}>
-                  {Array.from({ length: Math.max(displayCount, 3) }).map((_, i) => (
-                    <Text key={i} style={{ fontSize: 22, opacity: i < streakShields.count ? 1 : 0.2 }}>
-                      🛡️
-                    </Text>
-                  ))}
-                </View>
-
-                {shieldActive ? (
-                  <View style={styles.shieldActiveBox}>
-                    <Text style={styles.shieldActiveLabel}>AKTIV</Text>
-                    <Text style={styles.shieldCountdown}>
-                      Noch {formatShieldCountdown(streakShields.activeShield!.expiresAt)}
-                    </Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.shieldBtn, !canActivate && styles.shieldBtnDisabled]}
-                    onPress={canActivate ? activateStreakShield : undefined}
-                    disabled={!canActivate}
-                    activeOpacity={canActivate ? 0.8 : 1}
-                  >
-                    <Text style={[styles.shieldBtnText, !canActivate && styles.shieldBtnTextDisabled]}>
-                      {streakShields.count === 0 ? 'Kein Schild verfügbar' : 'Schild aktivieren'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                <Text style={styles.shieldHint}>
-                  Ein Schild schützt deinen Streak, wenn du ein Fokusziel verpasst.{'\n'}
-                  Verdiene Schilder durch Streak-Meilensteine (Tag 7, 21, 50).
-                </Text>
-              </View>
-            );
-          })()}
 
           <View style={{ height: 32 }} />
         </ScrollView>
@@ -723,68 +924,194 @@ const styles = StyleSheet.create({
     color: '#000',
   },
 
-  // ── Shield section ──────────────────────────────────────────────────────────
-  shieldSection: {
+});
+
+// ─── Shield section styles ─────────────────────────────────────────────────────
+const shieldStyles = StyleSheet.create({
+  container: {
     marginHorizontal: 16,
     marginTop: 8,
-    paddingTop: 20,
-    paddingBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.07)',
-    alignItems: 'center',
+    marginBottom: 4,
   },
-  shieldTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: AppColors.textPrimary,
-    marginBottom: 14,
-  },
-  shieldInventory: {
+  headerRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  shieldActiveBox: {
     alignItems: 'center',
+    gap: 6,
     marginBottom: 10,
   },
-  shieldActiveLabel: {
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: AppColors.textPrimary,
+  },
+  card: {
+    backgroundColor: AppColors.cardBackground,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: `${SHIELD_COLOR}30`,
+    padding: 20,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+
+  // ── Active state ────────────────────────────────────────────────────────────
+  activeWrap: {
+    alignItems: 'center',
+    width: '100%',
+    paddingVertical: 8,
+  },
+  rippleContainer: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    top: 0,
+  },
+  rippleRing: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: SHIELD_COLOR,
+    backgroundColor: SHIELD_GLOW_LIGHT,
+  },
+  bigShieldIcon: {
+    fontSize: 64,
+    lineHeight: 76,
+    marginBottom: 14,
+  },
+  activeTextCol: {
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  activeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  activeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: SHIELD_COLOR,
+  },
+  activeLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#C4622D',
+    color: SHIELD_COLOR,
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
+    letterSpacing: 1.5,
   },
-  shieldCountdown: {
-    fontSize: 18,
-    fontWeight: '700',
+  countdownLarge: {
+    fontSize: 28,
+    fontWeight: '800',
     color: AppColors.textPrimary,
-    marginTop: 3,
+    letterSpacing: 1,
   },
-  shieldBtn: {
-    backgroundColor: '#C4622D',
-    borderRadius: 10,
-    paddingVertical: 11,
-    paddingHorizontal: 32,
-    marginBottom: 12,
+  countdownSub: {
+    fontSize: 12,
+    color: AppColors.textSecondary,
+    marginTop: 2,
   },
-  shieldBtnDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  stockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
   },
-  shieldBtnText: {
-    fontSize: 14,
+  stockLabel: {
+    fontSize: 11,
+    color: AppColors.textSecondary,
+    marginLeft: 4,
+  },
+
+  // ── Inactive state ──────────────────────────────────────────────────────────
+  inactiveWrap: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  iconRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  shieldIconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shieldIconBg: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+  },
+  shieldIconBgActive: {
+    backgroundColor: SHIELD_GLOW_LIGHT,
+    borderColor: `${SHIELD_COLOR}80`,
+  },
+  shieldIconBgEmpty: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  shieldGlowDot: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: SHIELD_COLOR,
+  },
+  countLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: AppColors.textSecondary,
+    marginBottom: 16,
+  },
+  btnShadow: {
+    shadowColor: SHIELD_COLOR,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    borderRadius: 14,
+    marginBottom: 4,
+  },
+  activateBtn: {
+    backgroundColor: SHIELD_COLOR,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activateBtnDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  activateBtnText: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#fff',
   },
-  shieldBtnTextDisabled: {
-    color: AppColors.textSecondary,
+  activateBtnTextDisabled: {
+    color: 'rgba(255,255,255,0.3)',
   },
-  shieldHint: {
+
+  // ── Hint ────────────────────────────────────────────────────────────────────
+  hint: {
     fontSize: 11,
     color: AppColors.textSecondary,
     textAlign: 'center',
     lineHeight: 17,
-    marginTop: 2,
-    paddingHorizontal: 8,
+    marginTop: 14,
+    paddingHorizontal: 4,
   },
 });
