@@ -10,6 +10,7 @@ import { AppColors, FitnessFocus } from '../models/types';
 import { setLanguage } from '../i18n';
 import DevToolsSection from '../components/DevToolsSection';
 import { isFocusGoalLocked, getFocusGoalUnlockDaysRemaining } from '../utils/focusGoalUtils';
+import { DEV } from '../config/developerConfig';
 
 function promptForValue(title: string, current: string, onConfirm: (val: string) => void) {
   if (Platform.OS === 'ios') {
@@ -86,7 +87,9 @@ export default function SettingsScreen() {
           {/* Fitness Focus picker — locked for 14 days after a change */}
           {(() => {
             const lastChanged = userProfile.focusGoalLastChangedAt ?? 0;
-            const focusLocked = isFocusGoalLocked(lastChanged);
+            const focusLocked = DEV.FOCUS_GOAL_LOCK_ENABLED
+              ? isFocusGoalLocked(lastChanged)
+              : false;
             const daysLeft    = getFocusGoalUnlockDaysRemaining(lastChanged);
             return (
               <View style={{ marginTop: 14 }}>

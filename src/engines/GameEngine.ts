@@ -4,6 +4,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import { DEV } from '../config/developerConfig';
 import {
   GameState, Building, Worker, ExplorationZone, GridPosition,
   BuildingType, WorkerStatus, WorkoutRecord, HealthSnapshot,
@@ -47,13 +48,13 @@ export async function loadGameState(): Promise<GameState> {
     const data = await AsyncStorage.getItem(STATE_KEY);
     if (data) {
       const decoded = JSON.parse(data) as GameState;
-      console.log(`[GameEngine] State loaded: ${Math.floor(decoded.muskelmasse)}g Muskelmasse, ${decoded.protein} Protein, ${decoded.buildings.length} buildings`);
+      if (DEV.VERBOSE_LOGGING) console.log(`[GameEngine] State loaded: ${Math.floor(decoded.muskelmasse)}g Muskelmasse, ${decoded.protein} Protein, ${decoded.buildings.length} buildings`);
       return decoded;
     }
   } catch (e) {
-    console.log('[GameEngine] Error loading state:', e);
+    if (DEV.VERBOSE_LOGGING) console.log('[GameEngine] Error loading state:', e);
   }
-  console.log('[GameEngine] No saved state — starting fresh');
+  if (DEV.VERBOSE_LOGGING) console.log('[GameEngine] No saved state — starting fresh');
   return createDefaultGameState();
 }
 
@@ -61,7 +62,7 @@ export async function saveGameState(state: GameState): Promise<void> {
   try {
     await AsyncStorage.setItem(STATE_KEY, JSON.stringify(state));
   } catch (e) {
-    console.log('[GameEngine] Error saving state:', e);
+    if (DEV.VERBOSE_LOGGING) console.log('[GameEngine] Error saving state:', e);
   }
 }
 
@@ -284,7 +285,7 @@ export function processTick(state: GameState): GameState {
   }
 
   s.lastProductionTick = now.toISOString();
-  console.log(`[GameEngine] Tick: +${Math.floor(elapsed)}s, decayMult=${decayMult}`);
+  if (DEV.VERBOSE_LOGGING) console.log(`[GameEngine] Tick: +${Math.floor(elapsed)}s, decayMult=${decayMult}`);
   return capResourcesToStorage(s);
 }
 
