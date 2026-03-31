@@ -176,8 +176,8 @@ interface GameStore {
   refreshGoalProgress: () => void;
 
   // Actions - User Profile
-  setUserProfile: (profile: Omit<UserProfile, 'hrMax' | 'onboardingCompleted'>) => void;
-  updateUserProfile: (partial: Partial<Omit<UserProfile, 'hrMax' | 'onboardingCompleted'>>) => void;
+  setUserProfile: (profile: Omit<UserProfile, 'hrMax' | 'onboardingCompleted' | 'focusGoalLastChangedAt'>) => void;
+  updateUserProfile: (partial: Partial<Omit<UserProfile, 'hrMax' | 'onboardingCompleted' | 'focusGoalLastChangedAt'>>) => void;
   getUserHRmax: () => number;
 
   // Helpers
@@ -346,6 +346,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // Migrate existing users without fitnessFocus → default 'workouts'
         if (!userProfile.fitnessFocus) {
           userProfile.fitnessFocus = 'workouts';
+          AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(userProfile));
+        }
+        // Migrate existing users without focusGoalLastChangedAt → 0 (unlocked)
+        if (userProfile.focusGoalLastChangedAt === undefined) {
+          userProfile.focusGoalLastChangedAt = 0;
           AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(userProfile));
         }
       }
@@ -1337,6 +1342,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hrMax,
       onboardingCompleted: true,
       fitnessFocus: focus,
+      focusGoalLastChangedAt: Date.now(),
     };
     // Regenerate fitness goals based on chosen focus
     const fitnessGoals = generateFitnessGoals(focus);
@@ -1355,8 +1361,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ userProfile: updated });
     AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(updated));
 
-    // If fitnessFocus changed, regenerate fitness goals
+    // If fitnessFocus changed, regenerate fitness goals + stamp lock timestamp
     if (partial.fitnessFocus !== undefined && partial.fitnessFocus !== current.fitnessFocus) {
+      updated.focusGoalLastChangedAt = Date.now();
+      set({ userProfile: updated });
+      AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(updated));
       const fitnessGoals = generateFitnessGoals(updated.fitnessFocus);
       const villageGoals = get().goals.filter(g => g.category !== 'fitness');
       set({ goals: [...fitnessGoals, ...villageGoals] });

@@ -133,6 +133,9 @@ export interface UserProfile {
   hrMax: number;
   onboardingCompleted: boolean;
   fitnessFocus: FitnessFocus;
+  /** Unix timestamp (ms) — when the user last changed their fitnessFocus.
+   *  Used to enforce the 14-day lock. 0 means "never changed" (unlocked). */
+  focusGoalLastChangedAt: number;
 }
 
 // MARK: - ResourceType
