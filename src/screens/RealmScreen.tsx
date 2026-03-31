@@ -694,9 +694,13 @@ export default function RealmScreen() {
             {/* Layer 4: Resource collection bubbles — float above buildings */}
             {collectableBuildings.map(building => {
               const { x, y } = gridToScreen(building.position.row, building.position.col, GRID_SIZE);
-              // Centre bubble horizontally over the tile; position above the sprite top
+              // Anchor to the tile's top diamond vertex (y) + small fixed offset.
+              // This gives a consistent position for ALL building heights:
+              //   flat feld  → bubble sits just above the building sprite
+              //   tall Rathaus → bubble appears near the lower-third of the sprite
+              // The diamond top vertex IS the topmost pixel of the isometric tile.
               const bubbleX = SVG_OFFSET_X + x + TILE_W / 2;
-              const bubbleY = SVG_OFFSET_Y + y + TILE_H - TILE_W - 18;
+              const bubbleY = SVG_OFFSET_Y + y - 15;
               return (
                 <ResourceBubble
                   key={`bubble-${building.id}`}
