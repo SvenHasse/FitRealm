@@ -79,9 +79,13 @@ function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffset
       const { x, y } = gridToScreen(b.position.row, b.position.col, gridSize);
       const size = TILE_W * UNIFORM_SCALE;
 
-      // Center horizontally, bottom-align to tile's bottom vertex (y + TILE_H)
+      // Center horizontally, bottom-align to tile's bottom vertex (y + TILE_H).
+      // The PNGs have ~12% transparent padding at the bottom, so we nudge
+      // the sprite down by that fraction so the visible building base
+      // sits on the tile instead of floating above it.
+      const BOTTOM_PAD_FRAC = 0.12; // ~12% empty space at PNG bottom
       const spriteX = svgOffsetX + x + TILE_W / 2 - size / 2;
-      const spriteY = svgOffsetY + y + TILE_H - size;
+      const spriteY = svgOffsetY + y + TILE_H - size + size * BOTTOM_PAD_FRAC;
 
       result.push({
         key: `sprite-${b.position.row}-${b.position.col}`,
