@@ -122,7 +122,7 @@ export interface SeasonalGoal {
 }
 
 // MARK: - FitnessFocus
-export type FitnessFocus = 'steps' | 'workouts' | 'calories';
+export type FitnessFocus = 'ausdauer' | 'diaet' | 'muskelaufbau';
 
 // MARK: - UserProfile
 export interface UserProfile {

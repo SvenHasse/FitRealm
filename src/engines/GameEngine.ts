@@ -26,6 +26,7 @@ import {
   constructionTime, skipConstructionCost,
 } from '../config/GameConfigHelpers';
 import { calculateTotalPP, ppToRewards, DailyMetrics, DAILY_TARGETS } from '../utils/progressPoints';
+import { calculateEffKcal, getProteinFromEffKcal, isStreakGoalReached } from '../utils/effKcalUtils';
 
 const STATE_KEY = 'fitrealmGameState';
 
@@ -575,18 +576,13 @@ export function checkDailyFocusTarget(
   snapshot: HealthSnapshot,
   totalIntenseMinutes: number,
 ): boolean {
-  switch (focus) {
-    case 'steps':
-      return snapshot.stepsToday >= DAILY_TARGETS.steps;
-    case 'workouts':
-      return totalIntenseMinutes >= DAILY_TARGETS.workouts;
-    case 'calories':
-      return snapshot.activeCaloriesToday >= DAILY_TARGETS.calories;
-  }
+  // EffKcal >= 300 means streak goal reached, regardless of focus
+  const effKcal = calculateEffKcal(focus, snapshot.activeCaloriesToday, totalIntenseMinutes);
+  return isStreakGoalReached(effKcal);
 }
 
 // MARK: - Workout Processing
-export function processWorkouts(state: GameState, workouts: WorkoutRecord[], snapshot: HealthSnapshot, hrMax: number = 200, fitnessFocus: FitnessFocus = 'workouts'): GameState {
+export function processWorkouts(state: GameState, workouts: WorkoutRecord[], snapshot: HealthSnapshot, hrMax: number = 200, fitnessFocus: FitnessFocus = 'diaet'): GameState {
   const newWorkouts = workouts.filter(w => !state.processedGameWorkoutIDs.includes(w.id));
   if (newWorkouts.length === 0) return state;
 
@@ -623,15 +619,11 @@ export function processWorkouts(state: GameState, workouts: WorkoutRecord[], sna
     updateStreak(s, latestWorkoutDate, dailyFocusTargetMet);
   }
 
-  // ── Progress Point (PP) based reward calculation ────────────────────────
-  const dailyMetrics: DailyMetrics = {
-    steps: snapshot.stepsToday,
-    workoutMinutes: totalWorkoutMinutes,
-    calories: totalCalories,
-  };
-  const ppRewards = ppToRewards(calculateTotalPP(dailyMetrics, fitnessFocus));
-  s.muskelmasse += ppRewards.muskelmasse;
-  s.protein += ppRewards.protein;
+  // ── EffKcal-based reward calculation ────────────────────────────────────
+  // 1 EffKcal = 1 Muskelmasse; Protein gated at 450/525/600 EffKcal
+  const effKcal = calculateEffKcal(fitnessFocus, snapshot.activeCaloriesToday, totalWorkoutMinutes);
+  s.muskelmasse += Math.round(effKcal);
+  s.protein += getProteinFromEffKcal(effKcal);
 
   // ── Legacy Earn.* formulas (kept for backward compatibility) ────────────
   // @deprecated - Earn.basePerMinute: replaced by PP muskelmassePerPP

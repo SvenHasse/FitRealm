@@ -14,6 +14,7 @@ import {
   UserProfile, FitnessFocus,
 } from '../models/types';
 import { generateFitnessGoals } from '../config/GoalConfig';
+import { calculateEffKcal } from '../utils/effKcalUtils';
 import { calculateHRmax, DEFAULT_HRMAX } from '../utils/hrMax';
 import {
   ResourceCost, StorageCapacity, UNIQUE_BUILDINGS, WALL_HP_PER_LEVEL, WALL_REPAIR_COST_FACTOR,
@@ -359,9 +360,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (profileJson) {
         userProfile = JSON.parse(profileJson) as UserProfile;
         hasCompletedOnboarding = userProfile.onboardingCompleted;
-        // Migrate existing users without fitnessFocus → default 'workouts'
+        // Migrate existing users without fitnessFocus → default 'diaet'
         if (!userProfile.fitnessFocus) {
-          userProfile.fitnessFocus = 'workouts';
+          userProfile.fitnessFocus = 'diaet';
           AsyncStorage.setItem('fitrealm_user_profile', JSON.stringify(userProfile));
         }
         // Migrate existing users without focusGoalLastChangedAt → 0 (unlocked)
@@ -378,7 +379,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // Generate fitness goals based on focus (or default)
-    const focus: FitnessFocus = userProfile?.fitnessFocus ?? 'workouts';
+    const focus: FitnessFocus = userProfile?.fitnessFocus ?? 'diaet';
     const fitnessGoals = generateFitnessGoals(focus);
     const villageGoals = INITIAL_GOALS.filter(g => g.category !== 'fitness');
 
@@ -604,7 +605,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({ ...mockState });
 
         // Forward workouts to game engine
-        const focus = get().userProfile?.fitnessFocus ?? 'workouts';
+        const focus = get().userProfile?.fitnessFocus ?? 'diaet';
         const prevStreakMock = get().gameState.currentStreak;
         let gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, focus);
         // Shield protection: if streak dropped and an active shield is valid, restore it
@@ -617,6 +618,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (GE.checkDailyFocusTarget(focus, mockState.healthSnapshot, totalMins)) {
           useCurrencyStore.getState().recordFocusGoalAchieved();
         }
+
+        // Update daily EffKcal tracking for Dashboard display
+        const totalMinsForEffKcal = mockState.recentWorkouts.reduce((sum: number, w: WorkoutRecord) => sum + w.durationMinutes, 0);
+        const effKcalValue = calculateEffKcal(focus, mockState.healthSnapshot.activeCaloriesToday, totalMinsForEffKcal);
+        useCurrencyStore.getState().updateDailyEffKcal(effKcalValue);
       } else {
         // Real HealthKit sync (stubs for managed workflow)
         const snapshot = await HK.fetchHealthSnapshot();
@@ -704,7 +710,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Process through game engine (calculates muskelmasse, protein, streak, etc.)
     const prevGs = get().gameState;
     const prevStreakManual = prevGs.currentStreak;
-    let newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, get().userProfile?.fitnessFocus ?? 'workouts');
+    let newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, get().userProfile?.fitnessFocus ?? 'diaet');
     // Shield protection: if streak dropped and an active shield is valid, restore it
     newGs = _applyShieldIfNeeded(newGs, prevStreakManual);
     set({ gameState: newGs, storageCap: getTotalStorageCap(newGs.buildings) });
@@ -715,7 +721,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Record focus goal achievement for Dashboard "Streak gesichert" badge
     const snap = get().healthSnapshot;
-    const focusForGoal = get().userProfile?.fitnessFocus ?? 'workouts';
+    const focusForGoal = get().userProfile?.fitnessFocus ?? 'diaet';
     const todayStartMs = new Date().setHours(0, 0, 0, 0);
     const minsToday = updatedWorkouts
       .filter(w => new Date(w.date).getTime() >= todayStartMs)
@@ -1358,7 +1364,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setUserProfile(profile) {
     const hrMax = calculateHRmax(profile.age);
-    const focus: FitnessFocus = profile.fitnessFocus ?? 'workouts';
+    const focus: FitnessFocus = profile.fitnessFocus ?? 'diaet';
     const userProfile: UserProfile = {
       ...profile,
       hrMax,

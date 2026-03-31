@@ -38,7 +38,14 @@ import {
   vo2MaxTrend,
   FitnessFocus,
 } from '../models/types';
-import { DAILY_TARGETS, PPMetric } from '../utils/progressPoints';
+import { DAILY_TARGETS } from '../utils/progressPoints';
+import {
+  calculateEffKcal,
+  getProteinFromEffKcal,
+  getIntensity,
+  mmUntilNextProtein,
+  isStreakGoalReached,
+} from '../utils/effKcalUtils';
 import { RootStackParamList, WorkoutRewardData } from '../navigation/types';
 import { useWorkoutStore, Workout } from '../store/workoutStore';
 import { calculateReward } from '../utils/currencyCalculator';
@@ -195,63 +202,12 @@ const statCardStyles = StyleSheet.create({
   label: { fontSize: 11, color: AppColors.textSecondary, marginTop: 3 },
 });
 
-// ─── Metric ordering by focus ─────────────────────────────────────────────────
-
-interface MetricDef {
-  key: PPMetric;
-  icon: React.ReactNode;
-  value: number;
-  label: string;
-  unit: string;
-  color: string;
-  progress: number;
-}
-
-function getOrderedMetrics(
-  focus: FitnessFocus,
-  health: { stepsToday: number; workoutMinutesToday: number; activeCaloriesToday: number; stepsGoal: number; workoutTypeToday: string },
-): MetricDef[] {
-  const all: MetricDef[] = [
-    {
-      key: 'steps',
-      icon: <MaterialCommunityIcons name="shoe-print" size={18} color="#4CAF50" />,
-      value: health.stepsToday,
-      label: 'Schritte',
-      unit: '',
-      color: '#4CAF50',
-      progress: health.stepsToday / health.stepsGoal,
-    },
-    {
-      key: 'workouts',
-      icon: <Ionicons name="time-outline" size={18} color={AppColors.teal} />,
-      value: health.workoutMinutesToday,
-      label: health.workoutTypeToday,
-      unit: ' min',
-      color: AppColors.teal,
-      progress: Math.min(health.workoutMinutesToday / DAILY_TARGETS.workouts, 1),
-    },
-    {
-      key: 'calories',
-      icon: <MaterialCommunityIcons name="fire" size={18} color="#FF9800" />,
-      value: health.activeCaloriesToday,
-      label: 'Aktive kcal',
-      unit: ' kcal',
-      color: '#FF9800',
-      progress: Math.min(health.activeCaloriesToday / DAILY_TARGETS.calories, 1),
-    },
-  ];
-  // Primary (focus) first, then the rest
-  const primary = all.find(m => m.key === focus)!;
-  const secondary = all.filter(m => m.key !== focus);
-  return [primary, ...secondary];
-}
-
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
   const { recentWorkouts, healthSnapshot, isSyncing, syncHealthData } = useEngineStore();
   const userProfile = useEngineStore(s => s.userProfile);
-  const fitnessFocus: FitnessFocus = userProfile?.fitnessFocus ?? 'workouts';
+  const fitnessFocus: FitnessFocus = userProfile?.fitnessFocus ?? 'diaet';
   const health = useHealthData();
   const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
@@ -261,7 +217,12 @@ export default function DashboardScreen() {
   const [statsModalOpen,    setStatsModalOpen]     = useState(false);
 
   // Read streak + focus goal tracking from global store
-  const { currentStreak, lastFocusGoalAchievedAt, streakShields } = useGameStore();
+  const { currentStreak, lastFocusGoalAchievedAt, streakShields, dailyEffKcal } = useGameStore();
+  const effKcalProgress = Math.min(dailyEffKcal / 300, 1);
+  const streakDone      = isStreakGoalReached(dailyEffKcal);
+  const proteinCount    = getProteinFromEffKcal(dailyEffKcal);
+  const mmToNextProtein = mmUntilNextProtein(dailyEffKcal);
+  const intensity       = getIntensity(health.activeCaloriesToday, health.workoutMinutesToday);
   const focusGoalDoneToday = lastFocusGoalAchievedAt !== null &&
     (Date.now() - lastFocusGoalAchievedAt) < 24 * 60 * 60 * 1000;
   const streakMilestone   = STREAK_MILESTONES.find(m => m.days > currentStreak)?.days
@@ -315,61 +276,94 @@ export default function DashboardScreen() {
             <CompactSyncButton isSyncing={isSyncing} onPress={syncHealthData} />
           </View>
 
-          {(() => {
-            const ordered = getOrderedMetrics(fitnessFocus, health);
-            const primary = ordered[0];
-            const secondaries = ordered.slice(1);
-            return (
               <View style={styles.metricsPyramid}>
-                {/* Top row: ring left, labels right */}
+                {/* Top row: EffKcal ring left, text right */}
                 <View style={styles.focusRow}>
                   <DailyMetricCard
-                    icon={primary.icon}
-                    value={primary.value}
-                    label={primary.label}
-                    unit={primary.unit}
-                    color={primary.color}
-                    progress={primary.progress}
+                    icon={<MaterialCommunityIcons name="arm-flex" size={18} color={AppColors.gold} />}
+                    value={Math.round(dailyEffKcal)}
+                    label=""
+                    unit=" MM"
+                    color={AppColors.gold}
+                    progress={effKcalProgress}
                     ringSize={110}
                   />
                   <View style={styles.focusTextCol}>
-                    <Text style={styles.focusLabelText}>{primary.label}</Text>
                     <Text style={styles.focusGoalLabel}>
                       {'STREAK-ZIEL  '}
-                      <Text style={{ color: primary.color, fontWeight: '700' }}>
-                        {fitnessFocus === 'steps'
-                          ? `${DAILY_TARGETS.steps.toLocaleString('de-DE')} Schritte`
-                          : fitnessFocus === 'workouts'
-                          ? `${DAILY_TARGETS.workouts} min`
-                          : `${DAILY_TARGETS.calories} kcal`}
-                      </Text>
+                      <Text style={{ color: AppColors.gold, fontWeight: '700' }}>300 MM</Text>
                     </Text>
-                    {primary.progress >= 1 && (
+                    {streakDone && (
                       <Text style={styles.streakSafeText}>✓ Streak gesichert</Text>
                     )}
+                    {/* Protein-Indikator */}
+                    <View style={styles.proteinRow}>
+                      {[1, 2, 3].map(i => (
+                        <Text key={i} style={{ fontSize: 16, opacity: i <= proteinCount ? 1 : 0.2 }}>🧬</Text>
+                      ))}
+                      {mmToNextProtein !== null && (
+                        <Text style={styles.proteinHint}>noch {mmToNextProtein} MM</Text>
+                      )}
+                    </View>
+                    <Text style={styles.focusLabelText}>
+                      {fitnessFocus === 'ausdauer' ? 'Ausdauer' :
+                       fitnessFocus === 'muskelaufbau' ? 'Muskelaufbau' : 'Diät & Aktivität'}
+                    </Text>
                   </View>
                 </View>
-                {/* Bottom: two compact stat cards with metric accent colours */}
+
+                {/* Bottom: zwei fokusabhängige Stat-Cards */}
                 <View style={styles.secondaryMetricsRow}>
-                  {secondaries.map(m => {
-                    const label =
-                      m.key === 'steps'    ? 'Schritte heute' :
-                      m.key === 'workouts' ? 'Workout-Zeit'   : 'Kalorien aktiv';
-                    const unit = m.unit.trim() || undefined;
-                    return (
+                  {fitnessFocus === 'ausdauer' && (
+                    <>
                       <StatCard
-                        key={m.key}
-                        label={label}
-                        value={m.value.toLocaleString('de-DE')}
-                        unit={unit}
-                        color={m.color}
+                        label="Aktive Minuten"
+                        value={health.workoutMinutesToday}
+                        unit="min"
+                        color={AppColors.teal}
                       />
-                    );
-                  })}
+                      <StatCard
+                        label="Aktive Kalorien"
+                        value={health.activeCaloriesToday}
+                        unit="kcal"
+                        color="#FF9800"
+                      />
+                    </>
+                  )}
+                  {fitnessFocus === 'diaet' && (
+                    <>
+                      <StatCard
+                        label="Aktive Kalorien"
+                        value={health.activeCaloriesToday}
+                        unit="kcal"
+                        color="#FF9800"
+                      />
+                      <StatCard
+                        label="Schritte heute"
+                        value={health.stepsToday.toLocaleString('de-DE')}
+                        unit=""
+                        color="#4CAF50"
+                      />
+                    </>
+                  )}
+                  {fitnessFocus === 'muskelaufbau' && (
+                    <>
+                      <StatCard
+                        label="Intensität"
+                        value={intensity.toFixed(1)}
+                        unit="kcal/min"
+                        color="#E91E63"
+                      />
+                      <StatCard
+                        label="Aktive Kalorien"
+                        value={health.activeCaloriesToday}
+                        unit="kcal"
+                        color="#FF9800"
+                      />
+                    </>
+                  )}
                 </View>
               </View>
-            );
-          })()}
         </View>
         </TouchableOpacity>
 
@@ -623,14 +617,17 @@ const styles = StyleSheet.create({
     gap: 4,
     maxWidth: 180,
   },
-  focusValueText: {
-    fontSize: 28,
-    fontWeight: '700',
+  proteinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 6,
+    marginBottom: 2,
   },
-  focusUnitText: {
-    fontSize: 14,
-    fontWeight: '400',
+  proteinHint: {
+    fontSize: 10,
     color: AppColors.textSecondary,
+    marginLeft: 4,
   },
   focusLabelText: {
     fontSize: 13,

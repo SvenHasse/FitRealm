@@ -10,7 +10,7 @@ import { FitnessFocus, Goal } from '../models/types';
  */
 export function generateFitnessGoals(focus: FitnessFocus): Goal[] {
   const primary = PRIMARY_GOALS[focus];
-  const secondaryMetrics = (['steps', 'workouts', 'calories'] as FitnessFocus[]).filter(m => m !== focus);
+  const secondaryMetrics = (['ausdauer', 'diaet', 'muskelaufbau'] as FitnessFocus[]).filter(m => m !== focus);
   const secondary = secondaryMetrics.map(m => SECONDARY_GOALS[m]);
   return [...primary, ...secondary];
 }
@@ -18,14 +18,14 @@ export function generateFitnessGoals(focus: FitnessFocus): Goal[] {
 // ── Primary goal definitions (2 per focus) ──────────────────────────────────
 
 const PRIMARY_GOALS: Record<FitnessFocus, [Goal, Goal]> = {
-  steps: [
+  diaet: [
     {
-      id: 'focus-steps-daily',
+      id: 'focus-diaet-daily',
       category: 'fitness',
       difficulty: 'medium',
       status: 'active',
-      titleKey: 'goals.focus.steps.daily.title',
-      descriptionKey: 'goals.focus.steps.daily.desc',
+      titleKey: 'goals.focus.diaet.daily.title',
+      descriptionKey: 'goals.focus.diaet.daily.desc',
       currentValue: 0,
       targetValue: 10_000,
       unit: 'steps',
@@ -33,12 +33,12 @@ const PRIMARY_GOALS: Record<FitnessFocus, [Goal, Goal]> = {
       icon: 'shoe-print',
     },
     {
-      id: 'focus-steps-weekly',
+      id: 'focus-diaet-weekly',
       category: 'fitness',
       difficulty: 'hard',
       status: 'active',
-      titleKey: 'goals.focus.steps.weekly.title',
-      descriptionKey: 'goals.focus.steps.weekly.desc',
+      titleKey: 'goals.focus.diaet.weekly.title',
+      descriptionKey: 'goals.focus.diaet.weekly.desc',
       currentValue: 0,
       targetValue: 70_000,
       unit: 'steps',
@@ -46,14 +46,14 @@ const PRIMARY_GOALS: Record<FitnessFocus, [Goal, Goal]> = {
       icon: 'shoe-print',
     },
   ],
-  workouts: [
+  ausdauer: [
     {
-      id: 'focus-workouts-weekly',
+      id: 'focus-ausdauer-weekly',
       category: 'fitness',
       difficulty: 'medium',
       status: 'active',
-      titleKey: 'goals.focus.workouts.weekly.title',
-      descriptionKey: 'goals.focus.workouts.weekly.desc',
+      titleKey: 'goals.focus.ausdauer.weekly.title',
+      descriptionKey: 'goals.focus.ausdauer.weekly.desc',
       currentValue: 0,
       targetValue: 5,
       unit: 'workouts',
@@ -61,12 +61,12 @@ const PRIMARY_GOALS: Record<FitnessFocus, [Goal, Goal]> = {
       icon: 'dumbbell',
     },
     {
-      id: 'focus-workouts-intense',
+      id: 'focus-ausdauer-intense',
       category: 'fitness',
       difficulty: 'hard',
       status: 'active',
-      titleKey: 'goals.focus.workouts.intense.title',
-      descriptionKey: 'goals.focus.workouts.intense.desc',
+      titleKey: 'goals.focus.ausdauer.intense.title',
+      descriptionKey: 'goals.focus.ausdauer.intense.desc',
       currentValue: 0,
       targetValue: 3,
       unit: 'workouts',
@@ -74,14 +74,14 @@ const PRIMARY_GOALS: Record<FitnessFocus, [Goal, Goal]> = {
       icon: 'fire',
     },
   ],
-  calories: [
+  muskelaufbau: [
     {
-      id: 'focus-calories-daily',
+      id: 'focus-muskelaufbau-daily',
       category: 'fitness',
       difficulty: 'medium',
       status: 'active',
-      titleKey: 'goals.focus.calories.daily.title',
-      descriptionKey: 'goals.focus.calories.daily.desc',
+      titleKey: 'goals.focus.muskelaufbau.daily.title',
+      descriptionKey: 'goals.focus.muskelaufbau.daily.desc',
       currentValue: 0,
       targetValue: 500,
       unit: 'kcal',
@@ -89,12 +89,12 @@ const PRIMARY_GOALS: Record<FitnessFocus, [Goal, Goal]> = {
       icon: 'fire',
     },
     {
-      id: 'focus-calories-weekly',
+      id: 'focus-muskelaufbau-weekly',
       category: 'fitness',
       difficulty: 'hard',
       status: 'active',
-      titleKey: 'goals.focus.calories.weekly.title',
-      descriptionKey: 'goals.focus.calories.weekly.desc',
+      titleKey: 'goals.focus.muskelaufbau.weekly.title',
+      descriptionKey: 'goals.focus.muskelaufbau.weekly.desc',
       currentValue: 0,
       targetValue: 3500,
       unit: 'kcal',
@@ -107,39 +107,39 @@ const PRIMARY_GOALS: Record<FitnessFocus, [Goal, Goal]> = {
 // ── Secondary goals (1 per non-focus metric, easy difficulty) ────────────────
 
 const SECONDARY_GOALS: Record<FitnessFocus, Goal> = {
-  steps: {
-    id: 'secondary-steps',
+  diaet: {
+    id: 'secondary-diaet',
     category: 'fitness',
     difficulty: 'easy',
     status: 'active',
-    titleKey: 'goals.focus.secondary.steps.title',
-    descriptionKey: 'goals.focus.secondary.steps.desc',
+    titleKey: 'goals.focus.secondary.diaet.title',
+    descriptionKey: 'goals.focus.secondary.diaet.desc',
     currentValue: 0,
     targetValue: 5_000,
     unit: 'steps',
     reward: { muskelmasse: 150, holz: 100 },
     icon: 'shoe-print',
   },
-  workouts: {
-    id: 'secondary-workouts',
+  ausdauer: {
+    id: 'secondary-ausdauer',
     category: 'fitness',
     difficulty: 'easy',
     status: 'active',
-    titleKey: 'goals.focus.secondary.workouts.title',
-    descriptionKey: 'goals.focus.secondary.workouts.desc',
+    titleKey: 'goals.focus.secondary.ausdauer.title',
+    descriptionKey: 'goals.focus.secondary.ausdauer.desc',
     currentValue: 0,
     targetValue: 3,
     unit: 'workouts',
     reward: { muskelmasse: 150, holz: 100 },
     icon: 'dumbbell',
   },
-  calories: {
-    id: 'secondary-calories',
+  muskelaufbau: {
+    id: 'secondary-muskelaufbau',
     category: 'fitness',
     difficulty: 'easy',
     status: 'active',
-    titleKey: 'goals.focus.secondary.calories.title',
-    descriptionKey: 'goals.focus.secondary.calories.desc',
+    titleKey: 'goals.focus.secondary.muskelaufbau.title',
+    descriptionKey: 'goals.focus.secondary.muskelaufbau.desc',
     currentValue: 0,
     targetValue: 300,
     unit: 'kcal',

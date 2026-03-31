@@ -249,10 +249,25 @@ export default function OnboardingScreen() {
   }
 
   function renderFocusSelection() {
-    const focusOptions: { key: FitnessFocus; icon: string; labelKey: string; descKey: string }[] = [
-      { key: 'steps',    icon: 'walk',    labelKey: 'onboarding.focusSteps',    descKey: 'onboarding.focusStepsDesc' },
-      { key: 'workouts', icon: 'barbell', labelKey: 'onboarding.focusWorkouts', descKey: 'onboarding.focusWorkoutsDesc' },
-      { key: 'calories', icon: 'flame',   labelKey: 'onboarding.focusCalories', descKey: 'onboarding.focusCaloriesDesc' },
+    const focusOptions: { key: FitnessFocus; icon: string; label: string; desc: string }[] = [
+      {
+        key: 'ausdauer',
+        icon: 'walk',
+        label: 'Ausdauer',
+        desc: 'Lange Einheiten werden stärker belohnt. Ideal für Laufen, Radfahren, Wandern.',
+      },
+      {
+        key: 'diaet',
+        icon: 'flame',
+        label: 'Diät & Aktivität',
+        desc: 'Jede aktive Kalorie zählt direkt. Ideal für Gewichtsreduktion und Alltagsbewegung.',
+      },
+      {
+        key: 'muskelaufbau',
+        icon: 'barbell',
+        label: 'Muskelaufbau',
+        desc: 'Intensive Einheiten werden multipliziert. Ideal für HIIT, Kraft und Sprint.',
+      },
     ];
 
     return (
@@ -273,8 +288,8 @@ export default function OnboardingScreen() {
                 <Ionicons name={opt.icon as any} size={28} color={isSelected ? GOLD : TEXT_SEC} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.focusLabel, isSelected && { color: GOLD }]}>{t(opt.labelKey)}</Text>
-                <Text style={styles.focusDesc}>{t(opt.descKey)}</Text>
+                <Text style={[styles.focusLabel, isSelected && { color: GOLD }]}>{opt.label}</Text>
+                <Text style={styles.focusDesc}>{opt.desc}</Text>
               </View>
               {isSelected && (
                 <Ionicons name="checkmark-circle" size={24} color={GOLD} />

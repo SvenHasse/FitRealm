@@ -51,9 +51,9 @@
     "primaryWorkouts": "Trainingsminuten heute",
     "primaryCalories": "Aktive Kalorien heute",
     "dailyTargetReached": "Tagesziel erreicht!",
-    "streakLabel_steps": "Tage mit 10k+ Schritten",
-    "streakLabel_workouts": "Tage mit Workout-Ziel",
-    "streakLabel_calories": "Tage mit 500+ kcal"
+    "streakLabel_ausdauer": "Tage mit 300+ EffKcal (Ausdauer)",
+    "streakLabel_diaet": "Tage mit 300+ EffKcal (Diät)",
+    "streakLabel_muskelaufbau": "Tage mit 300+ EffKcal (Muskelaufbau)"
   },
   "realm": {
     "tapToPlace": "Tippe auf ein freies Feld: {{building}}",

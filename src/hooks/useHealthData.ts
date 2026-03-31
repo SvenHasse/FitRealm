@@ -21,10 +21,10 @@ export interface HealthData {
 }
 
 const MOCK: HealthData = {
-  stepsToday: 7432,
+  stepsToday: 5200,
   stepsGoal: 10000,
-  activeCaloriesToday: 380,
-  workoutMinutesToday: 42,
+  activeCaloriesToday: 280,
+  workoutMinutesToday: 32,
   workoutTypeToday: 'Laufen',
   currentStreak: 5,
   streakMilestone: 7,

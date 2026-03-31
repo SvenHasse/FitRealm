@@ -10,6 +10,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StreakShieldState } from '../models/types';
+import { getProteinFromEffKcal } from '../utils/effKcalUtils';
 
 interface GameState {
   // ── Currencies ─────────────────────────────────────────────────────────────
@@ -31,6 +32,11 @@ interface GameState {
   // ── Streak Shields ─────────────────────────────────────────────────────────
   streakShields: StreakShieldState;
 
+  // ── Daily EffKcal tracking ──────────────────────────────────────────────────
+  dailyEffKcal: number;
+  dailyProteinEarned: number;
+  lastEffKcalDate: string | null;
+
   // ── Actions ────────────────────────────────────────────────────────────────
   addMuskelmasse:   (amount: number) => void;
   addProtein:       (amount: number) => void;
@@ -45,6 +51,7 @@ interface GameState {
   activateStreakShield:  ()                => void;
   consumeActiveShield:   ()                => void;
   addStreakShields:      (count: number)   => void;
+  updateDailyEffKcal: (effKcal: number) => void;
 
   // ── Dev tools ──────────────────────────────────────────────────────────────
   devAddMuskelmasse:  (amount: number) => void;
@@ -56,7 +63,7 @@ interface GameState {
 
 export const useGameStore = create<GameState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // ── Initial state (mirrors mock/dev defaults) ─────────────────────────
       muskelmasse:        1240,
       protein:            12,
@@ -69,6 +76,9 @@ export const useGameStore = create<GameState>()(
       collectedMilestones:     [3, 7],
       lastFocusGoalAchievedAt: null,
       streakShields: { count: 0, activeShield: null },
+      dailyEffKcal: 0,
+      dailyProteinEarned: 0,
+      lastEffKcalDate: null,
 
       // ── Actions ──────────────────────────────────────────────────────────
       addMuskelmasse:  (a) => set((s) => ({ muskelmasse:  s.muskelmasse  + a })),
@@ -108,6 +118,23 @@ export const useGameStore = create<GameState>()(
         streakShields: { ...s.streakShields, count: s.streakShields.count + count },
       })),
 
+      updateDailyEffKcal: (effKcal: number) => {
+        const today = new Date().toDateString();
+        const state = get();
+        // Tageswechsel: Reset
+        if (state.lastEffKcalDate !== today) {
+          set({ dailyEffKcal: effKcal, dailyProteinEarned: 0, lastEffKcalDate: today });
+        } else {
+          set({ dailyEffKcal: effKcal });
+        }
+        // Protein-Gating: einmal verdient bleibt verdient, kein Rückwärtsgehen
+        const earnedProtein = getProteinFromEffKcal(effKcal);
+        const currentProtein = get().dailyProteinEarned;
+        if (earnedProtein > currentProtein) {
+          set({ dailyProteinEarned: earnedProtein });
+        }
+      },
+
       // ── Dev tools ─────────────────────────────────────────────────────────
       devAddMuskelmasse:  (a) => set((s) => ({ muskelmasse:  s.muskelmasse  + a })),
       devAddProtein:      (a) => set((s) => ({ protein:      s.protein      + a })),
@@ -117,6 +144,7 @@ export const useGameStore = create<GameState>()(
         muskelmasse: 0, protein: 0, streakTokens: 0,
         holz: 0, nahrung: 0, stein: 0,
         currentStreak: 0, collectedMilestones: [],
+        dailyEffKcal: 0, dailyProteinEarned: 0, lastEffKcalDate: null,
       }),
     }),
     {
