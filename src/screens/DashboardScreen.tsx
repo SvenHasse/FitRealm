@@ -333,13 +333,18 @@ export default function DashboardScreen() {
                     ringSize={110}
                   />
                   <View style={styles.focusTextCol}>
-                    <Text style={[styles.focusValueText, { color: primary.color }]}>
-                      {primary.value.toLocaleString('de-DE')}
-                      <Text style={styles.focusUnitText}>{primary.unit}</Text>
-                    </Text>
                     <Text style={styles.focusLabelText}>{primary.label}</Text>
-                    <Text style={styles.focusGoalLabel}>Streak-Ziel</Text>
-                    {focusGoalDoneToday && (
+                    <Text style={styles.focusGoalLabel}>
+                      {'STREAK-ZIEL  '}
+                      <Text style={{ color: primary.color, fontWeight: '700' }}>
+                        {fitnessFocus === 'steps'
+                          ? `${DAILY_TARGETS.steps.toLocaleString('de-DE')} Schritte`
+                          : fitnessFocus === 'workouts'
+                          ? `${DAILY_TARGETS.workouts} min`
+                          : `${DAILY_TARGETS.calories} kcal`}
+                      </Text>
+                    </Text>
+                    {primary.progress >= 1 && (
                       <Text style={styles.streakSafeText}>✓ Streak gesichert</Text>
                     )}
                   </View>
@@ -596,17 +601,18 @@ const styles = StyleSheet.create({
 
   metricsPyramid: { alignSelf: 'stretch' },
 
-  // Ring (left) + label stack (right)
+  // Ring (left) + label stack (right), whole block centred in the card
   focusRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 16,
     paddingHorizontal: 4,
   },
   focusTextCol: {
-    flex: 1,
     justifyContent: 'center',
-    gap: 2,
+    gap: 4,
+    maxWidth: 180,
   },
   focusValueText: {
     fontSize: 28,
@@ -630,10 +636,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   streakSafeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#7D9B76',
-    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#5FAF57',
+    marginTop: 4,
   },
 
   // Two compact StatCards below the ring row
