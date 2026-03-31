@@ -29,12 +29,15 @@ import {
   zoneIsExploring,
 } from '../models/types';
 import { WorldConstants, WALL_REPAIR_COST_FACTOR } from '../config/GameConfig';
+import { getBuildingLevelConfig } from '../config/GameConfigHelpers';
+import { buildingProducesResource, ResourceType } from '../models/types';
 import { canBuild } from '../engines/GameEngine';
 import { formatDuration } from '../utils/formatDuration';
 import { gridToScreen, screenToGrid, getGridPixelSize, isTapInDiamond, TILE_W, TILE_H, TILE_DEPTH } from '../utils/isometric';
 import IsometricTile from '../components/IsometricTile';
 import IsometricBuilding from '../components/IsometricBuilding';
 import { ForestParallax } from '../components/village/ForestParallax';
+import { ResourceBubble } from '../components/village/ResourceBubble';
 import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
 // import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
@@ -592,6 +595,21 @@ export default function RealmScreen() {
     return set;
   }, [gameState.buildings]);
 
+  // Buildings that are currently producing AND have enough storage to show a bubble.
+  // Only resource-producing buildings (holzfaeller, steinbruch, feld, kornkammer, proteinfarm).
+  // Threshold: currentStorage >= 5 % of maxStorage at that level.
+  const collectableBuildings = useMemo(() => {
+    return gameState.buildings.filter(b => {
+      if (b.isUnderConstruction || b.level < 1) return false;
+      const rt = buildingProducesResource(b.type);
+      if (rt === ResourceType.none) return false;
+      if (b.currentStorage <= 0) return false;
+      const lvlCfg = getBuildingLevelConfig(b.type, b.level);
+      const maxStorage = lvlCfg?.maxStorage ?? 100;
+      return b.currentStorage >= maxStorage * 0.05;
+    });
+  }, [gameState.buildings]);
+
   // SVG offset within the container (for positioning overlays)
   const svgOffsetX = SVG_OFFSET_X;
   const svgOffsetY = SVG_OFFSET_Y;
@@ -672,6 +690,25 @@ export default function RealmScreen() {
             />
 
             {/* Layer 3: Animated farm animals — disabled for now */}
+
+            {/* Layer 4: Resource collection bubbles — float above buildings */}
+            {collectableBuildings.map(building => {
+              const { x, y } = gridToScreen(building.position.row, building.position.col, GRID_SIZE);
+              // Centre bubble horizontally over the tile; position above the sprite top
+              const bubbleX = SVG_OFFSET_X + x + TILE_W / 2;
+              const bubbleY = SVG_OFFSET_Y + y + TILE_H - TILE_W - 18;
+              return (
+                <ResourceBubble
+                  key={`bubble-${building.id}`}
+                  resourceType={buildingProducesResource(building.type)}
+                  amount={building.currentStorage}
+                  x={bubbleX}
+                  y={bubbleY}
+                  visible={true}
+                  onCollect={() => store.collectResources(building.id)}
+                />
+              );
+            })}
 
             {/* Layer 5: Forest PNG ON TOP — transparent center shows tiles through,
                 tree edges naturally overlap the playfield border = correct depth */}
