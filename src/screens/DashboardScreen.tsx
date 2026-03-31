@@ -158,12 +158,11 @@ function CompactSyncButton({
 
 // ─── StatCard — compact number card, no ring ─────────────────────────────────
 
-function StatCard({ icon, label, value, unit }: {
-  icon: string; label: string; value: string | number; unit?: string;
+function StatCard({ label, value, unit }: {
+  label: string; value: string | number; unit?: string;
 }) {
   return (
     <View style={statCardStyles.container}>
-      <Text style={statCardStyles.icon}>{icon}</Text>
       <Text style={statCardStyles.value}>
         {value}
         {unit ? <Text style={statCardStyles.unit}> {unit}</Text> : null}
@@ -175,20 +174,19 @@ function StatCard({ icon, label, value, unit }: {
 
 const statCardStyles = StyleSheet.create({
   container: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(26,26,46,0.6)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    minWidth: 110,
+    paddingVertical: 14,
+    paddingHorizontal: 0,
     shadowColor: '#000',
     shadowOpacity: 0.25,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  icon:  { fontSize: 18, marginBottom: 4 },
   value: { fontSize: 18, fontWeight: '700', color: AppColors.textPrimary },
   unit:  { fontSize: 12, fontWeight: '400', color: AppColors.textSecondary },
   label: { fontSize: 11, color: AppColors.textSecondary, marginTop: 2 },
@@ -341,9 +339,6 @@ export default function DashboardScreen() {
                 {/* Bottom: two compact stat cards — no rings */}
                 <View style={styles.secondaryMetricsRow}>
                   {secondaries.map(m => {
-                    const icon =
-                      m.key === 'steps'    ? '👣' :
-                      m.key === 'workouts' ? '⏱️' : '🔥';
                     const label =
                       m.key === 'steps'    ? 'Schritte heute' :
                       m.key === 'workouts' ? 'Workout-Zeit'   : 'Kalorien aktiv';
@@ -351,7 +346,6 @@ export default function DashboardScreen() {
                     return (
                       <StatCard
                         key={m.key}
-                        icon={icon}
                         label={label}
                         value={m.value.toLocaleString('de-DE')}
                         unit={unit}
@@ -621,8 +615,10 @@ const styles = StyleSheet.create({
   secondaryMetricsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
-    marginTop: 14,
+    gap: 10,
+    marginTop: 8,
+    paddingHorizontal: 16,
+    width: '100%',
   },
 
   workoutRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
