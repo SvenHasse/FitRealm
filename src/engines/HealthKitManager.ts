@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { HealthSnapshot, emptyHealthSnapshot, WorkoutRecord } from '../models/types';
 import { calculateCoins } from './VitacoinEngine';
+import { DEV } from '../config/developerConfig';
 
 const MOCK_DATA_KEY = 'fitrealmUseMockData';
 
@@ -41,7 +42,7 @@ export async function setUseMockData(enabled: boolean): Promise<void> {
 // MARK: - Request Permissions (stub for managed workflow)
 export async function requestPermissions(): Promise<PermissionStatus> {
   if (!isHealthKitAvailable()) {
-    console.log('[HealthKit] HealthKit not available on this device.');
+    if (DEV.VERBOSE_LOGGING) console.log('[HealthKit] HealthKit not available on this device.');
     return {};
   }
 
@@ -50,7 +51,7 @@ export async function requestPermissions(): Promise<PermissionStatus> {
   // await AppleHealthKit.initHealthKit(permissions);
   // For now, return empty status
 
-  console.log('[HealthKit] Permission request (stub - requires bare workflow)');
+  if (DEV.VERBOSE_LOGGING) console.log('[HealthKit] Permission request (stub - requires bare workflow)');
   return {
     'Workouts': false,
     'Heart Rate': false,
@@ -61,23 +62,32 @@ export async function requestPermissions(): Promise<PermissionStatus> {
   };
 }
 
-// MARK: - Fetch Health Snapshot (stub)
+// MARK: - Fetch Health Snapshot
 export async function fetchHealthSnapshot(): Promise<HealthSnapshot> {
+  if (DEV.USE_MOCK_HEALTHKIT) {
+    if (DEV.VERBOSE_LOGGING) console.log('[HealthKit] MOCK MODE — echte Daten werden ignoriert');
+    return {
+      ...emptyHealthSnapshot,
+      stepsToday: DEV.MOCK_HEALTH_SNAPSHOT.stepsToday,
+      activeCaloriesToday: DEV.MOCK_HEALTH_SNAPSHOT.activeCaloriesToday,
+    };
+  }
+
   // In bare workflow, this would use react-native-health to query HealthKit
-  console.log('[HealthKit] fetchHealthSnapshot (stub - returns empty)');
+  if (DEV.VERBOSE_LOGGING) console.log('[HealthKit] fetchHealthSnapshot (stub - returns empty)');
   return emptyHealthSnapshot;
 }
 
 // MARK: - Fetch Workouts (stub)
 export async function fetchWorkouts(): Promise<WorkoutRecord[]> {
   // In bare workflow, this would use react-native-health to query HKWorkout samples
-  console.log('[HealthKit] fetchWorkouts (stub - returns empty)');
+  if (DEV.VERBOSE_LOGGING) console.log('[HealthKit] fetchWorkouts (stub - returns empty)');
   return [];
 }
 
 // MARK: - Fetch Workouts This Month (stub)
 export async function fetchWorkoutsThisMonth(): Promise<number> {
-  console.log('[HealthKit] fetchWorkoutsThisMonth (stub - returns 0)');
+  if (DEV.VERBOSE_LOGGING) console.log('[HealthKit] fetchWorkoutsThisMonth (stub - returns 0)');
   return 0;
 }
 
