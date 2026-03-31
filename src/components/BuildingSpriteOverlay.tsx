@@ -30,7 +30,7 @@ interface Props {
 function getSpriteSource(type: BuildingType, level: number): any | null {
   // Clamp to levels we have assets for
   const maxLevels: Partial<Record<BuildingType, number>> = {
-    [BuildingType.rathaus]:    5,
+    [BuildingType.rathaus]:     5,
     [BuildingType.holzfaeller]: 4,
     [BuildingType.feld]:        4,
     [BuildingType.steinbruch]:  4,

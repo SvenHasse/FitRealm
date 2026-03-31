@@ -596,7 +596,7 @@ export default function RealmScreen() {
   }, [gameState.buildings]);
 
   // Buildings that are currently producing AND have enough storage to show a bubble.
-  // Only resource-producing buildings (holzfaeller, steinbruch, feld, kornkammer, proteinfarm).
+  // Only resource-producing buildings (holzfaeller, steinbruch, feld, proteinfarm).
   // Threshold: currentStorage >= 5 % of maxStorage at that level.
   const collectableBuildings = useMemo(() => {
     return gameState.buildings.filter(b => {

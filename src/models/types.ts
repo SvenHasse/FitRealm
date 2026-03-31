@@ -148,7 +148,6 @@ export enum ResourceType {
 // MARK: - BuildingType
 export enum BuildingType {
   rathaus = 'rathaus',
-  kornkammer = 'kornkammer',
   proteinfarm = 'proteinfarm',
   holzfaeller = 'holzfaeller',
   steinbruch = 'steinbruch',
@@ -172,7 +171,6 @@ export const ALL_BUILDING_TYPES: BuildingType[] = Object.values(BuildingType);
 export function buildingDisplayName(type: BuildingType): string {
   const names: Record<BuildingType, string> = {
     [BuildingType.rathaus]: 'Rathaus',
-    [BuildingType.kornkammer]: 'Kornkammer',
     [BuildingType.proteinfarm]: 'Proteinfarm',
     [BuildingType.holzfaeller]: 'Holzfäller',
     [BuildingType.steinbruch]: 'Steinbruch',
@@ -196,7 +194,6 @@ export function buildingDisplayName(type: BuildingType): string {
 export function buildingIconName(type: BuildingType): string {
   const icons: Record<BuildingType, string> = {
     [BuildingType.rathaus]: 'home',
-    [BuildingType.kornkammer]: 'archive',
     [BuildingType.proteinfarm]: 'medkit',
     [BuildingType.holzfaeller]: 'hammer',
     [BuildingType.steinbruch]: 'cube',
@@ -219,7 +216,6 @@ export function buildingIconName(type: BuildingType): string {
 export function buildingDescription(type: BuildingType): string {
   const descriptions: Record<BuildingType, string> = {
     [BuildingType.rathaus]: 'The heart of your settlement — upgrade it to unlock new buildings.',
-    [BuildingType.kornkammer]: 'Passively stores Muskelmasse generated from your workouts.',
     [BuildingType.proteinfarm]: 'Slowly produces Protein, the rarest and most valuable resource.',
     [BuildingType.holzfaeller]: 'Chops timber continuously to keep your construction projects supplied.',
     [BuildingType.steinbruch]: 'Extracts stone from the earth for advanced building projects.',
@@ -241,7 +237,6 @@ export function buildingDescription(type: BuildingType): string {
 
 export function buildingProducesResource(type: BuildingType): ResourceType {
   switch (type) {
-    case BuildingType.kornkammer: return ResourceType.muskelmasse;
     case BuildingType.proteinfarm: return ResourceType.protein;
     case BuildingType.holzfaeller: return ResourceType.wood;
     case BuildingType.steinbruch: return ResourceType.stone;
@@ -254,7 +249,6 @@ export function buildingAccentColor(type: BuildingType): string {
   switch (type) {
     case BuildingType.rathaus:
       return '#F5A623'; // gold
-    case BuildingType.kornkammer:
     case BuildingType.proteinfarm:
     case BuildingType.holzfaeller:
     case BuildingType.steinbruch:

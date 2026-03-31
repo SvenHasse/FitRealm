@@ -92,7 +92,7 @@ export default function BuildingDetailSheet({ buildingID, onClose }: Props) {
       ) : (
         <>
           {/* Animal section — only for production buildings */}
-          {['holzfaeller', 'feld', 'steinbruch', 'proteinfarm', 'kornkammer'].includes(building.type) && (
+          {['holzfaeller', 'feld', 'steinbruch', 'proteinfarm'].includes(building.type) && (
             <AnimalSection building={building} />
           )}
 

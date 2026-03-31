@@ -46,7 +46,7 @@ export function buildingMCIcon(type: BuildingType): { name: string; color: strin
     case BuildingType.rathaus:       return { name: 'castle',         color: '#F5A623' };
     case BuildingType.holzfaeller:   return { name: 'axe',            color: '#8B7355' };
     case BuildingType.feld:          return { name: 'sprout',          color: '#4CAF50' };
-    case BuildingType.kornkammer:    return { name: 'barrel',          color: '#F5A623' };
+
     case BuildingType.holzlager:     return { name: 'warehouse',       color: '#607D8B' };
     case BuildingType.steinlager:    return { name: 'warehouse',       color: '#78909C' };
     case BuildingType.nahrungslager: return { name: 'warehouse',       color: '#8D6E63' };
@@ -90,7 +90,7 @@ export function computeBenefitLines(type: BuildingType, t: (key: string) => stri
   const lvl1 = getBuildingLevelConfig(type, 1);
   switch (type) {
     case BuildingType.rathaus:       return [{ iconName: 'lock-open-outline', iconColor: '#F5A623', text: t('buildCard.newBuildings') }];
-    case BuildingType.kornkammer:    return [{ iconName: 'dumbbell',          iconColor: '#F5A623', text: `+${lvl1?.productionPerHour ?? 0}g/h` }];
+
     case BuildingType.proteinfarm:   return [{ iconName: 'diamond',           iconColor: '#9B59B6', text: t('buildCard.proteinPerDay') }];
     case BuildingType.holzfaeller:   return [{ iconName: 'tree',              iconColor: '#8B7355', text: `+${lvl1?.productionPerHour ?? 0}/h` }];
     case BuildingType.steinbruch:    return [{ iconName: 'cube-outline',       iconColor: '#9E9E9E', text: `+${lvl1?.productionPerHour ?? 0}/h` }];

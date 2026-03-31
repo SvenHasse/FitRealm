@@ -292,7 +292,6 @@ function collectFromBuilding(state: GameState, index: number): void {
   const b = state.buildings[index];
   if (b.currentStorage <= 0) return;
   switch (b.type) {
-    case BuildingType.kornkammer: state.muskelmasse += b.currentStorage; break;
     case BuildingType.proteinfarm: state.protein += Math.floor(b.currentStorage); break;
     case BuildingType.holzfaeller: state.wood += Math.floor(b.currentStorage); break;
     case BuildingType.steinbruch: state.stone += Math.floor(b.currentStorage); break;
@@ -369,7 +368,6 @@ export function calculateSellConsequences(
   if (building.currentStorage > 0) {
     const amt = Math.floor(building.currentStorage);
     switch (building.type) {
-      case BuildingType.kornkammer:  pendingStorage.muskelmasse = amt; break;
       case BuildingType.proteinfarm: pendingStorage.protein     = Math.floor(building.currentStorage); break;
       case BuildingType.holzfaeller: pendingStorage.wood        = amt; break;
       case BuildingType.steinbruch:  pendingStorage.stone       = amt; break;
@@ -437,12 +435,11 @@ export function calculateSellConsequences(
 
   // --- Other producers: generic production_lost ---
   if ([BuildingType.holzfaeller, BuildingType.steinbruch,
-       BuildingType.proteinfarm, BuildingType.kornkammer].includes(building.type)) {
+       BuildingType.proteinfarm].includes(building.type)) {
     const resourceName: Record<string, string> = {
       [BuildingType.holzfaeller]:  'Holz',
       [BuildingType.steinbruch]:   'Stein',
       [BuildingType.proteinfarm]:  'Protein',
-      [BuildingType.kornkammer]:   'Muskelmasse',
     };
     warnings.push({
       type: 'production_lost', severity: 'info',
@@ -543,7 +540,7 @@ export interface CollectResult {
 }
 
 const PRODUCING_TYPES = new Set([
-  BuildingType.kornkammer, BuildingType.proteinfarm,
+  BuildingType.proteinfarm,
   BuildingType.holzfaeller, BuildingType.steinbruch, BuildingType.feld,
 ]);
 
@@ -1070,7 +1067,7 @@ export function loadMockGameState(): GameState {
   mock.lastProductionTick = new Date(Date.now() - 3600 * 1000).toISOString();
 
   const rhId = Crypto.randomUUID();
-  const kkId = Crypto.randomUUID();
+  const hfId = Crypto.randomUUID();
   const workerId = Crypto.randomUUID();
 
   const mkBuilding = (id: string, type: BuildingType, level: number, currentStorage: number, assignedWorkerID: string | null, position: { row: number; col: number }) => ({
@@ -1079,8 +1076,8 @@ export function loadMockGameState(): GameState {
   });
 
   mock.buildings = [
-    mkBuilding(rhId,             BuildingType.rathaus,    2, 0,   null,     { row: 7, col: 7 }),
-    mkBuilding(kkId,             BuildingType.kornkammer, 2, 45,  workerId, { row: 6, col: 6 }),
+    mkBuilding(rhId,  BuildingType.rathaus,    2, 0,   null,     { row: 7, col: 7 }),
+    mkBuilding(hfId,  BuildingType.holzfaeller, 2, 45, workerId, { row: 6, col: 6 }),
     mkBuilding(Crypto.randomUUID(), BuildingType.holzfaeller, 1, 120, null, { row: 6, col: 7 }),
     mkBuilding(Crypto.randomUUID(), BuildingType.feld,    1, 60,  null,     { row: 7, col: 6 }),
     mkBuilding(Crypto.randomUUID(), BuildingType.holzlager, 1, 0,  null,    { row: 7, col: 8 }),
@@ -1091,7 +1088,7 @@ export function loadMockGameState(): GameState {
     id: workerId,
     name: 'Worker 1',
     level: 1,
-    assignedBuildingID: kkId,
+    assignedBuildingID: hfId,
     isActive: true,
     isTraining: false,
     trainingEndDate: null,

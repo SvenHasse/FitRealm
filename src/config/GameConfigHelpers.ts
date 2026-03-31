@@ -110,7 +110,7 @@ export function rathausRequirement(type: BuildingType): number {
     case BuildingType.rathaus:       return 1;
     case BuildingType.holzfaeller:   return 1;
     case BuildingType.feld:          return 1;
-    case BuildingType.kornkammer:    return 1;
+
     case BuildingType.holzlager:     return 1;
     case BuildingType.nahrungslager: return 1;
     case BuildingType.stall:         return 1;

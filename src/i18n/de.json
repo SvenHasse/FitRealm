@@ -103,7 +103,6 @@
   },
   "buildings": {
     "rathaus": "Rathaus",
-    "kornkammer": "Kornkammer",
     "proteinfarm": "Proteinfarm",
     "holzfaeller": "Holzfäller",
     "steinbruch": "Steinbruch",
@@ -117,7 +116,6 @@
     "marktplatz": "Marktplatz",
     "stammeshaus": "Stammeshaus",
     "rathausDesc": "Das Herz deiner Siedlung — rüste es auf, um neue Gebäude freizuschalten.",
-    "kornkammerDesc": "Speichert passiv Muskelmasse, die durch deine Workouts erzeugt wird.",
     "proteinfarmDesc": "Produziert langsam Protein, die seltenste und wertvollste Ressource.",
     "holzfaellerDesc": "Fällt kontinuierlich Holz, um deine Bauprojekte zu versorgen.",
     "steinbruchDesc": "Baut Stein aus der Erde für fortgeschrittene Bauprojekte ab.",
@@ -548,7 +546,6 @@
       }
     },
     "holzfaeller":   { "name": "Holzfäller",    "description": "Produziert kontinuierlich Holz für deinen Ausbau." },
-    "kornkammer":    { "name": "Kornkammer",    "description": "Speichert passiv Muskelmasse aus deinen Workouts." },
     "steinbruch":    { "name": "Steinbruch",    "description": "Baut Stein ab für fortgeschrittene Bauprojekte." },
     "proteinfarm":   { "name": "Proteinfarm",   "description": "Produziert langsam Protein — die seltenste Ressource." },
     "feld":          { "name": "Feld",           "description": "Baut Nahrung an, um deine Arbeiter satt und produktiv zu halten." },
@@ -604,7 +601,6 @@
     "holzfaeller_holzlager":  "+15% Holz-Storage",
     "kaserne_tempel":         "+10% Worker-Effizienz",
     "bibliothek_any":         "+5% Bibliotheks-Bonus auf alle Gebäude",
-    "feld_kornkammer":        "+10% Nahrungsproduktion",
     "steinbruch_steinlager":  "+10% Stein-Storage"
   },
   "onboarding": {
