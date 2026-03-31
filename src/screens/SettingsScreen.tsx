@@ -113,13 +113,31 @@ export default function SettingsScreen() {
                       onPress={() => {
                         if (focusLocked) {
                           Alert.alert(
-                            'Streak-Ziel gesperrt',
-                            `Du kannst dein Fitness-Ziel erst in ${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tagen'} wieder ändern. Halte deinen Streak konsistent!`,
-                            [{ text: 'OK' }],
+                            'Streak-Ziel gesperrt 🔒',
+                            `Du kannst dein Fitness-Ziel erst in ${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tagen'} wieder ändern.\n\nBleib dabei, um deinen Streak konsistent zu halten!`,
+                            [{ text: 'Verstanden' }],
                           );
                           return;
                         }
-                        updateUserProfile({ fitnessFocus: f });
+                        // Already on this focus — nothing to do
+                        if (f === userProfile.fitnessFocus) return;
+                        const focusLabel: Record<FitnessFocus, string> = {
+                          steps: 'Schritte',
+                          workouts: 'Workout-Zeit',
+                          calories: 'Aktive Kalorien',
+                        };
+                        Alert.alert(
+                          'Fitness-Ziel ändern?',
+                          `Du wechselst dein Streak-Ziel zu „${focusLabel[f]}".\n\n⚠️ Die Auswahl wird danach für 14 Tage gesperrt — wähle bewusst!`,
+                          [
+                            { text: 'Abbrechen', style: 'cancel' },
+                            {
+                              text: 'Ja, ändern',
+                              style: 'destructive',
+                              onPress: () => updateUserProfile({ fitnessFocus: f }),
+                            },
+                          ],
+                        );
                       }}
                       activeOpacity={focusLocked ? 1 : 0.7}
                     >
