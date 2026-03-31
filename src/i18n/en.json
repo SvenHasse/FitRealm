@@ -103,7 +103,6 @@
   },
   "buildings": {
     "rathaus": "Rathaus",
-    "kornkammer": "Kornkammer",
     "proteinfarm": "Proteinfarm",
     "holzfaeller": "Lumberjack",
     "steinbruch": "Quarry",
@@ -117,7 +116,6 @@
     "marktplatz": "Market",
     "stammeshaus": "Tribal Hall",
     "rathausDesc": "The heart of your settlement — upgrade it to unlock new buildings.",
-    "kornkammerDesc": "Passively stores Muskelmasse generated from your workouts.",
     "proteinfarmDesc": "Slowly produces Protein, the rarest and most valuable resource.",
     "holzfaellerDesc": "Chops timber continuously to keep your construction projects supplied.",
     "steinbruchDesc": "Extracts stone from the earth for advanced building projects.",
@@ -548,7 +546,6 @@
       }
     },
     "holzfaeller":   { "name": "Lumberjack",      "description": "Continuously produces wood to keep your construction supplied." },
-    "kornkammer":    { "name": "Granary",          "description": "Passively stores Muskelmasse generated from your workouts." },
     "steinbruch":    { "name": "Quarry",           "description": "Extracts stone from the earth for advanced building projects." },
     "proteinfarm":   { "name": "Protein Farm",     "description": "Slowly produces Protein — the rarest and most valuable resource." },
     "feld":          { "name": "Field",            "description": "Grows food to keep your workers fed and productive." },
@@ -604,7 +601,6 @@
     "holzfaeller_holzlager":  "+15% Wood Storage",
     "kaserne_tempel":         "+10% Worker Efficiency",
     "bibliothek_any":         "+5% Library Bonus on all buildings",
-    "feld_kornkammer":        "+10% Food Production",
     "steinbruch_steinlager":  "+10% Stone Storage"
   },
   "monsters": {

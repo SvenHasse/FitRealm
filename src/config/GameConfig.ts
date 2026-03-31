@@ -152,7 +152,6 @@ export const Earn = {
 // ════════════════════════════════════════════════════════════════════════════
 
 export const Production = {
-  kornkammer: 10.0,
   proteinfarm: 1.0 / 24.0,
   holzfaeller: 20.0,
   steinbruch: 10.0,
@@ -161,7 +160,6 @@ export const Production = {
 } as const;
 
 export const Storage = {
-  kornkammer: 500.0,
   holzfaeller: 1000.0,
   steinbruch: 500.0,
   feld: 300.0,
@@ -206,7 +204,6 @@ export const MULTI_BUILD_UNLOCK: Partial<Record<BuildingType, number[]>> = {
   feld:          [1, 2, 4],
   steinbruch:    [2, 4],
   proteinfarm:   [4, 5],
-  kornkammer:    [1],
   holzlager:     [1, 3],
   nahrungslager: [1, 3],
   steinlager:    [2, 4],
@@ -286,7 +283,7 @@ export const BUILDINGS: Record<BuildingType, BuildingConfig> = {
     descriptionKey: 'buildingConfig.rathaus.description',
     levels: [
       { level: 1, upgradeCost: null, buildTimeMinutes: 2,
-        unlocks: [BuildingType.holzfaeller, BuildingType.feld, BuildingType.kornkammer,
+        unlocks: [BuildingType.holzfaeller, BuildingType.feld,
                   BuildingType.holzlager, BuildingType.nahrungslager, BuildingType.stall] },
       { level: 2, upgradeCost: { muskelmasse: 500, protein: 5 }, buildTimeMinutes: 5,
         unlocks: [BuildingType.kaserne, BuildingType.steinbruch, BuildingType.steinlager, BuildingType.wachturm],
@@ -313,19 +310,6 @@ export const BUILDINGS: Record<BuildingType, BuildingConfig> = {
       { level: 3, upgradeCost: { muskelmasse: 160 },        buildTimeMinutes: 4,  productionPerHour: 45,    maxStorage: 4000 },
       { level: 4, upgradeCost: { muskelmasse: 240 },        buildTimeMinutes: 8,  productionPerHour: 67.5,  maxStorage: 8000 },
       { level: 5, upgradeCost: { muskelmasse: 320 },        buildTimeMinutes: 16, productionPerHour: 101.3, maxStorage: 16000 },
-    ],
-  },
-
-  kornkammer: {
-    maxInstances: 1,
-    nameKey: 'buildingConfig.kornkammer.name',
-    descriptionKey: 'buildingConfig.kornkammer.description',
-    levels: [
-      { level: 1, upgradeCost: { muskelmasse: 50, holz: 30 },  buildTimeMinutes: 1,  productionPerHour: 10,   maxStorage: 500 },
-      { level: 2, upgradeCost: { muskelmasse: 100, holz: 10 }, buildTimeMinutes: 2,  productionPerHour: 15,   maxStorage: 1000 },
-      { level: 3, upgradeCost: { muskelmasse: 200, holz: 20 }, buildTimeMinutes: 4,  productionPerHour: 22.5, maxStorage: 2000 },
-      { level: 4, upgradeCost: { muskelmasse: 300, holz: 30 }, buildTimeMinutes: 8,  productionPerHour: 33.8, maxStorage: 4000 },
-      { level: 5, upgradeCost: { muskelmasse: 400, holz: 40 }, buildTimeMinutes: 16, productionPerHour: 50.6, maxStorage: 8000 },
     ],
   },
 
@@ -576,7 +560,6 @@ export const ADJACENCY_BONUSES = [
   { buildings: ['holzfaeller', 'holzlager'],  bonusKey: 'adjacency.holzfaeller_holzlager',  bonusPercent: 15 },
   { buildings: ['kaserne', 'tempel'],         bonusKey: 'adjacency.kaserne_tempel',          bonusPercent: 10 },
   { buildings: ['bibliothek'],                bonusKey: 'adjacency.bibliothek_any',           bonusPercent: 5  },
-  { buildings: ['feld', 'kornkammer'],        bonusKey: 'adjacency.feld_kornkammer',          bonusPercent: 10 },
   { buildings: ['steinbruch', 'steinlager'],  bonusKey: 'adjacency.steinbruch_steinlager',    bonusPercent: 10 },
 ] as const;
 

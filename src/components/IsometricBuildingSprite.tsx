@@ -24,7 +24,7 @@ export const SPRITE_HEIGHT: Partial<Record<BuildingType, number>> = {
   [BuildingType.feld]:          16,
   [BuildingType.steinbruch]:    36,
   [BuildingType.proteinfarm]:   40,
-  [BuildingType.kornkammer]:    28,
+
   [BuildingType.kaserne]:       44,
   [BuildingType.tempel]:        48,
   [BuildingType.bibliothek]:    44,
@@ -199,39 +199,6 @@ function ProteinfarmSprite({ H, level, d }: { H: number; level: number; d: boole
         <Ellipse cx={HW + 16} cy={HH + 5} rx={5} ry={3}
           fill="rgba(255,255,255,0.28)" />
       )}
-      {d && <DecayOverlay H={H} />}
-    </G>
-  );
-}
-
-function KornkammerSprite({ H, level, d }: { H: number; level: number; d: boolean }) {
-  const roof  = dc('#F9A825', d);
-  const left  = dc('#F57F17', d);
-  const right = dc('#E65100', d);
-  // Wood-plank lines across left face
-  const planks = level >= 3 ? 4 : 3;
-  return (
-    <G>
-      <Polygon points={lf(H)} fill={left}  stroke="rgba(0,0,0,0.15)" strokeWidth={0.5} />
-      {Array.from({ length: planks }, (_, i) => {
-        const t = (i + 1) / (planks + 1);
-        const y = HH + t * H;
-        // Left face: x runs from ~t*HW (left edge) to HW (bottom-center)
-        const xA = HW * t;
-        const xB = HW - 2;
-        return (
-          <Line key={i} x1={xA + 2} y1={y} x2={xB} y2={y + H * 0.1}
-            stroke={dc('#BF360C', d)} strokeWidth={0.8} opacity={0.45} />
-        );
-      })}
-      <Polygon points={rf(H)} fill={right} stroke="rgba(0,0,0,0.15)" strokeWidth={0.5} />
-      <Polygon points={ROOF}  fill={roof}  stroke="rgba(255,255,255,0.15)" strokeWidth={0.5} />
-      {/* Silo dome on right side of roof */}
-      <Ellipse cx={HW + 22} cy={HH + 6} rx={13} ry={8}
-        fill={dc('#FFD54F', d)} opacity={0.88} />
-      {/* Silo band */}
-      <Line x1={HW + 9} y1={HH + 6} x2={HW + 35} y2={HH + 6}
-        stroke={dc('#E65100', d)} strokeWidth={0.8} opacity={0.5} />
       {d && <DecayOverlay H={H} />}
     </G>
   );
@@ -657,7 +624,7 @@ function getSpriteContent(type: BuildingType, level: number, H: number, d: boole
     case BuildingType.feld:          return <FeldSprite H={H} level={level} d={d} />;
     case BuildingType.steinbruch:    return <SteinbruchSprite H={H} level={level} d={d} />;
     case BuildingType.proteinfarm:   return <ProteinfarmSprite H={H} level={level} d={d} />;
-    case BuildingType.kornkammer:    return <KornkammerSprite H={H} level={level} d={d} />;
+
     case BuildingType.kaserne:       return <KaserneSprite H={H} level={level} d={d} />;
     case BuildingType.tempel:        return <TempelSprite H={H} level={level} d={d} />;
     case BuildingType.bibliothek:    return <BibliothekSprite H={H} level={level} d={d} />;

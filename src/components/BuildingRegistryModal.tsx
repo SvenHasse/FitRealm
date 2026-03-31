@@ -35,7 +35,7 @@ const CATEGORIES: CategoryDef[] = [
     labelKey: 'registry.categoryProduction',
     types: [
       BuildingType.holzfaeller, BuildingType.feld,
-      BuildingType.steinbruch, BuildingType.proteinfarm, BuildingType.kornkammer,
+      BuildingType.steinbruch, BuildingType.proteinfarm,
     ],
   },
   {

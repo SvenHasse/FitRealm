@@ -304,7 +304,7 @@ export class CombatService {
       if (target === 'fields' || target === 'production') {
         const productionBuildings = buildings.filter(b =>
           !b.isUnderConstruction && b.level >= 1 &&
-          ['kornkammer', 'proteinfarm', 'holzfaeller', 'steinbruch', 'feld'].includes(b.type),
+          ['proteinfarm', 'holzfaeller', 'steinbruch', 'feld'].includes(b.type),
         );
         if (productionBuildings.length > 0) {
           targetBuilding = productionBuildings[Math.floor(Math.random() * productionBuildings.length)];
