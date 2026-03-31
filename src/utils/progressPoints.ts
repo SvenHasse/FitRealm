@@ -43,12 +43,12 @@ export function getFocusWeights(focus: FitnessFocus): FocusWeights {
   const SECONDARY = 0.15;
 
   switch (focus) {
-    case 'steps':
-      return { steps: PRIMARY, workouts: SECONDARY, calories: SECONDARY };
-    case 'workouts':
+    case 'ausdauer':
       return { steps: SECONDARY, workouts: PRIMARY, calories: SECONDARY };
-    case 'calories':
+    case 'diaet':
       return { steps: SECONDARY, workouts: SECONDARY, calories: PRIMARY };
+    case 'muskelaufbau':
+      return { steps: SECONDARY, workouts: PRIMARY, calories: SECONDARY };
   }
 }
 

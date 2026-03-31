@@ -102,7 +102,13 @@ export default function SettingsScreen() {
                   )}
                 </View>
                 <View style={[styles.focusSwitcher, focusLocked && styles.focusSwitcherLocked]}>
-                  {(['steps', 'workouts', 'calories'] as FitnessFocus[]).map(f => (
+                  {(['ausdauer', 'diaet', 'muskelaufbau'] as FitnessFocus[]).map(f => {
+                    const focusLabels: Record<FitnessFocus, string> = {
+                      ausdauer: '🏃 Ausdauer',
+                      diaet: '🔥 Diät',
+                      muskelaufbau: '💪 Muskel',
+                    };
+                    return (
                     <TouchableOpacity
                       key={f}
                       style={[
@@ -121,14 +127,9 @@ export default function SettingsScreen() {
                         }
                         // Already on this focus — nothing to do
                         if (f === userProfile.fitnessFocus) return;
-                        const focusLabel: Record<FitnessFocus, string> = {
-                          steps: 'Schritte',
-                          workouts: 'Workout-Zeit',
-                          calories: 'Aktive Kalorien',
-                        };
                         Alert.alert(
                           'Fitness-Ziel ändern?',
-                          `Du wechselst dein Streak-Ziel zu „${focusLabel[f]}".\n\n⚠️ Die Auswahl wird danach für 14 Tage gesperrt — wähle bewusst!`,
+                          `Du wechselst dein Streak-Ziel zu „${focusLabels[f]}".\n\n⚠️ Die Auswahl wird danach für 14 Tage gesperrt — wähle bewusst!`,
                           [
                             { text: 'Abbrechen', style: 'cancel' },
                             {
@@ -142,10 +143,11 @@ export default function SettingsScreen() {
                       activeOpacity={focusLocked ? 1 : 0.7}
                     >
                       <Text style={[styles.focusBtnText, userProfile.fitnessFocus === f && styles.focusBtnTextActive, focusLocked && styles.focusBtnTextDisabled]}>
-                        {t(`settings.focus_${f}`)}
+                        {focusLabels[f]}
                       </Text>
                     </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </View>
                 {focusLocked && (
                   <Text style={styles.focusLockHint}>
