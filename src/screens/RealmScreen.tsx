@@ -425,8 +425,9 @@ export default function RealmScreen() {
 
     for (const building of sorted) {
       const { x, y } = gridToScreen(building.position.row, building.position.col, GRID_SIZE);
-      const sx = SVG_OFFSET_X + x + TILE_W / 2 - size / 2;
-      const sy = SVG_OFFSET_Y + y + TILE_H - size + size * BOTTOM_PAD_FRAC;
+      // svgX/svgY are relative to the SVG wrapper view — do NOT add SVG_OFFSET here
+      const sx = x + TILE_W / 2 - size / 2;
+      const sy = y + TILE_H - size + size * BOTTOM_PAD_FRAC;
 
       if (svgX >= sx && svgX <= sx + size && svgY >= sy && svgY <= sy + size) {
         return building;
