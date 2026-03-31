@@ -418,6 +418,14 @@ export default function RealmScreen() {
     const size = TILE_W; // UNIFORM_SCALE = 1.0
     const BOTTOM_PAD_FRAC = 0.12; // must match BuildingSpriteOverlay
 
+    // Tight hitbox: only the visible building area + ~10% tolerance.
+    // Buildings occupy roughly the centre 60% of the PNG width and
+    // the lower ~70% of its height.  Adding ~10% margin on every side:
+    //   width  = 70% of size  (centred horizontally)
+    //   height = 80% of size  (bottom-aligned with the sprite)
+    const HIT_W = size * 0.70;
+    const HIT_H = size * 0.80;
+
     // Sort by depth (front buildings first) so overlapping sprites pick the visible one
     const sorted = [...gameState.buildings]
       .filter(b => !b.isUnderConstruction)
@@ -426,10 +434,16 @@ export default function RealmScreen() {
     for (const building of sorted) {
       const { x, y } = gridToScreen(building.position.row, building.position.col, GRID_SIZE);
       // svgX/svgY are relative to the SVG wrapper view — do NOT add SVG_OFFSET here
-      const sx = x + TILE_W / 2 - size / 2;
-      const sy = y + TILE_H - size + size * BOTTOM_PAD_FRAC;
+      const spriteLeft = x + TILE_W / 2 - size / 2;
+      const spriteTop  = y + TILE_H - size + size * BOTTOM_PAD_FRAC;
 
-      if (svgX >= sx && svgX <= sx + size && svgY >= sy && svgY <= sy + size) {
+      // Tight rect: centred horizontally, bottom-aligned with sprite
+      const hitLeft   = spriteLeft + (size - HIT_W) / 2;
+      const hitTop    = spriteTop  + (size - HIT_H);
+      const hitRight  = hitLeft + HIT_W;
+      const hitBottom = spriteTop  + size;
+
+      if (svgX >= hitLeft && svgX <= hitRight && svgY >= hitTop && svgY <= hitBottom) {
         return building;
       }
     }
