@@ -16,8 +16,14 @@ import { useGameStore } from '../../store/useGameStore';
 import { getTribeLevelThreshold } from '../../utils/friendsUtils';
 import { TribeType, TribeMember, BuildingType, AppColors } from '../../models/types';
 import { friendStyles as s } from './styles';
+import GameIcon, { GameIconName } from '../GameIcon';
 
-const EMBLEMS = ['⚔️','🛡️','🔥','🌿','⚡','🌊','🏔️','🌙','☀️','🦅','🐉','🌟'];
+// Wappen-Auswahl: GameIconName statt Apple-Emoji
+const EMBLEM_ICONS: GameIconName[] = [
+  'stamm', 'shield-active', 'streak', 'target',
+  'quest', 'globe', 'trophy', 'crown',
+  'building', 'mm', 'people', 'egg',
+];
 
 // ─── StammeshausRequired ────────────────────────────────────────────────────
 function StammeshausRequired() {
@@ -34,9 +40,9 @@ function StammeshausRequired() {
 
   return (
     <View style={s.centeredPlaceholder}>
-      <Animated.Text style={[s.placeholderEmoji, { transform: [{ scale: pulseAnim }] }]}>
-        🏛️
-      </Animated.Text>
+      <Animated.View style={[{ transform: [{ scale: pulseAnim }] }]}>
+        <GameIcon name="building" size={52} color="#8B7355" />
+      </Animated.View>
       <Text style={s.placeholderTitle}>Stammeshaus benötigt</Text>
       <Text style={s.placeholderText}>
         Baue das Stammeshaus in deinem Realm, um einem Stamm beizutreten oder einen zu gründen.
@@ -55,7 +61,7 @@ function TribeJoinCreate() {
 
   const [view, setView]         = useState<JoinCreateView>('menu');
   const [tribeName, setTribeName] = useState('');
-  const [emblem, setEmblem]     = useState(EMBLEMS[0]);
+  const [emblem, setEmblem]     = useState<GameIconName>(EMBLEM_ICONS[0]);
   const [tribeType, setTribeType] = useState<TribeType>('open');
   const [joinCode, setJoinCode] = useState('');
 
@@ -70,7 +76,7 @@ function TribeJoinCreate() {
     joinTribe({
       id: `tribe_joined_${Date.now()}`,
       name: `Stamm ${joinCode.toUpperCase()}`,
-      emblem: '⚔️',
+      emblem: 'stamm',
       type: 'open',
       joinCode: joinCode.toUpperCase(),
       members: [],
@@ -99,14 +105,18 @@ function TribeJoinCreate() {
 
         <Text style={s.formLabel}>Wappen</Text>
         <View style={s.emblemGrid}>
-          {EMBLEMS.map((e) => (
+          {EMBLEM_ICONS.map((iconName) => (
             <TouchableOpacity
-              key={e}
-              style={[s.emblemOption, emblem === e && s.emblemOptionSelected]}
-              onPress={() => setEmblem(e)}
+              key={iconName}
+              style={[s.emblemOption, emblem === iconName && s.emblemOptionSelected]}
+              onPress={() => setEmblem(iconName)}
               activeOpacity={0.7}
             >
-              <Text style={{ fontSize: 24 }}>{e}</Text>
+              <GameIcon
+                name={iconName}
+                size={26}
+                color={emblem === iconName ? '#E8A838' : 'rgba(255,255,255,0.7)'}
+              />
             </TouchableOpacity>
           ))}
         </View>
@@ -170,17 +180,23 @@ function TribeJoinCreate() {
   // menu
   return (
     <View style={s.centeredPlaceholder}>
-      <Text style={s.placeholderEmoji}>⚔️</Text>
+      <GameIcon name="stamm" size={48} color="#C8B89A" />
       <Text style={s.placeholderTitle}>Kein Stamm</Text>
       <Text style={s.placeholderText}>
         Gründe deinen eigenen Stamm oder tritt einem bestehenden bei, um gemeinsam MM zu sammeln.
       </Text>
 
       <TouchableOpacity style={[s.primaryButton, { width: '100%' }]} onPress={() => setView('create')} activeOpacity={0.8}>
-        <Text style={s.primaryButtonText}>⚔️ Stamm gründen</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <GameIcon name="stamm" size={16} color="#1A1A2E" />
+          <Text style={s.primaryButtonText}>Stamm gründen</Text>
+        </View>
       </TouchableOpacity>
       <TouchableOpacity style={[s.secondaryButton, { width: '100%' }]} onPress={() => setView('join')} activeOpacity={0.8}>
-        <Text style={s.secondaryButtonText}>🔑 Stamm beitreten</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <GameIcon name="person-add" size={16} color={AppColors.gold} />
+          <Text style={s.secondaryButtonText}>Stamm beitreten</Text>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -205,7 +221,8 @@ function MemberRow({ member, rank, delay }: MemberRowProps) {
   }, [fadeAnim, slideAnim, delay]);
 
   const initials = member.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
-  const roleLabel = member.role === 'chief' ? '👑 Anführer' : `🔥 ${member.currentStreak}d Streak`;
+  const roleLabel = member.role === 'chief' ? 'Anführer' : `${member.currentStreak}d Streak`;
+  const isChief = member.role === 'chief';
 
   return (
     <Animated.View style={[s.memberRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -215,7 +232,10 @@ function MemberRow({ member, rank, delay }: MemberRowProps) {
       </View>
       <View style={s.memberInfo}>
         <Text style={s.memberName}>{member.name}</Text>
-        <Text style={s.memberMeta}>{roleLabel}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          {isChief ? <GameIcon name="crown" size={14} color="#E8A838" /> : <GameIcon name="streak" size={14} />}
+          <Text style={s.memberMeta}>{roleLabel}</Text>
+        </View>
       </View>
       <Text style={s.memberMM}>{member.weeklyMM.toLocaleString('de-DE')} MM</Text>
     </Animated.View>
@@ -244,7 +264,7 @@ function TribeView() {
     <ScrollView style={s.tribeContainer} showsVerticalScrollIndicator={false}>
       {/* Tribe header */}
       <View style={s.tribeHeader}>
-        <Text style={s.tribeEmblem}>{tribe.emblem}</Text>
+        <GameIcon name={tribe.emblem as GameIconName} size={36} color="#E8A838" />
         <View style={{ flex: 1 }}>
           <Text style={s.tribeName}>{tribe.name}</Text>
           <Text style={s.tribeMeta}>
@@ -280,14 +300,20 @@ function TribeView() {
       {/* Active quest */}
       {quest && (
         <View style={s.card}>
-          <Text style={s.cardTitle}>⚡ Wochenmission</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <GameIcon name="quest" size={14} />
+            <Text style={s.cardTitle}>Wochenmission</Text>
+          </View>
           <Text style={s.questDescription}>{quest.description}</Text>
           <View style={s.progressBarContainer}>
             <View style={[s.progressBarFillQuest, { width: `${Math.round(questProgress * 100)}%` }]} />
           </View>
           <View style={s.questFooter}>
             <Text style={s.questProgress}>{quest.progress} / {quest.goal}</Text>
-            <Text style={s.questReward}>🏆 {quest.rewardDescription}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <GameIcon name="trophy" size={13} />
+              <Text style={s.questReward}>{quest.rewardDescription}</Text>
+            </View>
           </View>
         </View>
       )}

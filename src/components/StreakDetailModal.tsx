@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import GameIcon from './GameIcon';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -237,7 +238,7 @@ function ShieldSection({ streakShields, activateStreakShield, animKey }: ShieldS
             </View>
 
             {/* Pulsing shield icon */}
-            <Animated.Text style={[shieldStyles.bigShieldIcon, pulseStyle]}>🛡️</Animated.Text>
+            <Animated.View style={[shieldStyles.bigShieldIcon, pulseStyle]}><GameIcon name="shield-active" size={48} /></Animated.View>
 
             {/* AKTIV label + countdown */}
             <View style={shieldStyles.activeTextCol}>
@@ -255,7 +256,7 @@ function ShieldSection({ streakShields, activateStreakShield, animKey }: ShieldS
             {streakShields.count > 0 && (
               <View style={shieldStyles.stockRow}>
                 {Array.from({ length: streakShields.count }).map((_, i) => (
-                  <Text key={i} style={{ fontSize: 16 }}>🛡️</Text>
+                  <GameIcon key={i} name="shield-active" size={16} />
                 ))}
                 <Text style={shieldStyles.stockLabel}>im Vorrat</Text>
               </View>
@@ -279,7 +280,7 @@ function ShieldSection({ streakShields, activateStreakShield, animKey }: ShieldS
                       shieldStyles.shieldIconBg,
                       hasShield ? shieldStyles.shieldIconBgActive : shieldStyles.shieldIconBgEmpty,
                     ]}>
-                      <Text style={{ fontSize: 26, opacity: hasShield ? 1 : 0.2 }}>🛡️</Text>
+                      <GameIcon name="shield-active" size={26} color={hasShield ? '#7D9B76' : '#3A4A3C'} />
                     </View>
                     {hasShield && (
                       <View style={shieldStyles.shieldGlowDot} />
@@ -979,8 +980,6 @@ const shieldStyles = StyleSheet.create({
     backgroundColor: SHIELD_GLOW_LIGHT,
   },
   bigShieldIcon: {
-    fontSize: 64,
-    lineHeight: 76,
     marginBottom: 14,
   },
   activeTextCol: {

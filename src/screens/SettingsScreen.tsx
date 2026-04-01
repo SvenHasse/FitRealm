@@ -3,7 +3,8 @@
 
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import GameIcon from '../components/GameIcon';
 import { useTranslation } from 'react-i18next';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
 import { AppColors, FitnessFocus } from '../models/types';
@@ -107,9 +108,9 @@ export default function SettingsScreen() {
                 <View style={[styles.focusSwitcher, focusLocked && styles.focusSwitcherLocked]}>
                   {(['ausdauer', 'diaet', 'muskelaufbau'] as FitnessFocus[]).map(f => {
                     const focusLabels: Record<FitnessFocus, string> = {
-                      ausdauer: '🏃 Ausdauer',
-                      diaet: '🔥 Diät',
-                      muskelaufbau: '💪 Muskel',
+                      ausdauer: 'Ausdauer',
+                      diaet: 'Diät',
+                      muskelaufbau: 'Muskel',
                     };
                     return (
                     <TouchableOpacity
@@ -122,7 +123,7 @@ export default function SettingsScreen() {
                       onPress={() => {
                         if (focusLocked) {
                           Alert.alert(
-                            'Streak-Ziel gesperrt 🔒',
+                            'Streak-Ziel gesperrt',
                             `Du kannst dein Fitness-Ziel erst in ${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tagen'} wieder ändern.\n\nBleib dabei, um deinen Streak konsistent zu halten!`,
                             [{ text: 'Verstanden' }],
                           );
@@ -145,17 +146,25 @@ export default function SettingsScreen() {
                       }}
                       activeOpacity={focusLocked ? 1 : 0.7}
                     >
-                      <Text style={[styles.focusBtnText, userProfile.fitnessFocus === f && styles.focusBtnTextActive, focusLocked && styles.focusBtnTextDisabled]}>
-                        {focusLabels[f]}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        {f === 'diaet' && <GameIcon name="streak" size={16} color={userProfile.fitnessFocus === f ? '#000' : 'rgba(255,255,255,0.6)'} />}
+                        {f === 'muskelaufbau' && <GameIcon name="mm" size={16} color={userProfile.fitnessFocus === f ? '#000' : 'rgba(255,255,255,0.6)'} />}
+                        {f === 'ausdauer' && <MaterialCommunityIcons name="run-fast" size={16} color={userProfile.fitnessFocus === f ? '#000' : '#4A90D9'} />}
+                        <Text style={[styles.focusBtnText, userProfile.fitnessFocus === f && styles.focusBtnTextActive, focusLocked && styles.focusBtnTextDisabled]}>
+                          {focusLabels[f]}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                     );
                   })}
                 </View>
                 {focusLocked && (
-                  <Text style={styles.focusLockHint}>
-                    🔒 Ziel ist für {daysLeft} {daysLeft === 1 ? 'Tag' : 'Tage'} gesperrt — bleib dabei, um deinen Streak zu schützen.
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                    <GameIcon name="lock" size={12} color="rgba(255,152,0,0.8)" />
+                    <Text style={styles.focusLockHint}>
+                      Ziel ist für {daysLeft} {daysLeft === 1 ? 'Tag' : 'Tage'} gesperrt — bleib dabei, um deinen Streak zu schützen.
+                    </Text>
+                  </View>
                 )}
               </View>
             );

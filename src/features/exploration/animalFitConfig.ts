@@ -26,5 +26,5 @@ export function getFitColor(fit: AnimalFit): string {
   return { perfect: '#4CAF50', good: '#FF9800', possible: '#9E9E9E' }[fit];
 }
 export function getFitLabel(fit: AnimalFit): string {
-  return { perfect: '⭐ Perfekt', good: '👍 Gut', possible: '😅 Geht so' }[fit];
+  return { perfect: 'Perfekt', good: 'Gut', possible: 'Geht so' }[fit];
 }

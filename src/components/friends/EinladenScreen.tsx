@@ -16,12 +16,14 @@ import {
 } from 'react-native';
 import { useFriendsStore } from '../../store/useFriendsStore';
 import { friendStyles as s } from './styles';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import GameIcon, { GameIconName } from '../GameIcon';
 
-const HOW_IT_WORKS = [
-  { icon: '📤', text: 'Teile deinen persönlichen Einladungscode mit Freunden.' },
-  { icon: '📲', text: 'Dein Freund gibt den Code beim ersten Start in FitRealm ein.' },
-  { icon: '🏆', text: 'Nach 7 aktiven Tagen erhältst du 3 Streak-Shields als Belohnung.' },
-  { icon: '🔥', text: 'Je mehr aktive Freunde, desto mehr Shields sicherst du dir!' },
+const HOW_IT_WORKS: { iconName: GameIconName; text: string }[] = [
+  { iconName: 'send' as GameIconName, text: 'Teile deinen persönlichen Einladungscode mit Freunden.' },
+  { iconName: 'person-add' as GameIconName, text: 'Dein Freund gibt den Code beim ersten Start in FitRealm ein.' },
+  { iconName: 'trophy' as GameIconName, text: 'Nach 7 aktiven Tagen erhältst du 3 Streak-Shields als Belohnung.' },
+  { iconName: 'streak' as GameIconName, text: 'Je mehr aktive Freunde, desto mehr Shields sicherst du dir!' },
 ];
 
 // ─── CodeCard ─────────────────────────────────────────────────────────────────
@@ -64,7 +66,10 @@ function CodeCard({ code }: CodeCardProps) {
       <Text style={s.codeLabel}>Dein Einladungscode</Text>
       <Text style={s.codeValue}>{displayCode}</Text>
       <TouchableOpacity style={s.copyButton} onPress={handleCopy} activeOpacity={0.8}>
-        <Text style={s.copyButtonText}>📋 Kopieren</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <MaterialCommunityIcons name="content-copy" size={15} color="#1A1A2E" />
+          <Text style={s.copyButtonText}>Kopieren</Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -97,9 +102,12 @@ function StatsSection({ invitedCount, activeCount, shieldsEarned, pendingRewards
         </View>
       </View>
       {pendingRewards > 0 && (
-        <Text style={s.pendingHint}>
-          ⏳ {pendingRewards} Einladung{pendingRewards !== 1 ? 'en' : ''} warten auf 7-Tage-Aktivierung
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <GameIcon name="timer" size={13} />
+          <Text style={s.pendingHint}>
+            {pendingRewards} Einladung{pendingRewards !== 1 ? 'en' : ''} warten auf 7-Tage-Aktivierung
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -112,7 +120,7 @@ function HowItWorksSection() {
       <Text style={s.cardTitle}>So funktioniert es</Text>
       {HOW_IT_WORKS.map((step, i) => (
         <View key={i} style={s.howItWorksRow}>
-          <Text style={s.howItWorksIcon}>{step.icon}</Text>
+          <GameIcon name={step.iconName} size={20} />
           <Text style={s.howItWorksText}>{step.text}</Text>
         </View>
       ))}
@@ -144,7 +152,10 @@ export function EinladenScreen() {
 
       {/* Share button */}
       <TouchableOpacity style={s.shareButton} onPress={handleShare} activeOpacity={0.8}>
-        <Text style={s.shareButtonText}>🚀 Einladung teilen</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <GameIcon name="send" size={18} color="#1A1A2E" />
+          <Text style={s.shareButtonText}>Einladung teilen</Text>
+        </View>
       </TouchableOpacity>
 
       {/* Stats */}

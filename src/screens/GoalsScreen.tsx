@@ -7,6 +7,7 @@ import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import GameIcon, { GameIconName } from '../components/GameIcon';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import { AppColors, Goal, GoalReward, SeasonalGoal } from '../models/types';
@@ -129,10 +130,10 @@ function GoalCard({ goal }: { goal: Goal }) {
 }
 
 // ── SeasonalGoalCard ──────────────────────────────────────────────────────────
-const TIER_META: Record<string, { emoji: string; color: string }> = {
-  bronze: { emoji: '🥉', color: '#CD7F32' },
-  silver: { emoji: '🥈', color: '#C0C0C0' },
-  gold:   { emoji: '🥇', color: '#FFD700' },
+const TIER_META: Record<string, { iconName: GameIconName; color: string }> = {
+  bronze: { iconName: 'medal-bronze' as GameIconName, color: '#CD7F32' },
+  silver: { iconName: 'medal-silver' as GameIconName, color: '#C0C0C0' },
+  gold:   { iconName: 'medal-gold' as GameIconName,   color: '#FFD700' },
 };
 
 function SeasonalGoalCard({ goal }: { goal: SeasonalGoal }) {
@@ -159,14 +160,14 @@ function SeasonalGoalCard({ goal }: { goal: SeasonalGoal }) {
       {/* Tiers */}
       <View style={styles.tierContainer}>
         {goal.tiers.map(tier => {
-          const meta      = TIER_META[tier.tier] ?? { emoji: '?', color: '#888' };
+          const meta      = TIER_META[tier.tier] ?? { iconName: 'trophy' as GameIconName, color: '#888' };
           const fraction   = Math.min(tier.currentValue / tier.targetValue, 1);
           const isLocked   = tier.status === 'locked';
           const isClaimable = tier.status === 'claimable';
           const isClaimed  = tier.status === 'claimed';
           return (
             <View key={tier.tier} style={[styles.tierRow, isLocked && styles.tierLocked]}>
-              <Text style={[styles.tierEmoji, isLocked && { opacity: 0.4 }]}>{meta.emoji}</Text>
+              <GameIcon name={meta.iconName} size={26} color={isLocked ? '#555' : meta.color} />
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <View style={styles.progressRow}>
                   <Text style={[styles.tierLabel, { color: isLocked ? '#666' : meta.color }]}>
@@ -212,7 +213,7 @@ function EmptyState() {
   const { t } = useTranslation();
   return (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyEmoji}>✅</Text>
+      <GameIcon name="check" size={32} color="#7D9B76" />
       <Text style={styles.emptyTitle}>{t('goals.allDone')}</Text>
       <Text style={styles.emptyDesc}>{t('goals.allDoneDesc')}</Text>
     </View>

@@ -5,6 +5,7 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import GameIcon from './GameIcon';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -65,14 +66,14 @@ export default function StreakCounter({ streak, milestone, fitnessFocus, onPress
           {/* Shield status — inline below number */}
           {shieldActive && shieldExpiresAt ? (
             <View style={styles.shieldActivePill}>
-              <Text style={{ fontSize: 11, lineHeight: 14 }}>🛡️</Text>
+              <GameIcon name="shield-active" size={11} />
               <Text style={styles.shieldActiveText}>
                 Geschützt · {formatShieldCountdown(shieldExpiresAt)}
               </Text>
             </View>
           ) : shieldCount > 0 ? (
             <View style={styles.shieldReadyPill}>
-              <Text style={{ fontSize: 10, lineHeight: 13 }}>🛡️</Text>
+              <GameIcon name="shield-active" size={10} />
               <Text style={styles.shieldReadyText}>{shieldCount}× bereit</Text>
             </View>
           ) : null}

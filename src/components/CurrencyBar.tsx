@@ -3,7 +3,7 @@
 // Gradient background, icon glow, pulse animation on value change.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -100,7 +100,11 @@ function CurrencySlot({ icon, color, value, unit = '', label }: SlotProps) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function CurrencyBar() {
+interface CurrencyBarProps {
+  onInfoPress?: () => void;
+}
+
+export default function CurrencyBar({ onInfoPress }: CurrencyBarProps) {
   const { muskelmasse, protein } = useGameStore();
 
   return (
@@ -124,6 +128,16 @@ export default function CurrencyBar() {
         value={protein}
         label="PROTEIN"
       />
+      {onInfoPress && (
+        <TouchableOpacity
+          onPress={onInfoPress}
+          style={styles.infoButton}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.infoIcon}>ⓘ</Text>
+        </TouchableOpacity>
+      )}
     </LinearGradient>
   );
 }
@@ -178,5 +192,13 @@ const styles = StyleSheet.create({
     height:          44,
     backgroundColor: 'rgba(255,255,255,0.08)',
     marginHorizontal: 12,
+  },
+  infoButton: {
+    paddingLeft: 10,
+    alignSelf: 'center',
+  },
+  infoIcon: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.45)',
   },
 });

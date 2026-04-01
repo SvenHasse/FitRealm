@@ -5,7 +5,8 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import GameIcon from './GameIcon';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import { AppColors } from '../models/types';
@@ -143,9 +144,9 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
             {/* ── Section 2: VP Breakdown 2×2 Grid ── */}
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1, gap: 10 }}>
-                {/* 🏗️ Gebäude */}
+                {/* Gebäude */}
                 <View style={[styles.card, styles.breakdownCard]}>
-                  <Text style={styles.breakdownEmoji}>🏗️</Text>
+                  <MaterialCommunityIcons name="home-city" size={24} color="#7D9B76" />
                   <Text style={styles.breakdownLabel}>{t('defense.buildingVP')}</Text>
                   <Text style={styles.breakdownVP}>{basisVP} VP</Text>
                   <Text style={styles.breakdownDetail} numberOfLines={3}>
@@ -156,27 +157,27 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
                       : '—'}
                   </Text>
                 </View>
-                {/* 👷 Worker */}
+                {/* Worker */}
                 <View style={[styles.card, styles.breakdownCard]}>
-                  <Text style={styles.breakdownEmoji}>👷</Text>
+                  <MaterialCommunityIcons name="account-hard-hat" size={24} color="#C8B89A" />
                   <Text style={styles.breakdownLabel}>{t('defense.workerVP')}</Text>
                   <Text style={styles.breakdownVP}>{workerVP} VP</Text>
                   <Text style={styles.breakdownDetail}>{t('defense.comingSoon')}</Text>
                 </View>
               </View>
               <View style={{ flex: 1, gap: 10 }}>
-                {/* 💪 Workout */}
+                {/* Workout */}
                 <View style={[styles.card, styles.breakdownCard]}>
-                  <Text style={styles.breakdownEmoji}>💪</Text>
+                  <GameIcon name="mm" size={24} />
                   <Text style={styles.breakdownLabel}>{t('defense.workoutVP')}</Text>
                   <Text style={styles.breakdownVP}>{workoutVP} VP</Text>
                   <Text style={styles.breakdownDetail}>
                     {workoutMinutesToday} Min · {t('defense.last24h')}
                   </Text>
                 </View>
-                {/* 🐾 Tiere */}
+                {/* Tiere */}
                 <View style={[styles.card, styles.breakdownCard]}>
-                  <Text style={styles.breakdownEmoji}>🐾</Text>
+                  <MaterialCommunityIcons name="paw" size={24} color="#C8B89A" />
                   <Text style={styles.breakdownLabel}>{t('defense.animalVP')}</Text>
                   <Text style={styles.breakdownVP}>{animalVP} VP</Text>
                   <Text style={styles.breakdownDetail} numberOfLines={3}>
@@ -191,7 +192,7 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
             {/* Streak bonus row */}
             {streakBonus > 0 && (
               <View style={styles.streakRow}>
-                <Text style={{ fontSize: 16 }}>🔥</Text>
+                <GameIcon name="streak" size={16} />
                 <Text style={{ fontSize: 12, color: AppColors.gold }}>
                   {t('defense.streakBonus', { pct: Math.round(streakBonus * 100) })}
                   {' '}({gameState.currentStreak} {t('hud.streak')})
@@ -202,7 +203,7 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
             {/* ── Section 3: Nächste Welle ── */}
             <View style={styles.card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <Text style={{ fontSize: 16 }}>👾</Text>
+                <MaterialCommunityIcons name="skull-outline" size={16} color="#FF6B6B" />
                 <Text style={styles.sectionLabel}>{t('defense.nextWave').toUpperCase()}</Text>
               </View>
               {waveTarget ? (
@@ -269,9 +270,12 @@ export default function DefenseDashboardModal({ visible, onClose }: Props) {
                       <Text style={{ fontSize: 22 }}>{animal.emoji}</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>{animal.name}</Text>
-                        <Text style={{ fontSize: 10, color: DEFENSE_COLOR }}>
-                          ⚔️ {t('defense.assignment')} · {animal.vp} VP
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <GameIcon name="stamm" size={10} color={DEFENSE_COLOR} />
+                          <Text style={{ fontSize: 10, color: DEFENSE_COLOR }}>
+                            {t('defense.assignment')} · {animal.vp} VP
+                          </Text>
+                        </View>
                       </View>
                       <View style={styles.vpBadge}>
                         <Text style={styles.vpBadgeText}>+{animal.vp} VP</Text>

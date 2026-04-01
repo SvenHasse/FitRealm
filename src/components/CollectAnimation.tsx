@@ -14,6 +14,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { AppColors } from '../models/types';
+import GameIcon from './GameIcon';
 import { formatGrams } from '../utils/currencyCalculator';
 
 const { width: SW, height: SH } = Dimensions.get('window');
@@ -73,7 +74,10 @@ export default function CollectAnimation({ collecting, totalMuskelmasse }: Props
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {/* Fly-up label */}
       <Animated.View style={[styles.labelWrap, labelStyle]}>
-        <Text style={styles.label}>+{formatGrams(totalMuskelmasse)} 💪</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={styles.label}>+{formatGrams(totalMuskelmasse)}</Text>
+          <GameIcon name="mm" size={13} color={AppColors.gold} />
+        </View>
       </Animated.View>
 
       {/* Confetti burst */}

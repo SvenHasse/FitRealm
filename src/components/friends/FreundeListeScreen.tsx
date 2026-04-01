@@ -9,11 +9,13 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFriendsStore } from '../../store/useFriendsStore';
 import { useGameStore } from '../../store/gameStore';
 import { getFriendStatus, getLeaderboard } from '../../utils/friendsUtils';
 import { Friend, AppColors } from '../../models/types';
 import { friendStyles as s } from './styles';
+import GameIcon from '../GameIcon';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -21,24 +23,24 @@ function avatarInitials(name: string): string {
   return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-function focusEmoji(focus: Friend['fitnessFocus']): string {
-  if (focus === 'ausdauer') return '🏃';
-  if (focus === 'diaet') return '🥗';
-  return '💪';
+function FocusIcon({ focus }: { focus: Friend['fitnessFocus'] }) {
+  if (focus === 'ausdauer') return <MaterialCommunityIcons name="run-fast" size={14} color="#4A90D9" />;
+  if (focus === 'diaet') return <GameIcon name="streak" size={14} />;
+  return <GameIcon name="mm" size={14} />;
 }
 
-function statusLabel(friend: Friend): string {
+function statusLabel(friend: Friend): { text: string; status: 'active' | 'danger' | 'none' } {
   const status = getFriendStatus(friend);
-  if (status === 'active_today') return '✅ Heute aktiv';
-  if (status === 'streak_danger') return '⚠️ Streak in Gefahr!';
-  return `Zuletzt: ${new Date(friend.lastActiveAt).toLocaleDateString('de-DE')}`;
+  if (status === 'active_today') return { text: 'Heute aktiv', status: 'active' };
+  if (status === 'streak_danger') return { text: 'Streak in Gefahr!', status: 'danger' };
+  return { text: `Zuletzt: ${new Date(friend.lastActiveAt).toLocaleDateString('de-DE')}`, status: 'none' };
 }
 
-function rankEmoji(rank: number): string {
-  if (rank === 1) return '🥇';
-  if (rank === 2) return '🥈';
-  if (rank === 3) return '🥉';
-  return `${rank}.`;
+function RankDisplay({ rank }: { rank: number }) {
+  if (rank === 1) return <GameIcon name="medal-gold" size={18} color="#FFD700" />;
+  if (rank === 2) return <GameIcon name="medal-silver" size={18} color="#C0C0C0" />;
+  if (rank === 3) return <GameIcon name="medal-bronze" size={18} color="#CD7F32" />;
+  return <Text style={s.leaderboardRank}>{rank}.</Text>;
 }
 
 // ─── GhostCard ───────────────────────────────────────────────────────────────
@@ -57,7 +59,10 @@ function GhostCard({ friend }: GhostCardProps) {
       </View>
       <View style={{ flex: 1 }}>
         <Text style={s.friendName}>{friend.name}</Text>
-        <Text style={s.friendStatus}>🔥 {friend.currentStreak}d Streak gefährdet</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <GameIcon name="streak" size={12} />
+          <Text style={s.friendStatus}>{friend.currentStreak}d Streak gefährdet</Text>
+        </View>
       </View>
       <TouchableOpacity
         style={[s.motivateButton, sent && s.motivateButtonSent]}
@@ -65,7 +70,10 @@ function GhostCard({ friend }: GhostCardProps) {
         activeOpacity={0.8}
         disabled={sent}
       >
-        <Text style={s.motivateButtonText}>{sent ? '✅' : '👊'}</Text>
+        {sent
+          ? <GameIcon name="check" size={16} />
+          : <GameIcon name="quest" size={16} />
+        }
       </TouchableOpacity>
     </View>
   );
@@ -96,7 +104,10 @@ function RivalCard({ friend, myMM }: RivalCardProps) {
 
   return (
     <Animated.View style={[s.rivalCard, { transform: [{ scale: pulseAnim }] }]}>
-      <Text style={s.rivalLabel}>⚔️ Dein Rivale diese Woche</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <GameIcon name="stamm" size={14} />
+        <Text style={[s.rivalLabel, { marginBottom: 0 }]}>Dein Rivale diese Woche</Text>
+      </View>
       <View style={s.rivalContent}>
         <View style={[s.avatar, { backgroundColor: friend.avatarColor }]}>
           <Text style={s.avatarText}>{initials}</Text>
@@ -139,7 +150,7 @@ function LeaderboardRow({ entry, rank, delay }: LeaderboardRowProps) {
         { opacity: fadeAnim, transform: [{ translateX: slideAnim }] },
       ]}
     >
-      <Text style={s.leaderboardRank}>{rankEmoji(rank)}</Text>
+      <RankDisplay rank={rank} />
       <Text style={s.leaderboardName}>
         {isMe ? 'Du' : entry.name}
         {isMe && <Text style={s.myPositionBadge}> (ich)</Text>}
@@ -163,14 +174,28 @@ function FriendCard({ friend }: FriendCardProps) {
         <Text style={s.avatarText}>{initials}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={s.friendName}>
-          {focusEmoji(friend.fitnessFocus)} {friend.name}
-        </Text>
-        <Text style={s.friendStatus}>{statusLabel(friend)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <FocusIcon focus={friend.fitnessFocus} />
+          <Text style={s.friendName}>{friend.name}</Text>
+        </View>
+        {(() => {
+          const sl = statusLabel(friend);
+          return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {sl.status === 'active' && <GameIcon name="check" size={12} />}
+              {sl.status === 'danger' && <GameIcon name="warning" size={12} />}
+              {sl.status === 'none' && <GameIcon name="sleep" size={12} />}
+              <Text style={s.friendStatus}>{sl.text}</Text>
+            </View>
+          );
+        })()}
       </View>
       <View style={s.friendStats}>
         <Text style={s.friendMM}>{friend.weeklyMM.toLocaleString('de-DE')} MM</Text>
-        <Text style={s.friendStreak}>🔥 {friend.currentStreak}d</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          <GameIcon name="streak" size={12} />
+          <Text style={s.friendStreak}>{friend.currentStreak}d</Text>
+        </View>
       </View>
     </View>
   );
@@ -199,7 +224,7 @@ export function FreundeListeScreen() {
   if (friends.length === 0) {
     return (
       <View style={s.centeredPlaceholder}>
-        <Text style={s.placeholderEmoji}>👥</Text>
+        <GameIcon name="people" size={52} color="rgba(255,255,255,0.25)" />
         <Text style={s.placeholderTitle}>Noch keine Freunde</Text>
         <Text style={s.placeholderText}>
           Lade Freunde ein und kämpft gemeinsam um MM-Dominanz!
@@ -215,7 +240,10 @@ export function FreundeListeScreen() {
       {/* Ghost friends — streak danger */}
       {ghostFriends.length > 0 && (
         <View style={s.ghostSection}>
-          <Text style={s.sectionTitle}>⚠️ Streak in Gefahr</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <GameIcon name="warning" size={14} />
+            <Text style={s.sectionTitle}>Streak in Gefahr</Text>
+          </View>
           {ghostFriends.map((f) => (
             <GhostCard key={f.id} friend={f} />
           ))}
@@ -231,7 +259,10 @@ export function FreundeListeScreen() {
 
       {/* Weekly leaderboard */}
       <View style={s.section}>
-        <Text style={s.sectionTitle}>📊 Wochenranking</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <GameIcon name="chart" size={14} />
+          <Text style={s.sectionTitle}>Wochenranking</Text>
+        </View>
         {leaderboard.map((entry, i) => (
           <LeaderboardRow key={entry.id} entry={entry} rank={i + 1} delay={i * 60} />
         ))}
@@ -239,7 +270,10 @@ export function FreundeListeScreen() {
 
       {/* All friends */}
       <View style={s.section}>
-        <Text style={s.sectionTitle}>👥 Alle Freunde</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <GameIcon name="people" size={14} />
+          <Text style={s.sectionTitle}>Alle Freunde</Text>
+        </View>
         {friends.map((f) => (
           <FriendCard key={f.id} friend={f} />
         ))}

@@ -6,6 +6,7 @@ import {
   View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import GameIcon, { GameIconName } from './GameIcon';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import {
@@ -17,7 +18,8 @@ import { hourlyProductionRate, buildingStorageCap } from '../engines/GameEngine'
 // MARK: - Category definitions
 type CategoryDef = {
   key: string;
-  emoji: string;
+  emoji?: string;
+  iconName?: GameIconName;
   labelKey: string;
   types: BuildingType[];
 };
@@ -25,7 +27,7 @@ type CategoryDef = {
 const CATEGORIES: CategoryDef[] = [
   {
     key: 'main',
-    emoji: '🏛️',
+    iconName: 'building' as GameIconName,
     labelKey: 'registry.categoryMain',
     types: [BuildingType.rathaus, BuildingType.stammeshaus],
   },
@@ -95,9 +97,13 @@ export default function BuildingRegistryModal({ visible, onClose, onSelectBuildi
                 if (catBuildings.length === 0) return null;
                 return (
                   <View key={cat.key} style={styles.section}>
-                    <Text style={styles.sectionHeader}>
-                      {cat.emoji}{'  '}{t(cat.labelKey)}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 2, paddingLeft: 2 }}>
+                      {cat.iconName
+                        ? <GameIcon name={cat.iconName} size={14} color="rgba(255,255,255,0.40)" />
+                        : <Text style={styles.sectionHeader}>{cat.emoji}</Text>
+                      }
+                      <Text style={styles.sectionHeader}>{t(cat.labelKey)}</Text>
+                    </View>
                     {catBuildings.map(building => (
                       <BuildingRow
                         key={building.id}

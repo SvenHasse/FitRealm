@@ -4,6 +4,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import GameIcon, { GameIconName } from './GameIcon';
 import { useTranslation } from 'react-i18next';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 
@@ -68,9 +69,9 @@ export default function ResourceInfoModal({ resource, onClose }: Props) {
             <View style={[styles.accentBar, { backgroundColor: meta.color }]} />
 
             {/* Info sections */}
-            <InfoSection emoji="📦" label={t('resources.infoWhat')} body={t(`resources.info.${resource}.what`)} color={meta.color} />
-            <InfoSection emoji="⚡" label={t('resources.infoHow')} body={t(`resources.info.${resource}.how`)} color={meta.color} />
-            <InfoSection emoji="🏗️" label={t('resources.infoUse')} body={t(`resources.info.${resource}.use`)} color={meta.color} />
+            <InfoSection iconName="building" label={t('resources.infoWhat')} body={t(`resources.info.${resource}.what`)} color={meta.color} />
+            <InfoSection iconName="quest" label={t('resources.infoHow')} body={t(`resources.info.${resource}.how`)} color={meta.color} />
+            <InfoSection iconName="target" label={t('resources.infoUse')} body={t(`resources.info.${resource}.use`)} color={meta.color} />
 
             {/* Close button */}
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
@@ -83,11 +84,11 @@ export default function ResourceInfoModal({ resource, onClose }: Props) {
   );
 }
 
-function InfoSection({ emoji, label, body, color }: { emoji: string; label: string; body: string; color: string }) {
+function InfoSection({ iconName, label, body, color }: { iconName: GameIconName; label: string; body: string; color: string }) {
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionEmoji}>{emoji}</Text>
+        <GameIcon name={iconName} size={20} />
         <Text style={[styles.sectionLabel, { color }]}>{label}</Text>
       </View>
       <Text style={styles.sectionBody}>{body}</Text>

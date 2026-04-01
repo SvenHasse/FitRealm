@@ -4,6 +4,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import GameIcon from './GameIcon';
 import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue, useAnimatedStyle,
@@ -78,7 +79,7 @@ export default function CollectRewardPopup({ result, onClose }: Props) {
 
             {/* Trophy */}
             <Animated.View style={trophyStyle}>
-              <Text style={styles.trophyEmoji}>🏆</Text>
+              <GameIcon name="trophy" size={48} color="#E8A838" />
             </Animated.View>
 
             {/* Titles */}

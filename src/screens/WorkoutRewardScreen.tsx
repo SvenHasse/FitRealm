@@ -37,6 +37,7 @@ import { AppColors, FitnessFocus } from '../models/types';
 import WorkoutIcon from '../components/WorkoutIcon';
 import WorkoutSummaryRow from '../components/WorkoutSummaryRow';
 import CollectAnimation from '../components/CollectAnimation';
+import GameIcon from '../components/GameIcon';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WorkoutReward'>;
 
@@ -78,7 +79,7 @@ function StreakProgressBar({ effKcal, visible }: { effKcal: number; visible: boo
   }));
 
   const barColor = pct >= 1 ? GREEN : GOLD;
-  const label    = pct >= 1 ? 'Streak-Ziel erreicht 🎯' : `${Math.round(effKcal)} / 300 MM`;
+  const label    = pct >= 1 ? 'Streak-Ziel erreicht' : `${Math.round(effKcal)} / 300 MM`;
 
   return (
     <View style={styles.progressWrap}>
@@ -264,7 +265,7 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
     if (phase === 'collecting') return '...';
     if (phase !== 'ready')      return 'Berechne...';
     if (isQueue && !isLastInQueue) return 'Einsammeln & Weiter →';
-    return 'Einsammeln 💪';
+    return 'Einsammeln';
   };
 
   return (
@@ -353,14 +354,14 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
             streakAchieved ? styles.streakBadgeGreen : styles.streakBadgeMuted,
             streakStyle,
           ]}>
-            <Text style={styles.streakIcon}>{streakAchieved ? '🔥' : '⚡'}</Text>
+            <GameIcon name={streakAchieved ? 'streak' : 'quest'} size={32} />
             <View style={styles.streakTextWrap}>
               <Text style={[styles.streakTitle, { color: streakAchieved ? GREEN : AppColors.textSecondary }]}>
                 {streakAchieved ? 'Streak-Ziel erfüllt!' : 'Weiter so!'}
               </Text>
               <Text style={styles.streakSub}>
                 {streakAchieved
-                  ? 'Heute läuft deine Streak weiter 🎯'
+                  ? 'Heute läuft deine Streak weiter'
                   : `Noch ${Math.max(0, Math.ceil(300 - effKcal))} MM bis zum Streak-Ziel`}
               </Text>
             </View>
@@ -371,7 +372,10 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
         {showProtein && (
           <View style={styles.card}>
             {proteinEarned > 0 ? (
-              <Text style={styles.proteinHint}>🧬 {proteinEarned} Protein verdient</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <GameIcon name="protein" size={14} />
+                <Text style={styles.proteinHint}>{proteinEarned} Protein verdient</Text>
+              </View>
             ) : untilNext !== null && untilNext > 0 ? (
               <Text style={styles.proteinHint}>Noch {untilNext} MM bis zum nächsten Protein</Text>
             ) : null}
