@@ -204,16 +204,16 @@ function StatCard({ label, icon, numericValue, suffix, color }: {
       backgroundColor: `${color}18`,
       borderColor: `${color}55`,
     }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-        {icon && (
-          <MaterialCommunityIcons name={icon as any} size={18} color={color} />
-        )}
+      {icon && (
+        <MaterialCommunityIcons name={icon as any} size={18} color={color} style={{ marginBottom: 4 }} />
+      )}
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
         <Text style={[statCardStyles.value, { color }]}>{numberStr}</Text>
+        {suffix && (
+          <Text style={{ fontSize: 11, fontWeight: '600', color }}>{suffix.trim()}</Text>
+        )}
       </View>
-      {suffix
-        ? <Text style={statCardStyles.label}>{suffix.trim()}</Text>
-        : !icon && <Text style={statCardStyles.label}>{label}</Text>
-      }
+      {!icon && !suffix && <Text style={statCardStyles.label}>{label}</Text>}
     </View>
   );
 }
