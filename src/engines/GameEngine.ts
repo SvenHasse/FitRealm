@@ -28,6 +28,8 @@ import {
 } from '../config/GameConfigHelpers';
 import { calculateTotalPP, ppToRewards, DailyMetrics, DAILY_TARGETS } from '../utils/progressPoints';
 import { calculateEffKcal, getProteinFromEffKcal, isStreakGoalReached } from '../utils/effKcalUtils';
+import { getActiveBuffs, getTotalMmBoostPercent } from '../utils/buffUtils';
+import { useFriendsStore } from '../store/useFriendsStore';
 
 const STATE_KEY = 'fitrealmGameState';
 
@@ -623,8 +625,21 @@ export function processWorkouts(state: GameState, workouts: WorkoutRecord[], sna
   // ── EffKcal-based reward calculation ────────────────────────────────────
   // 1 EffKcal = 1 Muskelmasse; Protein gated at 450/525/600 EffKcal
   const effKcal = calculateEffKcal(fitnessFocus, snapshot.activeCaloriesToday, totalWorkoutMinutes);
-  s.muskelmasse += Math.round(effKcal);
+
+  // Apply tribe + building MM buff
+  const _friendsState = useFriendsStore.getState();
+  const _tribe = _friendsState.tribe ?? null;
+  const _buffs = getActiveBuffs(s, _tribe);
+  const _mmBoostPercent = getTotalMmBoostPercent(_buffs);
+  const boostedMM = Math.round(effKcal * (1 + _mmBoostPercent / 100));
+
+  s.muskelmasse += boostedMM;
   s.protein += getProteinFromEffKcal(effKcal);
+
+  // Update tribe weekly progress
+  if (_tribe) {
+    _friendsState.updateTribeProgress(boostedMM);
+  }
 
   // ── Legacy Earn.* formulas (kept for backward compatibility) ────────────
   // @deprecated - Earn.basePerMinute: replaced by PP muskelmassePerPP

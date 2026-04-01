@@ -10,6 +10,8 @@ import { calculateEffKcal, getProteinFromEffKcal, isStreakGoalReached } from '..
 import { useGameStore as useEngineStore } from '../store/useGameStore';
 import { useGameStore } from '../store/gameStore';
 import { useWorkoutStore } from '../store/workoutStore';
+import { getActiveBuffs, getTotalMmBoostPercent } from '../utils/buffUtils';
+import { useFriendsStore } from '../store/useFriendsStore';
 
 export type RewardPhase =
   | 'header'       // header animates in
@@ -28,6 +30,8 @@ export interface EffKcalReward {
   mmEarned: number;
   proteinEarned: number;
   streakAchieved: boolean;
+  mmBoostPercent: number;
+  mmBoostSources: { label: string; percent: number }[];
 }
 
 interface UseWorkoutRewardReturn {
@@ -51,11 +55,20 @@ export function useWorkoutReward(
 
   // ── EffKcal-based reward calculation ──────────────────────────────────────
   const effKcal = calculateEffKcal(fitnessFocus, workout.activeCalories, workout.durationMinutes);
-  const mmEarned = Math.round(effKcal);
   const proteinEarned = getProteinFromEffKcal(effKcal);
   const streakAchieved = isStreakGoalReached(effKcal);
 
-  const reward: EffKcalReward = { effKcal, mmEarned, proteinEarned, streakAchieved };
+  // Buff calculation
+  const tribe = useFriendsStore.getState().tribe ?? null;
+  const buffs = getActiveBuffs(null, tribe);
+  const mmBoostPercent = getTotalMmBoostPercent(buffs);
+  const mmBoostSources = buffs
+    .filter(b => b.bonusType === 'mm' || b.bonusType === 'global')
+    .map(b => ({ label: `${b.source} Lv.${tribe?.level ?? 1}`, percent: b.bonusPercent }));
+
+  const mmEarned = Math.round(effKcal * (1 + mmBoostPercent / 100));
+
+  const reward: EffKcalReward = { effKcal, mmEarned, proteinEarned, streakAchieved, mmBoostPercent, mmBoostSources };
 
   // ── Phase advancement ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -65,8 +78,7 @@ export function useWorkoutReward(
       ['counter',  1700],
       ['streak',   3100],
       ['protein',  3500],
-      ['progress', 3900],
-      ['ready',    4400],
+      ['ready',    3900],
     ];
 
     const timers = timings.map(([p, delay]) =>
