@@ -231,6 +231,7 @@
     "units": {
       "workouts":  "Workouts",
       "steps":     "Schritte",
+      "kcal":      "kcal",
       "buildings": "Gebäude",
       "workers":   "Worker",
       "holz":      "Holz"

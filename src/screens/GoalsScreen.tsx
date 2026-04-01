@@ -221,11 +221,10 @@ function EmptyState() {
 }
 
 // ── Tab Selector ──────────────────────────────────────────────────────────────
-type Tab = 'fitness' | 'village' | 'seasonal';
+type Tab = 'fitness' | 'seasonal';
 const TABS: { key: Tab; icon: string; labelKey: string }[] = [
-  { key: 'fitness',  icon: 'dumbbell',  labelKey: 'goals.tabs.fitness'  },
-  { key: 'village',  icon: 'home-city', labelKey: 'goals.tabs.village'  },
-  { key: 'seasonal', icon: 'trophy',    labelKey: 'goals.tabs.seasonal' },
+  { key: 'fitness',  icon: 'dumbbell', labelKey: 'goals.tabs.fitness'  },
+  { key: 'seasonal', icon: 'trophy',   labelKey: 'goals.tabs.seasonal' },
 ];
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
@@ -239,9 +238,7 @@ export default function GoalsScreen() {
   useEffect(() => { refreshGoalProgress(); }, []);
 
   const fitnessGoals = goals.filter(g => g.category === 'fitness');
-  const villageGoals = goals.filter(g => g.category === 'village');
   const fitnessAllDone = fitnessGoals.length > 0 && fitnessGoals.every(g => g.status === 'claimed');
-  const villageAllDone = villageGoals.length > 0 && villageGoals.every(g => g.status === 'claimed');
 
   return (
     <View style={styles.container}>
@@ -275,17 +272,6 @@ export default function GoalsScreen() {
           {fitnessAllDone
             ? <EmptyState />
             : fitnessGoals.map(g => <GoalCard key={g.id} goal={g} />)
-          }
-          <View style={{ height: 32 }} />
-        </ScrollView>
-      )}
-
-      {/* Village Tab */}
-      {activeTab === 'village' && (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          {villageAllDone
-            ? <EmptyState />
-            : villageGoals.map(g => <GoalCard key={g.id} goal={g} />)
           }
           <View style={{ height: 32 }} />
         </ScrollView>
