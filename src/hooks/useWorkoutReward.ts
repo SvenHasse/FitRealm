@@ -32,6 +32,8 @@ export interface EffKcalReward {
   streakAchieved: boolean;
   mmBoostPercent: number;
   mmBoostSources: { label: string; percent: number }[];
+  proteinAlreadyEarnedToday: number;
+  proteinAfterCollect: number;
 }
 
 interface UseWorkoutRewardReturn {
@@ -55,8 +57,19 @@ export function useWorkoutReward(
 
   // ── EffKcal-based reward calculation ──────────────────────────────────────
   const effKcal = calculateEffKcal(fitnessFocus, workout.activeCalories, workout.durationMinutes);
-  const proteinEarned = getProteinFromEffKcal(effKcal);
   const streakAchieved = isStreakGoalReached(effKcal);
+
+  // Day-based protein delta calculation
+  const today = new Date().toDateString();
+  const currStore = useGameStore.getState();
+  const currentDailyEffKcal = (currStore.lastEffKcalDate === today ? currStore.dailyEffKcal : 0);
+  const alreadyEarnedToday = (currStore.lastEffKcalDate === today ? (currStore.dailyProteinEarned ?? 0) : 0);
+
+  const newCumulativeEffKcal = currentDailyEffKcal + effKcal;
+  const totalProteinAfterWorkout = Math.min(3, getProteinFromEffKcal(newCumulativeEffKcal));
+  const proteinEarned = Math.max(0, totalProteinAfterWorkout - alreadyEarnedToday);
+  const proteinAlreadyEarnedToday = alreadyEarnedToday;
+  const proteinAfterCollect = totalProteinAfterWorkout;
 
   // Buff calculation
   const tribe = useFriendsStore.getState().tribe ?? null;
@@ -68,7 +81,7 @@ export function useWorkoutReward(
 
   const mmEarned = Math.round(effKcal * (1 + mmBoostPercent / 100));
 
-  const reward: EffKcalReward = { effKcal, mmEarned, proteinEarned, streakAchieved, mmBoostPercent, mmBoostSources };
+  const reward: EffKcalReward = { effKcal, mmEarned, proteinEarned, streakAchieved, mmBoostPercent, mmBoostSources, proteinAlreadyEarnedToday, proteinAfterCollect };
 
   // ── Phase advancement ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -99,12 +112,11 @@ export function useWorkoutReward(
     if (proteinEarned > 0) addProtein(proteinEarned);
     setLastWorkoutDate(new Date());
 
-    // Update daily EffKcal total in currency store
-    const gs = useGameStore.getState();
-    const currentDaily = gs.lastEffKcalDate === new Date().toDateString()
-      ? gs.dailyEffKcal
-      : 0;
-    gs.updateDailyEffKcal(currentDaily + effKcal);
+    // Update daily EffKcal total in currency store (cumulative: existing daily + this workout)
+    const today2 = new Date().toDateString();
+    const csNow = useGameStore.getState();
+    const currentDaily = csNow.lastEffKcalDate === today2 ? csNow.dailyEffKcal : 0;
+    csNow.updateDailyEffKcal(currentDaily + effKcal);
 
     // Sync to engine store
     const cs = useGameStore.getState();

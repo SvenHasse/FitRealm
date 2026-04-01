@@ -85,8 +85,11 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
   const fitnessFocus = useEngineStore(s => s.userProfile?.fitnessFocus ?? 'diaet');
   const iconInfo     = getWorkoutIcon(workout.type);
 
-  const { effKcal, mmEarned, proteinEarned, streakAchieved, mmBoostPercent, mmBoostSources } = reward;
-  const untilNext = mmUntilNextProtein(effKcal);
+  const { effKcal, mmEarned, proteinEarned, streakAchieved, mmBoostPercent, mmBoostSources, proteinAlreadyEarnedToday, proteinAfterCollect } = reward;
+
+  const today = new Date().toDateString();
+  const { dailyEffKcal: storedDailyEffKcal, lastEffKcalDate } = useGameStore();
+  const currentDailyEffKcal = lastEffKcalDate === today ? storedDailyEffKcal : 0;
 
   // ── Phase flags ────────────────────────────────────────────────────────────
   const showStats    = phase !== 'header';
@@ -348,14 +351,38 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
         {/* ── 5. Protein ──────────────────────────────────────────────────── */}
         {showProtein && (
           <View style={styles.card}>
-            {proteinEarned > 0 ? (
+            {proteinAfterCollect >= 3 && proteinEarned === 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <GameIcon name="protein" size={14} />
-                <Text style={styles.proteinHint}>{proteinEarned} Protein verdient</Text>
+                <GameIcon name="protein" size={14} />
+                <GameIcon name="protein" size={14} />
+                <Text style={[styles.proteinHint, { color: AppColors.gold }]}>
+                  Alle 3 Protein heute bereits verdient!
+                </Text>
               </View>
-            ) : untilNext !== null && untilNext > 0 ? (
-              <Text style={styles.proteinHint}>Noch {untilNext} MM bis zum nächsten Protein</Text>
-            ) : null}
+            ) : proteinEarned > 0 ? (
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  {Array.from({ length: proteinAfterCollect }).map((_, i) => (
+                    <GameIcon key={i} name="protein" size={16} />
+                  ))}
+                </View>
+                <Text style={styles.proteinHint}>
+                  {proteinEarned === 1 ? '+1 Protein verdient' : `+${proteinEarned} Protein verdient`}
+                  {proteinAlreadyEarnedToday > 0 ? ` (${proteinAlreadyEarnedToday} bereits heute)` : ''}
+                </Text>
+              </View>
+            ) : (
+              (() => {
+                const until = mmUntilNextProtein(currentDailyEffKcal + effKcal);
+                return until !== null ? (
+                  <Text style={styles.proteinHint}>
+                    Noch {until} MM bis zum nächsten Protein
+                    {proteinAlreadyEarnedToday > 0 ? ` (${proteinAlreadyEarnedToday}/3 heute)` : ''}
+                  </Text>
+                ) : null;
+              })()
+            )}
           </View>
         )}
 
