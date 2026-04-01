@@ -204,11 +204,11 @@ function StatCard({ label, icon, numericValue, suffix, color }: {
       backgroundColor: `${color}18`,
       borderColor: `${color}55`,
     }]}>
+      {icon && (
+        <MaterialCommunityIcons name={icon as any} size={13} color={color} style={{ opacity: 0.7, marginBottom: 2 }} />
+      )}
       <Text style={[statCardStyles.value, { color }]}>{formatted}</Text>
-      {icon
-        ? <MaterialCommunityIcons name={icon as any} size={16} color={color} style={{ opacity: 0.8 }} />
-        : <Text style={statCardStyles.label}>{label}</Text>
-      }
+      {!icon && <Text style={statCardStyles.label}>{label}</Text>}
     </View>
   );
 }
