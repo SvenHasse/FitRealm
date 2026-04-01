@@ -264,7 +264,11 @@ function TribeView() {
     <ScrollView style={s.tribeContainer} showsVerticalScrollIndicator={false}>
       {/* Tribe header */}
       <View style={s.tribeHeader}>
-        <GameIcon name={tribe.emblem as GameIconName} size={36} color="#E8A838" />
+        <GameIcon
+          name={(EMBLEM_ICONS.includes(tribe.emblem as GameIconName) ? tribe.emblem : 'stamm') as GameIconName}
+          size={36}
+          color="#E8A838"
+        />
         <View style={{ flex: 1 }}>
           <Text style={s.tribeName}>{tribe.name}</Text>
           <Text style={s.tribeMeta}>

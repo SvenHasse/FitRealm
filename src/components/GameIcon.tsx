@@ -49,7 +49,12 @@ const ICON_MAP: Record<GameIconName, { lib: 'MCI' | 'ION'; icon: string; default
 };
 
 export default function GameIcon({ name, size = 20, color, style }: GameIconProps) {
-  const { lib, icon, defaultColor } = ICON_MAP[name];
+  const entry = ICON_MAP[name];
+  // Graceful fallback for unknown/legacy names (e.g. old emoji strings in persisted state)
+  if (!entry) {
+    return <MaterialCommunityIcons name="help-circle-outline" size={size} color={color ?? '#9A9E9B'} style={style} />;
+  }
+  const { lib, icon, defaultColor } = entry;
   const c = color ?? defaultColor;
   if (lib === 'ION') {
     return <Ionicons name={icon as any} size={size} color={c} style={style} />;
