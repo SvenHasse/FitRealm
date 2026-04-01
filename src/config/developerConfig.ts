@@ -70,4 +70,50 @@ export const DEV = {
    * false → Normales Verhalten (nur beim ersten Start)
    */
   FORCE_ONBOARDING: false,
+
+  // ─── Freunde & Stamm ──────────────────────────────────────────────────────
+  /**
+   * true  → Mock-Freunde werden beim ersten Start automatisch geladen
+   * false → Leere Freundesliste (Echtbetrieb)
+   */
+  USE_MOCK_FRIENDS: true,
+
+  MOCK_FRIENDS: [
+    {
+      id: 'friend_1',
+      name: 'Max',
+      avatarColor: '#4A90D9',
+      fitnessFocus: 'ausdauer' as const,
+      currentStreak: 12,
+      weeklyMM: 1840,
+      totalMM: 24500,
+      lastActiveAt: Date.now() - 1000 * 60 * 30, // 30 min ago
+      hasStammeshaus: true,
+    },
+    {
+      id: 'friend_2',
+      name: 'Lisa',
+      avatarColor: '#E8A838',
+      fitnessFocus: 'diaet' as const,
+      currentStreak: 5,
+      weeklyMM: 2100,
+      totalMM: 18200,
+      lastActiveAt: Date.now() - 1000 * 60 * 60 * 25, // gestern
+      hasStammeshaus: true,
+    },
+    {
+      id: 'friend_3',
+      name: 'Jonas',
+      avatarColor: '#C0392B',
+      fitnessFocus: 'muskelaufbau' as const,
+      currentStreak: 3,
+      weeklyMM: 950,
+      totalMM: 9800,
+      lastActiveAt: Date.now() - 1000 * 60 * 60 * 3, // 3h ago
+      hasStammeshaus: false,
+    },
+  ],
+
+  /** Persönlicher Einladecode für Mock-Betrieb */
+  MOCK_INVITE_CODE: 'CORN42',
 } as const;

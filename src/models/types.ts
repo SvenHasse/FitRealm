@@ -124,6 +124,74 @@ export interface SeasonalGoal {
 // MARK: - FitnessFocus
 export type FitnessFocus = 'ausdauer' | 'diaet' | 'muskelaufbau';
 
+// ─── Freunde & Stamm ──────────────────────────────────────────────
+
+export type FriendStatus = 'active_today' | 'streak_danger' | 'inactive';
+
+export interface Friend {
+  id: string;
+  name: string;
+  avatarColor: string;          // Hex-Farbe für Avatar-Placeholder
+  fitnessFocus: FitnessFocus;
+  currentStreak: number;
+  weeklyMM: number;             // MM diese Woche (Mo–So)
+  totalMM: number;
+  lastActiveAt: number;         // Unix timestamp
+  hasStammeshaus: boolean;      // hat das Gebäude gebaut?
+  isRival?: boolean;            // wird dynamisch gesetzt
+}
+
+export type TribeMemberRole = 'chief' | 'member';
+
+export interface TribeMember extends Friend {
+  role: TribeMemberRole;
+  joinedAt: number;
+}
+
+export type TribeType = 'open' | 'closed';
+
+export interface TribeQuest {
+  id: string;
+  description: string;
+  goalType: 'total_mm' | 'all_streaks' | 'total_workouts';
+  goal: number;
+  progress: number;             // aktueller Fortschritt
+  rewardDescription: string;   // z.B. "50 Protein für alle"
+  rewardType: 'protein' | 'streak_shield' | 'mm_bonus';
+  rewardAmount: number;
+  expiresAt: number;            // Ende der Woche
+  completed: boolean;
+}
+
+export interface Tribe {
+  id: string;
+  name: string;
+  emblem: string;               // Emoji, z.B. "⚔️"
+  type: TribeType;
+  joinCode: string;             // immer vorhanden, bei 'open' öffentlich sichtbar
+  members: TribeMember[];
+  level: number;                // steigt durch kollektive Aktivität
+  weeklyMMGoal: number;         // Ziel-MM diese Woche für alle zusammen
+  currentWeeklyMM: number;      // Fortschritt
+  activeQuest: TribeQuest | null;
+  mmBoostPercent: number;       // z.B. 8 = +8% MM für alle Mitglieder
+}
+
+export interface InviteStats {
+  myCode: string;               // persönlicher 6-stelliger Code, z.B. "CORN42"
+  invitedCount: number;         // wie viele haben den Code eingesetzt
+  activeCount: number;          // davon nach 7 Tagen noch aktiv
+  shieldsEarned: number;        // bereits verdiente Streak-Shields
+  pendingRewards: number;       // Einladungen die noch auf 7-Tage-Aktivierung warten
+}
+
+export interface FriendsState {
+  friends: Friend[];
+  tribe: Tribe | null;
+  inviteStats: InviteStats;
+  rivalId: string | null;       // ID des automatisch gewählten Rivals
+}
+
 // MARK: - UserProfile
 export interface UserProfile {
   age: number;
