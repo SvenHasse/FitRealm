@@ -187,6 +187,12 @@ export function buildCost(type: BuildingType): ResourceCost {
       return createResourceCost({ muskelmasse: 150, stone: 30 });
     case BuildingType.mauer:
       return createResourceCost({ muskelmasse: 100, stone: 50 });
+    case BuildingType.lager:
+      return createResourceCost({ muskelmasse: 50, wood: 25 });
+    case BuildingType.alchemist:
+      return createResourceCost({ muskelmasse: 250, protein: 3, stone: 15 });
+    default:
+      return createResourceCost();
   }
 }
 

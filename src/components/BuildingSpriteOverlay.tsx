@@ -1,12 +1,12 @@
 // BuildingSpriteOverlay.tsx
-// Renders pre-rendered 3D building PNGs on top of the isometric grid.
-// Only buildings with available sprites get the PNG treatment.
-// Others still use the SVG cuboid fallback in IsometricBuilding.
+// Renders pre-rendered isometric building PNGs on top of the isometric grid.
+// All sprites are 512×512px, SW-perspective (54.736° tilt), transparent background.
+// Buildings without a sprite fall back to the SVG cuboid in IsometricBuilding.
 
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, View } from 'react-native';
 import { BuildingType } from '../models/types';
-import { BuildingSprites } from '../assets/buildings';
+import { getBuildingSprite } from '../assets/village/buildingSprites';
 import { gridToScreen, TILE_W, TILE_H } from '../utils/isometric';
 
 interface Building {
@@ -24,42 +24,31 @@ interface Props {
   svgOffsetY: number;
 }
 
-// Map building type + level to sprite key
-function getSpriteSource(type: BuildingType, level: number): any | null {
-  if (type === BuildingType.rathaus) {
-    const clampedLevel = Math.max(1, Math.min(5, level));
-    const key = `burg_level_${clampedLevel}` as keyof typeof BuildingSprites;
-    return BuildingSprites[key] ?? null;
-  }
-  if (type === BuildingType.holzfaeller) {
-    return BuildingSprites.schmiede_level_1;
-  }
-  return null; // No sprite available — SVG fallback
-}
-
-// Sprite display size relative to tile
-const SPRITE_SCALE: Partial<Record<BuildingType, number>> = {
-  [BuildingType.rathaus]: 1.15,     // burg fits within one tile
-  [BuildingType.holzfaeller]: 1.0,  // schmiede fits within one tile
-};
-const DEFAULT_SCALE = 0.95;
+// All sprites are normalized to max 2.0 Units in Blender → uniform display size
+const UNIFORM_SCALE = 1.0; // sprite fills TILE_W
 
 function BuildingSpriteOverlayInner({ buildings, gridSize, svgOffsetX, svgOffsetY }: Props) {
   const sprites = useMemo(() => {
-    const result: { key: string; source: any; x: number; y: number; size: number; zIndex: number }[] = [];
+    const result: {
+      key: string;
+      source: ReturnType<typeof require>;
+      x: number;
+      y: number;
+      size: number;
+      zIndex: number;
+    }[] = [];
 
     for (const b of buildings) {
-      if (b.isUnderConstruction) continue; // Under construction = use SVG scaffold
-      const source = getSpriteSource(b.type, b.level);
+      if (b.isUnderConstruction) continue; // Under construction → SVG scaffold
+      const source = getBuildingSprite(b.type, b.level ?? 1);
       if (!source) continue;
 
       const { x, y } = gridToScreen(b.position.row, b.position.col, gridSize);
-      const scale = SPRITE_SCALE[b.type] ?? DEFAULT_SCALE;
-      const size = TILE_W * scale;
+      const size = TILE_W * UNIFORM_SCALE;
 
-      // Position: center the sprite on the tile, shift up so it "stands" on the tile
+      // Center the sprite on the tile, bottom-anchor so it "stands" on the diamond
       const spriteX = svgOffsetX + x + TILE_W / 2 - size / 2;
-      const spriteY = svgOffsetY + y + TILE_H / 2 - size * 0.75; // bottom-anchored
+      const spriteY = svgOffsetY + y + TILE_H / 2 - size * 0.75;
 
       result.push({
         key: `sprite-${b.position.row}-${b.position.col}`,

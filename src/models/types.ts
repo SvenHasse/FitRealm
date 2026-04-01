@@ -118,6 +118,8 @@ export enum BuildingType {
   bibliothek = 'bibliothek',
   marktplatz = 'marktplatz',
   stammeshaus = 'stammeshaus',
+  lager = 'lager',
+  alchemist = 'alchemist',
   // --- Entity System (Phase 2+) ---
   stall = 'stall',
   wachturm = 'wachturm',
@@ -142,6 +144,8 @@ export function buildingDisplayName(type: BuildingType): string {
     [BuildingType.bibliothek]: 'Bibliothek',
     [BuildingType.marktplatz]: 'Marktplatz',
     [BuildingType.stammeshaus]: 'Stammeshaus',
+    [BuildingType.lager]: 'Lager',
+    [BuildingType.alchemist]: 'Alchemist',
     [BuildingType.stall]: 'Stall',
     [BuildingType.wachturm]: 'Wachturm',
     [BuildingType.mauer]: 'Mauer',
@@ -166,6 +170,8 @@ export function buildingIconName(type: BuildingType): string {
     [BuildingType.bibliothek]: 'book',
     [BuildingType.marktplatz]: 'storefront',
     [BuildingType.stammeshaus]: 'people',
+    [BuildingType.lager]: 'archive-outline',
+    [BuildingType.alchemist]: 'flask',
     [BuildingType.stall]: 'paw',
     [BuildingType.wachturm]: 'eye',
     [BuildingType.mauer]: 'shield-half',
@@ -189,6 +195,8 @@ export function buildingDescription(type: BuildingType): string {
     [BuildingType.bibliothek]: 'Unlocks research that improves every aspect of your realm.',
     [BuildingType.marktplatz]: 'Trade surplus resources with other tribes for what you need.',
     [BuildingType.stammeshaus]: 'The ultimate symbol of tribal prestige and endgame power.',
+    [BuildingType.lager]: 'A general storage building for surplus resources.',
+    [BuildingType.alchemist]: 'Transmutes resources into rare compounds and powerful boosts.',
     [BuildingType.stall]: 'Houses your animals and lets you assign them to buildings for production bonuses.',
     [BuildingType.wachturm]: 'Provides early warning of incoming monster waves and reduces attacker strength.',
     [BuildingType.mauer]: 'A stone wall that absorbs damage and protects your settlement from monster attacks.',
@@ -230,6 +238,10 @@ export function buildingAccentColor(type: BuildingType): string {
     case BuildingType.marktplatz:
     case BuildingType.stammeshaus:
       return '#EC4899'; // pink — special
+    case BuildingType.lager:
+      return '#A0522D'; // brown — storage
+    case BuildingType.alchemist:
+      return '#22C55E'; // green — alchemy
   }
 }
 

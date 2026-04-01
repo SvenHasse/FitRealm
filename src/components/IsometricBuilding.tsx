@@ -55,6 +55,8 @@ const BUILDING_LABELS: Record<BuildingType, string> = {
   [BuildingType.bibliothek]: 'B',
   [BuildingType.marktplatz]: 'M',
   [BuildingType.stammeshaus]: 'St',
+  [BuildingType.lager]: 'La',
+  [BuildingType.alchemist]: 'Al',
   [BuildingType.stall]: 'Sl',
   [BuildingType.wachturm]: 'W',
   [BuildingType.mauer]: 'Ma',
