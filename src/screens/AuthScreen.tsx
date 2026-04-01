@@ -12,13 +12,14 @@ import * as Crypto from 'expo-crypto';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
+import * as Auth from '../services/AuthService';
 import { AppColors } from '../models/types';
 
 type AuthMode = 'login' | 'register';
 
 export default function AuthScreen() {
   const { t } = useTranslation();
-  const { signInWithEmail, signUpWithEmail, signInWithApple, signInWithGoogle, isLoading, error, clearError } = useAuthStore();
+  const { signInWithEmail, signUpWithEmail, signInWithApple, signInWithGoogle, updateProfile, isLoading, error, clearError } = useAuthStore();
 
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -48,7 +49,19 @@ export default function AuthScreen() {
         Alert.alert(t('common.error'), t('auth.appleNoToken'));
         return;
       }
-      await signInWithApple(credential.identityToken, rawNonce);
+
+      const success = await signInWithApple(credential.identityToken, rawNonce);
+
+      // WICHTIG: Apple liefert fullName NUR beim allerersten Login!
+      // Sofort in Profile speichern, sonst ist der Name für immer verloren.
+      if (success && credential.fullName) {
+        const appleName = [credential.fullName.givenName, credential.fullName.familyName]
+          .filter(Boolean)
+          .join(' ');
+        if (appleName) {
+          await updateProfile({ display_name: appleName });
+        }
+      }
     } catch (e: any) {
       if (e.code !== 'ERR_REQUEST_CANCELED') {
         Alert.alert(t('common.error'), t('auth.appleFailed'));
@@ -66,7 +79,16 @@ export default function AuthScreen() {
         Alert.alert(t('common.error'), t('auth.googleNoToken'));
         return;
       }
-      await signInWithGoogle(idToken);
+      const success = await signInWithGoogle(idToken);
+
+      // Google liefert Name zuverlässig — in Profile speichern
+      if (success && response.data?.user) {
+        const { givenName, familyName } = response.data.user;
+        const googleName = [givenName, familyName].filter(Boolean).join(' ');
+        if (googleName) {
+          await updateProfile({ display_name: googleName });
+        }
+      }
     } catch (e: any) {
       if (e.code !== 'SIGN_IN_CANCELLED') {
         Alert.alert(t('common.error'), t('auth.googleFailed'));
@@ -82,6 +104,20 @@ export default function AuthScreen() {
       await signInWithEmail(email.trim(), password);
     } else {
       await signUpWithEmail(email.trim(), password, name.trim() || undefined);
+    }
+  };
+
+  // ── Forgot Password ───────────────────────────────────────────────────
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert(t('auth.forgotPasswordTitle'), t('auth.forgotPasswordEnterEmail'));
+      return;
+    }
+    const result = await Auth.resetPassword(email.trim());
+    if (result.success) {
+      Alert.alert(t('auth.forgotPasswordTitle'), t('auth.forgotPasswordSent'));
+    } else {
+      Alert.alert(t('common.error'), result.error ?? t('auth.forgotPasswordFailed'));
     }
   };
 
@@ -165,6 +201,12 @@ export default function AuthScreen() {
           )}
         </TouchableOpacity>
 
+        {mode === 'login' && (
+          <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotBtn}>
+            <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity onPress={toggleMode} style={styles.toggleBtn}>
           <Text style={styles.toggleText}>
             {mode === 'login' ? t('auth.switchToRegister') : t('auth.switchToLogin')}
@@ -205,6 +247,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginTop: 4,
   },
   emailBtnText: { color: '#000', fontWeight: 'bold', fontSize: 17 },
+  forgotBtn: { marginTop: 12, alignItems: 'center' },
+  forgotText: { color: AppColors.textSecondary, fontSize: 14 },
   toggleBtn: { marginTop: 16, alignItems: 'center' },
   toggleText: { color: AppColors.gold, fontSize: 15 },
 });
