@@ -197,18 +197,23 @@ function StatCard({ label, icon, numericValue, suffix, color }: {
   label: string; icon?: string; numericValue: number; suffix?: string; color: string;
 }) {
   const display = useStatCountUp(numericValue);
-  const formatted = display.toLocaleString('de-DE') + (suffix ?? '');
+  const numberStr = display.toLocaleString('de-DE');
 
   return (
     <View style={[statCardStyles.container, {
       backgroundColor: `${color}18`,
       borderColor: `${color}55`,
     }]}>
-      {icon && (
-        <MaterialCommunityIcons name={icon as any} size={13} color={color} style={{ opacity: 0.7, marginBottom: 2 }} />
-      )}
-      <Text style={[statCardStyles.value, { color }]}>{formatted}</Text>
-      {!icon && <Text style={statCardStyles.label}>{label}</Text>}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+        {icon && (
+          <MaterialCommunityIcons name={icon as any} size={18} color={color} />
+        )}
+        <Text style={[statCardStyles.value, { color }]}>{numberStr}</Text>
+      </View>
+      {suffix
+        ? <Text style={statCardStyles.label}>{suffix.trim()}</Text>
+        : !icon && <Text style={statCardStyles.label}>{label}</Text>
+      }
     </View>
   );
 }
