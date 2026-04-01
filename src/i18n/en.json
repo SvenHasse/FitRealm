@@ -677,7 +677,12 @@
     "appleNoToken": "Apple Sign-In failed: no token received.",
     "appleFailed": "Apple Sign-In failed.",
     "googleNoToken": "Google Sign-In failed: no token received.",
-    "googleFailed": "Google Sign-In failed."
+    "googleFailed": "Google Sign-In failed.",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset password",
+    "forgotPasswordEnterEmail": "Please enter your email address above first.",
+    "forgotPasswordSent": "We've sent you a password reset email.",
+    "forgotPasswordFailed": "Could not send reset email."
   },
   "migration": {
     "running": "Syncing game state…",

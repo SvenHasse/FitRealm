@@ -678,7 +678,12 @@
     "appleNoToken": "Apple-Anmeldung fehlgeschlagen: Kein Token erhalten.",
     "appleFailed": "Apple-Anmeldung fehlgeschlagen.",
     "googleNoToken": "Google-Anmeldung fehlgeschlagen: Kein Token erhalten.",
-    "googleFailed": "Google-Anmeldung fehlgeschlagen."
+    "googleFailed": "Google-Anmeldung fehlgeschlagen.",
+    "forgotPassword": "Passwort vergessen?",
+    "forgotPasswordTitle": "Passwort zurücksetzen",
+    "forgotPasswordEnterEmail": "Bitte gib zuerst deine E-Mail-Adresse oben ein.",
+    "forgotPasswordSent": "Wir haben dir eine E-Mail zum Zurücksetzen geschickt.",
+    "forgotPasswordFailed": "E-Mail konnte nicht gesendet werden."
   },
   "migration": {
     "running": "Spielstand wird synchronisiert…",
