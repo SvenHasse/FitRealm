@@ -4,12 +4,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import GameIcon from './GameIcon';
 import { AppColors } from '../models/types';
 
 interface GoalItem {
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   text: string;
+  showCheck?: boolean;
 }
 
 function buildGoals(stepsToday: number, stepsGoal: number): GoalItem[] {
@@ -21,7 +23,8 @@ function buildGoals(stepsToday: number, stepsGoal: number): GoalItem[] {
       text:
         stepsLeft > 0
           ? `Noch ${stepsLeft.toLocaleString('de-DE')} Schritte → +7,5g Muskelmasse`
-          : '✅ Schrittziel erreicht! +7,5g Muskelmasse verdient',
+          : 'Schrittziel erreicht! +7,5g Muskelmasse verdient',
+      showCheck: stepsLeft === 0,
     },
     {
       icon: 'time',
@@ -59,9 +62,18 @@ export default function ProgressProjectionWidget({ stepsToday = 0, stepsGoal = 1
           <View style={[styles.iconWrap, { backgroundColor: `${goal.color}22` }]}>
             <Ionicons name={goal.icon} size={16} color={goal.color} />
           </View>
-          <Text style={[styles.goalText, i === 0 && styles.goalTextPrimary]}>
-            {goal.text}
-          </Text>
+          {goal.showCheck ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+              <GameIcon name="check" size={13} />
+              <Text style={[styles.goalText, i === 0 && styles.goalTextPrimary]}>
+                {goal.text}
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.goalText, i === 0 && styles.goalTextPrimary]}>
+              {goal.text}
+            </Text>
+          )}
         </View>
       ))}
     </View>

@@ -13,6 +13,8 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -59,6 +61,8 @@ import StatsHistoryModal        from '../components/StatsHistoryModal';
 import { getWorkoutIcon }       from '../utils/workoutIcons';
 import { useGameStore }         from '../store/gameStore';
 import { STREAK_MILESTONES }    from '../utils/streakUtils';
+import GameIcon from '../components/GameIcon';
+import ProteinDots from '../components/ProteinDots';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -236,6 +240,7 @@ export default function DashboardScreen() {
   const [selectedWorkout,   setSelectedWorkout]   = useState<WorkoutRecord | null>(null);
   const [streakModalOpen,   setStreakModalOpen]    = useState(false);
   const [statsModalOpen,    setStatsModalOpen]     = useState(false);
+  const [currencyInfoOpen,  setCurrencyInfoOpen]   = useState(false);
 
   // Read streak + focus goal tracking from global store
   const { currentStreak, lastFocusGoalAchievedAt, streakShields, dailyEffKcal } = useGameStore();
@@ -281,7 +286,7 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── 0. Currency Bar ────────────────────────────────────────── */}
-        <CurrencyBar />
+        <CurrencyBar onInfoPress={() => setCurrencyInfoOpen(true)} />
 
         {/* (PrimaryMetricHero removed — focus metric is now in Heute card) */}
 
@@ -328,9 +333,7 @@ export default function DashboardScreen() {
                     )}
                     {/* Protein-Indikator */}
                     <View style={styles.proteinRow}>
-                      {[1, 2, 3].map(i => (
-                        <Text key={i} style={{ fontSize: 18, opacity: i <= proteinCount ? 1 : 0.2 }}>💎</Text>
-                      ))}
+                      <ProteinDots earned={proteinCount} size={18} />
                     </View>
                     {proteinCount < 3 && mmToNextProtein !== null && mmToNextProtein > 0 && (
                       <Text style={{ fontSize: 11, color: AppColors.textSecondary }}>
@@ -435,6 +438,83 @@ export default function DashboardScreen() {
         visible={statsModalOpen}
         onClose={() => setStatsModalOpen(false)}
       />
+
+      {/* ── Currency Info Modal ────────────────────────────────────── */}
+      <Modal
+        visible={currencyInfoOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCurrencyInfoOpen(false)}
+      >
+        <Pressable style={infoModalStyles.backdrop} onPress={() => setCurrencyInfoOpen(false)}>
+          <Pressable style={infoModalStyles.card} onPress={() => {}}>
+            <Text style={infoModalStyles.title}>Wie wird MM berechnet?</Text>
+
+            <View style={infoModalStyles.section}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MaterialCommunityIcons name="run-fast" size={16} color="#4A90D9" />
+                <Text style={infoModalStyles.sectionTitle}>Ausdauer</Text>
+              </View>
+              <Text style={infoModalStyles.text}>
+                MM = kcal × (Minuten / 40)^0,7{'\n'}
+                Belohnt lange, ausdauerbasierte Einheiten.
+              </Text>
+            </View>
+
+            <View style={infoModalStyles.section}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <GameIcon name="streak" size={16} color="#E8A838" />
+                <Text style={infoModalStyles.sectionTitle}>Diät</Text>
+              </View>
+              <Text style={infoModalStyles.text}>
+                MM = kcal{'\n'}
+                Jede aktive Kalorie zählt direkt – egal wie lang das Training.
+              </Text>
+            </View>
+
+            <View style={infoModalStyles.section}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <GameIcon name="mm" size={16} />
+                <Text style={infoModalStyles.sectionTitle}>Muskelaufbau</Text>
+              </View>
+              <Text style={infoModalStyles.text}>
+                MM = kcal × (kcal / Minuten / 8)^0,7{'\n'}
+                Belohnt intensive Einheiten mit hoher Kalorienrate.
+              </Text>
+            </View>
+
+            <View style={infoModalStyles.divider} />
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <GameIcon name="protein" size={16} />
+              <Text style={infoModalStyles.sectionTitle}>Protein-Schwellen</Text>
+            </View>
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={infoModalStyles.text}>450 MM → 1</Text>
+                <GameIcon name="protein" size={13} />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={infoModalStyles.text}>525 MM → 2</Text>
+                <GameIcon name="protein" size={13} />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={infoModalStyles.text}>600 MM → 3</Text>
+                <GameIcon name="protein" size={13} />
+              </View>
+              <Text style={infoModalStyles.text}>Erreichst du 300 MM, ist dein Streak für heute gesichert.</Text>
+            </View>
+
+            <TouchableOpacity
+              style={infoModalStyles.closeButton}
+              onPress={() => setCurrencyInfoOpen(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={infoModalStyles.closeText}>Verstanden</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -572,7 +652,7 @@ function TrendTile({
 const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: AppColors.background },
   scroll:  { flex: 1 },
-  content: { padding: 16, paddingTop: 8 },
+  content: { padding: 16, paddingTop: 0 },
 
   // Heute header row
   heuteHeaderRow: {
@@ -675,6 +755,69 @@ const styles = StyleSheet.create({
   },
   trendTitle: { fontSize: 12, fontWeight: '500', color: AppColors.textSecondary },
   trendValue: { fontSize: 22, fontWeight: 'bold', color: AppColors.textPrimary },
+});
+
+// ─── Currency Info Modal styles ───────────────────────────────────────────────
+
+const infoModalStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  card: {
+    backgroundColor: AppColors.cardBackground,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(245,166,35,0.25)',
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: AppColors.textPrimary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  section: {
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: AppColors.gold,
+    marginBottom: 4,
+  },
+  text: {
+    fontSize: 13,
+    color: AppColors.textSecondary,
+    lineHeight: 20,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginVertical: 14,
+  },
+  closeButton: {
+    marginTop: 20,
+    backgroundColor: AppColors.gold,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  closeText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1A2E',
+  },
 });
 
 // Shared styles for the exported SectionHeader / StatTile / EmptyDataNotice

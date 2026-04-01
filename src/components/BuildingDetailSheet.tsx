@@ -3,7 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import GameIcon from './GameIcon';
 import { useTranslation } from 'react-i18next';
 import { useGameStore } from '../store/useGameStore';
 import {
@@ -527,8 +528,10 @@ function StorageBonusSection({ building }: { building: Building }) {
 
   const nextBonus = building.level < bonusArr.length ? bonusArr[building.level] : null;
 
-  const emoji     = building.type === 'holzlager' ? '🪵'
-                  : building.type === 'steinlager' ? '🪨' : '🌾';
+  const resIconName: string = building.type === 'holzlager' ? 'pine-tree'
+                            : building.type === 'steinlager' ? 'terrain' : 'sprout';
+  const resIconColor: string = building.type === 'holzlager' ? '#8B6914'
+                             : building.type === 'steinlager' ? '#9A9E9B' : '#7DB356';
   const resLabel  = resource === 'wood'  ? t('resources.wood')
                   : resource === 'stone' ? t('resources.stone')
                   : t('resources.food');
@@ -536,7 +539,7 @@ function StorageBonusSection({ building }: { building: Building }) {
   return (
     <View style={[styles.card, { borderWidth: 1, borderColor: 'rgba(77,208,225,0.25)' }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <Text style={{ fontSize: 16 }}>{emoji}</Text>
+        <MaterialCommunityIcons name={resIconName as any} size={16} color={resIconColor} />
         <Text style={{ fontSize: 14, fontWeight: '600', color: '#4DD0E1' }}>{t('storage.thisStorage')}</Text>
       </View>
 
@@ -589,10 +592,16 @@ function TotalCapFooter({ buildings, gameState }: { buildings: Building[]; gameS
         </Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-        <Text style={{ fontSize: 11 }}>💪</Text>
-        <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
-          {Math.floor(gameState.muskelmasse)}g · 💎 {Math.floor(gameState.protein)} {t('resources.protein')} ({t('storage.unlimited')})
-        </Text>
+        <GameIcon name="mm" size={11} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+            {Math.floor(gameState.muskelmasse)}g ·
+          </Text>
+          <GameIcon name="protein" size={11} />
+          <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+            {Math.floor(gameState.protein)} {t('resources.protein')} ({t('storage.unlimited')})
+          </Text>
+        </View>
       </View>
     </View>
   );

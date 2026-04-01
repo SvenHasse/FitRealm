@@ -10,6 +10,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { MonsterWave, WaveResult, DamageEffect, LootDrop, AppColors, BossPhaseResult } from '../models/types';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import GameIcon, { GameIconName } from './GameIcon';
 import { MONSTER_CONFIGS } from '../config/GameConfig';
 
 interface Props {
@@ -24,12 +26,12 @@ interface Props {
   onClose: () => void;
 }
 
-const OUTCOME_EMOJIS = {
-  perfect: '⚔️',
-  defended: '🛡️',
-  partial: '⚡',
-  overrun: '💀',
-} as const;
+const OUTCOME_ICON_NAMES: Record<string, GameIconName> = {
+  perfect: 'stamm',
+  defended: 'shield-active',
+  partial: 'quest',
+  overrun: 'warning',
+};
 
 const OUTCOME_COLORS = {
   perfect: '#66BB6A',
@@ -55,22 +57,27 @@ function LootItem({ drop, index }: { drop: LootDrop; index: number }) {
   }));
 
   let label = '';
-  let emoji = '';
+  let iconName: GameIconName | null = null;
+  let mciIcon: string | null = null;
+  let mciColor = '#FFFFFF';
   switch (drop.type) {
-    case 'holz':       emoji = '🪵'; label = `+${drop.amount} ${t('resources.wood')}`; break;
-    case 'stein':      emoji = '🪨'; label = `+${drop.amount} ${t('resources.stone')}`; break;
-    case 'nahrung':    emoji = '🌾'; label = `+${drop.amount} ${t('resources.food')}`; break;
-    case 'muskelmasse':emoji = '💪'; label = `+${drop.amount}g ${t('resources.muskelmasse')}`; break;
-    case 'protein':    emoji = '💊'; label = `+${drop.amount} ${t('resources.protein')}`; break;
-    case 'egg':        emoji = '🥚'; label = `${drop.eggRarity ?? t('animals.rarityCommon')} ${t('waves.egg')}`; break;
-    case 'trophy':     emoji = '🏆'; label = t('waves.trophy'); break;
-    case 'cosmetic':   emoji = '✨'; label = t('waves.cosmetic'); break;
-    default:           emoji = '📦'; label = `+${drop.amount}`; break;
+    case 'holz':       mciIcon = 'pine-tree';      mciColor = '#8B6914'; label = `+${drop.amount} ${t('resources.wood')}`; break;
+    case 'stein':      mciIcon = 'terrain';         mciColor = '#9A9E9B'; label = `+${drop.amount} ${t('resources.stone')}`; break;
+    case 'nahrung':    mciIcon = 'sprout';           mciColor = '#7DB356'; label = `+${drop.amount} ${t('resources.food')}`; break;
+    case 'muskelmasse':iconName = 'mm';                                    label = `+${drop.amount}g ${t('resources.muskelmasse')}`; break;
+    case 'protein':    iconName = 'protein';                               label = `+${drop.amount} ${t('resources.protein')}`; break;
+    case 'egg':        iconName = 'egg';                                   label = `${drop.eggRarity ?? t('animals.rarityCommon')} ${t('waves.egg')}`; break;
+    case 'trophy':     iconName = 'trophy';                                label = t('waves.trophy'); break;
+    case 'cosmetic':   mciIcon = 'star-four-points'; mciColor = '#E8A838'; label = t('waves.cosmetic'); break;
+    default:           mciIcon = 'package-variant';  mciColor = '#9A9E9B'; label = `+${drop.amount}`; break;
   }
 
   return (
     <Animated.View style={[styles.lootItem, animStyle]}>
-      <Text style={styles.lootEmoji}>{emoji}</Text>
+      {iconName
+        ? <GameIcon name={iconName} size={18} />
+        : <MaterialCommunityIcons name={mciIcon as any} size={18} color={mciColor} />
+      }
       <Text style={styles.lootLabel}>{label}</Text>
     </Animated.View>
   );
@@ -87,7 +94,7 @@ function DamageItem({ effect }: { effect: DamageEffect }) {
   }
   return (
     <View style={styles.damageItem}>
-      <Text style={styles.damageEmoji}>🔥</Text>
+      <GameIcon name="streak" size={16} />
       <Text style={styles.damageLabel}>
         {t('waves.damageBuilding', { id: effect.buildingId.slice(0, 8) })} — {effectLabel}
       </Text>
@@ -101,7 +108,7 @@ export default function WaveResultSheet({
   const { t } = useTranslation();
   const [showBreakdown, setShowBreakdown] = useState(false);
   const outcome = result.outcome;
-  const cfg = { emoji: OUTCOME_EMOJIS[outcome], color: OUTCOME_COLORS[outcome] };
+  const cfg = { iconName: OUTCOME_ICON_NAMES[outcome] ?? 'warning' as GameIconName, color: OUTCOME_COLORS[outcome] };
   const isBoss = result.isBossWave;
   const isBlood = result.isBloodWave;
 
@@ -145,7 +152,7 @@ export default function WaveResultSheet({
               </View>
             ) : (
               <View style={styles.header}>
-                <Text style={styles.headerEmoji}>{cfg.emoji}</Text>
+                <GameIcon name={cfg.iconName} size={40} color={cfg.color} />
                 <Text style={[styles.headerLabel, { color: cfg.color }]}>{outcomeLabel}</Text>
               </View>
             )}
@@ -169,7 +176,7 @@ export default function WaveResultSheet({
                 <Text style={[styles.sectionTitle, { color: '#FFD700' }]}>{t('waves.combatPhases')}</Text>
                 {result.bossPhases.map((phase: BossPhaseResult) => (
                   <View key={phase.phase} style={styles.phaseRow}>
-                    <Text style={styles.phaseIcon}>{phase.passed ? '✅' : '❌'}</Text>
+                    <GameIcon name={phase.passed ? 'check' : 'close'} size={16} />
                     <Text style={styles.phaseLabel}>{t('waves.phase', { n: phase.phase })}</Text>
                     <Text style={styles.phaseStats}>
                       {phase.vpUsed} VP vs {Math.round(phase.akFaced)} AK

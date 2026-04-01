@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import GameIcon from './GameIcon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppColors, WorkoutRecord } from '../models/types';
 import WorkoutIcon from './WorkoutIcon';
@@ -194,7 +195,10 @@ export default function WorkoutBreakdownSheet({ workout, visible, onClose }: Pro
             {reward.protein > 0 && (
               <Text style={styles.totalProtein}>+ {reward.protein} Protein</Text>
             )}
-            <Text style={styles.totalStreak}>+ 1 Streak Token 🔥</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={styles.totalStreak}>+ 1 Streak Token </Text>
+              <GameIcon name="streak" size={13} color={STREAK_COLOR} />
+            </View>
           </View>
 
           <View style={{ height: 20 }} />
