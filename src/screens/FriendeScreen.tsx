@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StammScreen } from '../components/friends/StammScreen';
 import { FreundeListeScreen } from '../components/friends/FreundeListeScreen';
 import { EinladenScreen } from '../components/friends/EinladenScreen';
@@ -27,7 +28,7 @@ export default function FriendeScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: AppColors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: AppColors.background }} edges={['top']}>
       {/* Inner tab bar */}
       <View style={s.tabBar}>
         {TABS.map((tab) => (
@@ -48,6 +49,6 @@ export default function FriendeScreen() {
       {activeTab === 'stamm'    && <StammScreen />}
       {activeTab === 'freunde'  && <FreundeListeScreen />}
       {activeTab === 'einladen' && <EinladenScreen />}
-    </View>
+    </SafeAreaView>
   );
 }
