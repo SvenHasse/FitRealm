@@ -52,6 +52,7 @@ interface GameState {
   consumeActiveShield:   ()                => void;
   addStreakShields:      (count: number)   => void;
   updateDailyEffKcal: (effKcal: number) => void;
+  recordDailyProteinEarned: (amount: number) => void;
 
   // ── Dev tools ──────────────────────────────────────────────────────────────
   devAddMuskelmasse:  (amount: number) => void;
@@ -127,11 +128,17 @@ export const useGameStore = create<GameState>()(
         } else {
           set({ dailyEffKcal: effKcal });
         }
-        // Protein-Gating: einmal verdient bleibt verdient, kein Rückwärtsgehen
-        const earnedProtein = getProteinFromEffKcal(effKcal);
-        const currentProtein = get().dailyProteinEarned;
-        if (earnedProtein > currentProtein) {
-          set({ dailyProteinEarned: earnedProtein });
+        // NOTE: dailyProteinEarned is NOT auto-set here.
+        // It is only updated via recordDailyProteinEarned(), called from collect().
+      },
+
+      recordDailyProteinEarned: (amount: number) => {
+        const today = new Date().toDateString();
+        const state = get();
+        if (state.lastEffKcalDate !== today) return;
+        const newTotal = Math.min(3, (state.dailyProteinEarned ?? 0) + amount);
+        if (newTotal > (state.dailyProteinEarned ?? 0)) {
+          set({ dailyProteinEarned: newTotal });
         }
       },
 
