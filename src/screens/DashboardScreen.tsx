@@ -304,6 +304,9 @@ export default function DashboardScreen() {
         {/* ── 0. Currency Bar ────────────────────────────────────────── */}
         <CurrencyBar onInfoPress={() => setCurrencyInfoOpen(true)} />
 
+        {/* ── 0b. Workout Queue Card — sofort sichtbar ── */}
+        <WorkoutQueueCard workouts={unprocessed} onPress={openQueue} />
+
         {/* (PrimaryMetricHero removed — focus metric is now in Heute card) */}
 
         {/* ── 1. Tages-Übersicht ─────────────────────────────────────── */}
@@ -425,9 +428,6 @@ export default function DashboardScreen() {
             </View>
           </View>
         )}
-
-        {/* ── 3. Workout Queue Card ──────────────────────────────────── */}
-        <WorkoutQueueCard workouts={unprocessed} onPress={openQueue} />
 
         {/* ── 4. Progress Projection ─────────────────────────────────── */}
         <ProgressProjectionWidget stepsToday={health.stepsToday} stepsGoal={health.stepsGoal} />

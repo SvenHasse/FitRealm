@@ -606,10 +606,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         // Forward workouts to game engine
         const focus = get().userProfile?.fitnessFocus ?? 'diaet';
-        const prevStreakMock = get().gameState.currentStreak;
-        let gs = GE.processWorkouts(get().gameState, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, focus);
+        const prevGsMock = get().gameState;
+        const prevStreakMock = prevGsMock.currentStreak;
+        let gs = GE.processWorkouts(prevGsMock, mockState.recentWorkouts, mockState.healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, focus);
         // Shield protection: if streak dropped and an active shield is valid, restore it
         gs = _applyShieldIfNeeded(gs, prevStreakMock);
+        // Reset reward currencies — awarded only after workout evaluation via collect()
+        gs = {
+          ...gs,
+          muskelmasse: prevGsMock.muskelmasse,
+          protein:     prevGsMock.protein,
+        };
         set({ gameState: gs, storageCap: getTotalStorageCap(gs.buildings) });
         GE.saveGameState(gs);
 
@@ -713,6 +720,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let newGs = GE.processWorkouts(prevGs, updatedWorkouts, get().healthSnapshot, get().userProfile?.hrMax ?? DEFAULT_HRMAX, get().userProfile?.fitnessFocus ?? 'diaet');
     // Shield protection: if streak dropped and an active shield is valid, restore it
     newGs = _applyShieldIfNeeded(newGs, prevStreakManual);
+    // Reset reward currencies — awarded only after workout evaluation via collect()
+    newGs = {
+      ...newGs,
+      muskelmasse: prevGs.muskelmasse,
+      protein:     prevGs.protein,
+    };
     set({ gameState: newGs, storageCap: getTotalStorageCap(newGs.buildings) });
     GE.saveGameState(newGs);
 
@@ -1565,16 +1578,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 }));
 
-/** Sync all currency fields from engine GameState → currency store (gameStore) */
+/** Sync non-reward state from engine GameState → currency store.
+ *  NOTE: muskelmasse and protein are intentionally excluded — they are
+ *  exclusively awarded via useWorkoutReward.collect() to ensure the
+ *  user must evaluate a workout before receiving currencies.
+ */
 function _syncAllCurrencies(gs: GameState) {
   const cs = useCurrencyStore.getState();
-  // Overwrite currency store with engine state values to keep them in sync
-  if (Math.floor(gs.muskelmasse) !== Math.floor(cs.muskelmasse)) {
-    useCurrencyStore.setState({ muskelmasse: gs.muskelmasse });
-  }
-  if (gs.protein !== cs.protein) {
-    useCurrencyStore.setState({ protein: gs.protein });
-  }
   if (gs.streakTokens !== cs.streakTokens) {
     useCurrencyStore.setState({ streakTokens: gs.streakTokens });
   }
