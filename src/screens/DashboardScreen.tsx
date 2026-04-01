@@ -193,8 +193,8 @@ function useStatCountUp(target: number, duration = 900): number {
   return val;
 }
 
-function StatCard({ label, numericValue, suffix, color }: {
-  label: string; numericValue: number; suffix?: string; color: string;
+function StatCard({ label, icon, numericValue, suffix, color }: {
+  label: string; icon?: string; numericValue: number; suffix?: string; color: string;
 }) {
   const display = useStatCountUp(numericValue);
   const formatted = display.toLocaleString('de-DE') + (suffix ?? '');
@@ -205,7 +205,10 @@ function StatCard({ label, numericValue, suffix, color }: {
       borderColor: `${color}55`,
     }]}>
       <Text style={[statCardStyles.value, { color }]}>{formatted}</Text>
-      <Text style={statCardStyles.label}>{label}</Text>
+      {icon
+        ? <MaterialCommunityIcons name={icon as any} size={16} color={color} style={{ opacity: 0.8 }} />
+        : <Text style={statCardStyles.label}>{label}</Text>
+      }
     </View>
   );
 }
@@ -366,17 +369,20 @@ export default function DashboardScreen() {
                 <View style={styles.secondaryMetricsRow}>
                   <StatCard
                     label="Schritte"
+                    icon="shoe-print"
                     numericValue={health.stepsToday}
                     color="#4CAF50"
                   />
                   <StatCard
                     label="Verbrannte Kalorien"
+                    icon="fire"
                     numericValue={health.activeCaloriesToday}
                     suffix=" kcal"
                     color="#FF9800"
                   />
                   <StatCard
                     label="Workout-Zeit"
+                    icon="timer-outline"
                     numericValue={health.workoutMinutesToday}
                     suffix=" min"
                     color={AppColors.teal}
