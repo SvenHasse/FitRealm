@@ -650,12 +650,12 @@ export function processWorkouts(state: GameState, workouts: WorkoutRecord[], sna
   // VO2 Max improvement → +5 Protein (kept — not part of PP)
   const vo2Trend = snapshot.vo2MaxCurrent != null && snapshot.vo2Max30DaysAgo != null
     ? snapshot.vo2MaxCurrent - snapshot.vo2Max30DaysAgo : null;
-  if (vo2Trend != null && vo2Trend > 0) s.protein += 5;
+  // if (vo2Trend != null && vo2Trend > 0) s.protein += 5;  // disabled: protein via collect() only
 
   // RHR improvement >= 2 bpm → +5 Protein (kept — not part of PP)
   const rhrTrend = snapshot.restingHeartRateCurrent != null && snapshot.restingHeartRate30DaysAgo != null
     ? snapshot.restingHeartRateCurrent - snapshot.restingHeartRate30DaysAgo : null;
-  if (rhrTrend != null && rhrTrend <= -2) s.protein += 5;
+  // if (rhrTrend != null && rhrTrend <= -2) s.protein += 5;  // disabled: protein via collect() only
 
   return capResourcesToStorage(s);
 }

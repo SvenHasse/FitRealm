@@ -107,16 +107,27 @@ export function useWorkoutReward(
     await markWorkoutProcessed(workout.id);
     useWorkoutStore.getState().markAsProcessed(workout.id);
 
-    // Credit currencies
+    // Credit MM
     addMuskelmasse(mmEarned);
-    if (proteinEarned > 0) addProtein(proteinEarned);
     setLastWorkoutDate(new Date());
 
-    // Update daily EffKcal total in currency store (cumulative: existing daily + this workout)
+    // Update daily EffKcal total first (cumulative: existing daily + this workout)
     const today2 = new Date().toDateString();
     const csNow = useGameStore.getState();
     const currentDaily = csNow.lastEffKcalDate === today2 ? csNow.dailyEffKcal : 0;
     csNow.updateDailyEffKcal(currentDaily + effKcal);
+
+    // Fresh protein delta calculation (avoids stale closure from render time)
+    const csAfter = useGameStore.getState();
+    const newCumulative = csAfter.dailyEffKcal;
+    const alreadyEarned = csAfter.dailyProteinEarned ?? 0;
+    const freshTotalProtein = Math.min(3, getProteinFromEffKcal(newCumulative));
+    const freshProteinDelta = Math.max(0, freshTotalProtein - alreadyEarned);
+
+    if (freshProteinDelta > 0) {
+      addProtein(freshProteinDelta);
+      csAfter.recordDailyProteinEarned(freshProteinDelta);
+    }
 
     // Sync to engine store
     const cs = useGameStore.getState();
@@ -128,7 +139,7 @@ export function useWorkoutReward(
     });
 
     setTimeout(() => setPhase('done'), 900);
-  }, [workout.id, effKcal, mmEarned, proteinEarned, addMuskelmasse, addProtein, setLastWorkoutDate, patchGameStateCurrencies]);
+  }, [workout.id, effKcal, mmEarned, addMuskelmasse, addProtein, setLastWorkoutDate, patchGameStateCurrencies]);
 
   // ── Queue navigation ──────────────────────────────────────────────────────
   const getNextWorkout = useCallback(() => {
