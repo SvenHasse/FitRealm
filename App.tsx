@@ -23,6 +23,7 @@ import { useFriendsStore } from './src/store/useFriendsStore';
 import { DEV } from './src/config/developerConfig';
 
 import DashboardScreen from './src/screens/DashboardScreen';
+import FriendeScreen from './src/screens/FriendeScreen';
 import RealmScreen from './src/screens/RealmScreen';
 import GoalsScreen from './src/screens/GoalsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -57,6 +58,7 @@ function TabNavigator() {
           let iconName: keyof typeof Ionicons.glyphMap = 'home';
           if (route.name === 'Dashboard') iconName = 'home';
           else if (route.name === 'Realm') iconName = 'map';
+          else if (route.name === 'Freunde') iconName = 'people-outline';
           else if (route.name === 'Goals') iconName = 'trophy';
           else if (route.name === 'Settings') iconName = 'settings';
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -74,6 +76,7 @@ function TabNavigator() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: t('tabs.dashboard') }} />
       <Tab.Screen name="Realm" component={RealmScreen} options={{ headerShown: false, title: t('tabs.realm') }} />
+      <Tab.Screen name="Freunde" component={FriendeScreen} options={{ headerShown: false, title: 'Freunde' }} />
       <Tab.Screen name="Goals" component={GoalsScreen} options={{ title: t('tabs.goals') }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabs.settings') }} />
     </Tab.Navigator>
