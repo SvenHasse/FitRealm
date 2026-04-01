@@ -230,46 +230,6 @@ const INITIAL_GOALS: Goal[] = [
     reward: { muskelmasse: 600, protein: 8 },
     icon: 'fire',
   },
-  // Village
-  {
-    id: 'village-builder',
-    category: 'village',
-    difficulty: 'easy',
-    status: 'active',
-    titleKey: 'goals.village.builder.title',
-    descriptionKey: 'goals.village.builder.desc',
-    currentValue: 0,
-    targetValue: 3,
-    unit: 'buildings',
-    reward: { muskelmasse: 300, holz: 400 },
-    icon: 'home-plus',
-  },
-  {
-    id: 'village-workers',
-    category: 'village',
-    difficulty: 'easy',
-    status: 'active',
-    titleKey: 'goals.village.workers.title',
-    descriptionKey: 'goals.village.workers.desc',
-    currentValue: 0,
-    targetValue: 2,
-    unit: 'workers',
-    reward: { muskelmasse: 200, protein: 3 },
-    icon: 'account-hard-hat',
-  },
-  {
-    id: 'village-resources',
-    category: 'village',
-    difficulty: 'medium',
-    status: 'active',
-    titleKey: 'goals.village.resources.title',
-    descriptionKey: 'goals.village.resources.desc',
-    currentValue: 0,
-    targetValue: 1000,
-    unit: 'holz',
-    reward: { muskelmasse: 250, protein: 3 },
-    icon: 'treasure-chest',
-  },
 ];
 
 const CURRENT_SEASONAL_GOAL: SeasonalGoal = {
@@ -381,7 +341,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Generate fitness goals based on focus (or default)
     const focus: FitnessFocus = userProfile?.fitnessFocus ?? 'diaet';
     const fitnessGoals = generateFitnessGoals(focus);
-    const villageGoals = INITIAL_GOALS.filter(g => g.category !== 'fitness');
 
     set({
       gameState: gs,
@@ -393,7 +352,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       storageCap: getTotalStorageCap(gs.buildings),
       userProfile,
       hasCompletedOnboarding,
-      goals: [...fitnessGoals, ...villageGoals],
+      goals: fitnessGoals,
     });
 
     // If mock mode, load the mock game state with pre-built buildings
