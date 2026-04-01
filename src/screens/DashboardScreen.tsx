@@ -63,6 +63,8 @@ import { useGameStore }         from '../store/gameStore';
 import { STREAK_MILESTONES }    from '../utils/streakUtils';
 import GameIcon from '../components/GameIcon';
 import ProteinDots from '../components/ProteinDots';
+import { useFriendsStore } from '../store/useFriendsStore';
+import { getActiveBuffs, ActiveBuff } from '../utils/buffUtils';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -227,6 +229,13 @@ const statCardStyles = StyleSheet.create({
   label: { fontSize: 11, color: AppColors.textSecondary, marginTop: 3, textAlign: 'center' },
 });
 
+function getBonusTypeLabel(type: string): string {
+  if (type === 'mm') return 'MM';
+  if (type === 'storage') return 'Lagerkapazität';
+  if (type === 'speed') return 'Produktion';
+  return 'Global';
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
@@ -241,6 +250,13 @@ export default function DashboardScreen() {
   const [streakModalOpen,   setStreakModalOpen]    = useState(false);
   const [statsModalOpen,    setStatsModalOpen]     = useState(false);
   const [currencyInfoOpen,  setCurrencyInfoOpen]   = useState(false);
+
+  // Tribe + active buffs
+  const tribe = useFriendsStore(s => s.tribe);
+  const activeBuffs = React.useMemo(
+    () => getActiveBuffs(useEngineStore.getState().gameState, tribe ?? null),
+    [tribe]
+  );
 
   // Read streak + focus goal tracking from global store
   const { currentStreak, lastFocusGoalAchievedAt, streakShields, dailyEffKcal } = useGameStore();
@@ -383,6 +399,32 @@ export default function DashboardScreen() {
             />
           );
         })()}
+
+        {/* ── 2b. Aktuelle Buffs ───────────────────────────────────── */}
+        {activeBuffs.length > 0 && (
+          <View style={cardBackground}>
+            <SectionHeader title="Aktuelle Buffs" icon="flash" />
+            <View style={styles.buffGrid}>
+              {activeBuffs.map((buff: ActiveBuff) => (
+                <View
+                  key={buff.id}
+                  style={[styles.buffChip, {
+                    borderColor: `${buff.sourceColor}40`,
+                    backgroundColor: `${buff.sourceColor}12`,
+                  }]}
+                >
+                  <MaterialCommunityIcons name={buff.sourceIcon as any} size={16} color={buff.sourceColor} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.buffChipValue, { color: buff.sourceColor }]}>
+                      +{buff.bonusPercent}% {getBonusTypeLabel(buff.bonusType)}
+                    </Text>
+                    <Text style={styles.buffChipSource}>{buff.label}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* ── 3. Workout Queue Card ──────────────────────────────────── */}
         <WorkoutQueueCard workouts={unprocessed} onPress={openQueue} />
@@ -731,6 +773,28 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 12,
     width: '100%',
+  },
+
+  buffGrid: {
+    gap: 8,
+  },
+  buffChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  buffChipValue: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  buffChipSource: {
+    fontSize: 11,
+    color: AppColors.textSecondary,
+    marginTop: 1,
   },
 
   workoutRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },

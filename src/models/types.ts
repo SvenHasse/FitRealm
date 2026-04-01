@@ -175,6 +175,8 @@ export interface Tribe {
   currentWeeklyMM: number;      // Fortschritt
   activeQuest: TribeQuest | null;
   mmBoostPercent: number;       // z.B. 8 = +8% MM für alle Mitglieder
+  weeklyProgress?: number;      // Alias / zusätzlicher Fortschrittszähler
+  weeklyGoal?: number;          // Optionales Wochen-Ziel
 }
 
 export interface InviteStats {

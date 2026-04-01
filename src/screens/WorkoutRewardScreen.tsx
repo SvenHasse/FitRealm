@@ -62,38 +62,6 @@ function hrColor(bpm: number): string {
   return '#F44336';
 }
 
-// ── Progress Bar ───────────────────────────────────────────────────────────────
-
-function StreakProgressBar({ effKcal, visible }: { effKcal: number; visible: boolean }) {
-  const pct = Math.min(effKcal / 300, 1);
-  const width = useSharedValue(0);
-
-  useEffect(() => {
-    if (visible) {
-      width.value = withTiming(pct, { duration: 900, easing: Easing.out(Easing.cubic) });
-    }
-  }, [visible]);
-
-  const barStyle = useAnimatedStyle(() => ({
-    width: `${width.value * 100}%` as any,
-  }));
-
-  const barColor = pct >= 1 ? GREEN : GOLD;
-  const label    = pct >= 1 ? 'Streak-Ziel erreicht' : `${Math.round(effKcal)} / 300 MM`;
-
-  return (
-    <View style={styles.progressWrap}>
-      <View style={styles.progressHeader}>
-        <Text style={styles.progressLabel}>Tages-Energie</Text>
-        <Text style={[styles.progressValue, { color: pct >= 1 ? GREEN : GOLD }]}>{label}</Text>
-      </View>
-      <View style={styles.progressTrack}>
-        <Animated.View style={[styles.progressFill, { backgroundColor: barColor }, barStyle]} />
-      </View>
-    </View>
-  );
-}
-
 // ── Main Screen ────────────────────────────────────────────────────────────────
 
 export default function WorkoutRewardScreen({ route, navigation }: Props) {
@@ -117,7 +85,7 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
   const fitnessFocus = useEngineStore(s => s.userProfile?.fitnessFocus ?? 'diaet');
   const iconInfo     = getWorkoutIcon(workout.type);
 
-  const { effKcal, mmEarned, proteinEarned, streakAchieved } = reward;
+  const { effKcal, mmEarned, proteinEarned, streakAchieved, mmBoostPercent, mmBoostSources } = reward;
   const untilNext = mmUntilNextProtein(effKcal);
 
   // ── Phase flags ────────────────────────────────────────────────────────────
@@ -126,7 +94,6 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
   const showCounter  = !['header', 'stats', 'reward'].includes(phase);
   const showStreak   = !['header', 'stats', 'reward', 'counter'].includes(phase);
   const showProtein  = !['header', 'stats', 'reward', 'counter', 'streak'].includes(phase);
-  const showProgress = !['header', 'stats', 'reward', 'counter', 'streak', 'protein'].includes(phase);
   const collecting   = phase === 'collecting' || phase === 'done';
 
   // ── MM counter ────────────────────────────────────────────────────────────
@@ -190,8 +157,8 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
     if (showStreak) {
       streakOpacity.value = withTiming(1, { duration: 250 });
       streakScale.value   = withSequence(
-        withSpring(1.18, { damping: 6, stiffness: 200 }),
-        withSpring(0.95, { damping: 8, stiffness: 200 }),
+        withSpring(1.06, { damping: 6, stiffness: 200 }),
+        withSpring(0.97, { damping: 8, stiffness: 200 }),
         withSpring(1.0,  { damping: 10, stiffness: 200 }),
       );
       if (streakAchieved) {
@@ -344,6 +311,16 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
               <Text style={styles.mmUnit}> MM</Text>
             </View>
             <Text style={styles.mmSubLabel}>Muskelmasse verdient</Text>
+            {mmBoostPercent > 0 && (
+              <View style={styles.buffRow}>
+                <MaterialCommunityIcons name="shield-star" size={14} color="#9C27B0" />
+                {mmBoostSources.map((src: {label: string; percent: number}, i: number) => (
+                  <Text key={i} style={styles.buffLabel}>
+                    +{src.percent}% {src.label}
+                  </Text>
+                ))}
+              </View>
+            )}
           </Animated.View>
         )}
 
@@ -379,13 +356,6 @@ export default function WorkoutRewardScreen({ route, navigation }: Props) {
             ) : untilNext !== null && untilNext > 0 ? (
               <Text style={styles.proteinHint}>Noch {untilNext} MM bis zum nächsten Protein</Text>
             ) : null}
-          </View>
-        )}
-
-        {/* ── 6. Progress Bar ─────────────────────────────────────────────── */}
-        {showProgress && (
-          <View style={styles.card}>
-            <StreakProgressBar effKcal={effKcal} visible={showProgress} />
           </View>
         )}
 
@@ -486,11 +456,34 @@ const styles = StyleSheet.create({
     marginTop: 10, fontWeight: '500',
   },
 
+  // Buff display
+  buffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    backgroundColor: '#9C27B015',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#9C27B030',
+  },
+  buffLabel: {
+    fontSize: 12,
+    color: '#9C27B0',
+    fontWeight: '600',
+  },
+
   // Streak badge
   streakBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     borderRadius: 16, padding: 16, marginBottom: 14,
     borderWidth: 1,
+    alignSelf: 'center',
+    maxWidth: '100%',
+    width: '100%',
+    overflow: 'hidden',
   },
   streakBadgeGreen: {
     backgroundColor: `${GREEN}18`,

@@ -131,10 +131,10 @@ export const useFriendsStore = create<FriendsStore>()(
 
       leaveTribe: () => set({ tribe: null }),
 
-      updateTribeProgress: (weeklyMM) =>
+      updateTribeProgress: (mmEarned) =>
         set((s) => {
           if (!s.tribe) return s;
-          const updatedMM = s.tribe.currentWeeklyMM + weeklyMM;
+          const updatedMM = s.tribe.currentWeeklyMM + mmEarned;
           const totalMM = s.tribe.members.reduce((sum, m) => sum + m.totalMM, 0);
           let newLevel = s.tribe.level;
           for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
@@ -144,6 +144,7 @@ export const useFriendsStore = create<FriendsStore>()(
             tribe: {
               ...s.tribe,
               currentWeeklyMM: updatedMM,
+              weeklyProgress: (s.tribe.weeklyProgress ?? 0) + mmEarned,
               level: newLevel,
               mmBoostPercent: getMmBoostForLevel(newLevel),
             },
