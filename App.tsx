@@ -19,6 +19,8 @@ import './src/i18n';
 import { useGameStore } from './src/store/useGameStore';
 import { AppColors } from './src/models/types';
 import { RootStackParamList } from './src/navigation/types';
+import { useFriendsStore } from './src/store/useFriendsStore';
+import { DEV } from './src/config/developerConfig';
 
 import DashboardScreen from './src/screens/DashboardScreen';
 import RealmScreen from './src/screens/RealmScreen';
@@ -96,6 +98,15 @@ export default function App() {
       initializeWaveSystem();
       refreshGoalProgress();
     });
+
+    // Mock-Freunde laden wenn DEV.USE_MOCK_FRIENDS aktiv
+    if (DEV.USE_MOCK_FRIENDS) {
+      const { friends, addFriend, setMyInviteCode } = useFriendsStore.getState();
+      if (friends.length === 0) {
+        DEV.MOCK_FRIENDS.forEach((f) => addFriend(f));
+        setMyInviteCode(DEV.MOCK_INVITE_CODE);
+      }
+    }
   }, []);
 
   if (!fontsLoaded) {
