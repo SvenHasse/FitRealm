@@ -662,5 +662,38 @@
     "assignmentBuilding": "Gebäude (nicht gefunden)",
     "assignmentUnknown": "Unbekannt",
     "releaseButton": "Freilassen"
+  },
+  "auth": {
+    "subtitle": "Dein Fitness-Königreich erwartet dich",
+    "continueApple": "Mit Apple fortfahren",
+    "continueGoogle": "Mit Google fortfahren",
+    "or": "oder",
+    "namePlaceholder": "Name",
+    "emailPlaceholder": "E-Mail",
+    "passwordPlaceholder": "Passwort",
+    "login": "Anmelden",
+    "register": "Registrieren",
+    "switchToRegister": "Noch kein Konto? Jetzt registrieren",
+    "switchToLogin": "Bereits ein Konto? Anmelden",
+    "appleNoToken": "Apple-Anmeldung fehlgeschlagen: Kein Token erhalten.",
+    "appleFailed": "Apple-Anmeldung fehlgeschlagen.",
+    "googleNoToken": "Google-Anmeldung fehlgeschlagen: Kein Token erhalten.",
+    "googleFailed": "Google-Anmeldung fehlgeschlagen."
+  },
+  "migration": {
+    "running": "Spielstand wird synchronisiert…",
+    "retry": "Erneut versuchen",
+    "skipOffline": "Offline fortfahren",
+    "unknownError": "Unbekannter Fehler bei der Migration.",
+    "conflictTitle": "Spielstand-Konflikt",
+    "conflictSubtitle": "Es existieren zwei Spielstände. Wähle den, den du behalten möchtest.",
+    "localDevice": "Lokales Gerät",
+    "serverCloud": "Cloud-Server",
+    "rathausLevel": "Rathaus-Stufe",
+    "totalMM": "Muskelmasse gesamt",
+    "streak": "Streak",
+    "buildings": "Gebäude",
+    "animals": "Tiere",
+    "choose": "Auswählen"
   }
 }

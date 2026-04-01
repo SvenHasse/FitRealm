@@ -181,6 +181,12 @@ interface GameStore {
   updateUserProfile: (partial: Partial<Omit<UserProfile, 'hrMax' | 'onboardingCompleted' | 'focusGoalLastChangedAt'>>) => void;
   getUserHRmax: () => number;
 
+  // Sync
+  syncVersion: number;
+  lastSyncedAt: string | null;
+  loadGameState: (gameState: GameState, version: number) => void;
+  setSyncVersion: (version: number) => void;
+
   // Helpers
   canAfford: (cost: ResourceCost) => boolean;
   hourlyProductionRate: (building: Building) => number;
@@ -287,6 +293,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   goals: INITIAL_GOALS,
   seasonalGoal: CURRENT_SEASONAL_GOAL,
   claimedGoalIds: [],
+  syncVersion: 1,
+  lastSyncedAt: null,
 
   // MARK: - Initialize
   async initialize() {
@@ -665,6 +673,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const mock = GE.loadMockGameState();
     set({ gameState: mock, storageCap: getTotalStorageCap(mock.buildings) });
     GE.saveGameState(mock);
+  },
+
+  // ── Sync ────────────────────────────────────────────────────────────────
+  loadGameState(gameState: GameState, version: number) {
+    const gs = GE.initializeState(gameState);
+    set({
+      gameState: gs,
+      storageCap: getTotalStorageCap(gs.buildings),
+      syncVersion: version,
+      lastSyncedAt: new Date().toISOString(),
+    });
+    GE.saveGameState(gs);
+  },
+
+  setSyncVersion(version: number) {
+    set({ syncVersion: version, lastSyncedAt: new Date().toISOString() });
   },
 
   // MARK: - Manual Workout Injection

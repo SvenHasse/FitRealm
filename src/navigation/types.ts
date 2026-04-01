@@ -12,6 +12,8 @@ export interface WorkoutRewardData {
 }
 
 export type RootStackParamList = {
+  Auth: undefined;
+  MigrationCheck: undefined;
   Onboarding: undefined;
   Main: undefined;
   WorkoutReward: {

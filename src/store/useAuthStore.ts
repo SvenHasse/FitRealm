@@ -14,6 +14,7 @@ interface AuthState {
   user: User | null;
   profile: DBProfile | null;
   error: string | null;
+  migrationComplete: boolean;
 
   // Actions
   initialize: () => Promise<void>;
@@ -24,6 +25,7 @@ interface AuthState {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (updates: Partial<Pick<DBProfile, 'display_name' | 'avatar_url' | 'focus_goal'>>) => Promise<boolean>;
+  setMigrationComplete: () => void;
   clearError: () => void;
 }
 
@@ -37,6 +39,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
   profile: null,
   error: null,
+  migrationComplete: false,
 
   // ── Initialize ──────────────────────────────────────────────────────────
   initialize: async () => {
@@ -126,7 +129,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   signOut: async () => {
     set({ isLoading: true });
     await Auth.signOut();
-    set({ session: null, user: null, profile: null, isLoading: false, error: null });
+    set({ session: null, user: null, profile: null, isLoading: false, error: null, migrationComplete: false });
   },
 
   // ── Profile ─────────────────────────────────────────────────────────────
@@ -145,6 +148,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({ profile: result.profile, isLoading: false });
     return true;
   },
+
+  // ── Migration ──────────────────────────────────────────────────────────
+  setMigrationComplete: () => set({ migrationComplete: true }),
 
   // ── Helpers ─────────────────────────────────────────────────────────────
   clearError: () => set({ error: null }),

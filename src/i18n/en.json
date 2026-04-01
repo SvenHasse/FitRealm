@@ -661,5 +661,38 @@
     "resultExplain": "Your HRmax is used to precisely evaluate workout intensity. Workouts above 70% HRmax count as intense.",
     "resultFormula": "Formula: 220 \u2212 {{age}} = HRmax",
     "letsGo": "Let's go!"
+  },
+  "auth": {
+    "subtitle": "Your fitness kingdom awaits",
+    "continueApple": "Continue with Apple",
+    "continueGoogle": "Continue with Google",
+    "or": "or",
+    "namePlaceholder": "Name",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "login": "Log in",
+    "register": "Register",
+    "switchToRegister": "No account yet? Register now",
+    "switchToLogin": "Already have an account? Log in",
+    "appleNoToken": "Apple Sign-In failed: no token received.",
+    "appleFailed": "Apple Sign-In failed.",
+    "googleNoToken": "Google Sign-In failed: no token received.",
+    "googleFailed": "Google Sign-In failed."
+  },
+  "migration": {
+    "running": "Syncing game state…",
+    "retry": "Retry",
+    "skipOffline": "Continue offline",
+    "unknownError": "Unknown error during migration.",
+    "conflictTitle": "Game State Conflict",
+    "conflictSubtitle": "Two game states exist. Choose the one you want to keep.",
+    "localDevice": "Local Device",
+    "serverCloud": "Cloud Server",
+    "rathausLevel": "Town Hall Level",
+    "totalMM": "Total Muscle Mass",
+    "streak": "Streak",
+    "buildings": "Buildings",
+    "animals": "Animals",
+    "choose": "Choose"
   }
 }

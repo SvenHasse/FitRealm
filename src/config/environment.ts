@@ -26,8 +26,9 @@ const LOCAL_CONFIG: EnvironmentConfig = {
 
 const DEV_CONFIG: EnvironmentConfig = {
   env: 'dev',
-  supabaseUrl: 'https://TODO_DEV_PROJECT.supabase.co',    // TODO: Replace with dev project URL
-  supabaseAnonKey: 'TODO_DEV_ANON_KEY',                    // TODO: Replace with dev anon key
+  supabaseUrl: 'https://rcejpadwuxqmuitshknp.supabase.co',
+  supabaseAnonKey:
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjZWpwYWR3dXhxbXVpdHNoa25wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNzA5NTUsImV4cCI6MjA5MDY0Njk1NX0.VLsgrha-AHTMu9WThN3crnaZ_HDThOM5uHXW7lczm_U',
   authCallbackScheme: 'fitrealm://auth/callback',
   allowMockData: true,
   verboseLogging: true,
@@ -35,8 +36,9 @@ const DEV_CONFIG: EnvironmentConfig = {
 
 const PROD_CONFIG: EnvironmentConfig = {
   env: 'production',
-  supabaseUrl: 'https://TODO_PROD_PROJECT.supabase.co',   // TODO: Replace with prod project URL
-  supabaseAnonKey: 'TODO_PROD_ANON_KEY',                   // TODO: Replace with prod anon key
+  supabaseUrl: 'https://wmeowghmxwkdsvwtjahy.supabase.co',
+  supabaseAnonKey:
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtZW93Z2hteHdrZHN2d3RqYWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNzA5NzksImV4cCI6MjA5MDY0Njk3OX0._SH4AOxVp-IheXwNpPEJuM-K9J-yyIBQDnzArGsAimc',
   authCallbackScheme: 'com.fitrealm.app://auth/callback',
   allowMockData: false,
   verboseLogging: false,

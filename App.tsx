@@ -17,10 +17,12 @@ import { useFonts } from 'expo-font';
 import { useTranslation } from 'react-i18next';
 import './src/i18n';
 import { useGameStore } from './src/store/useGameStore';
+import { useAuthStore } from './src/store/useAuthStore';
 import { AppColors } from './src/models/types';
 import { RootStackParamList } from './src/navigation/types';
 import { useFriendsStore } from './src/store/useFriendsStore';
 import { DEV } from './src/config/developerConfig';
+import SyncProvider from './src/components/SyncProvider';
 
 import DashboardScreen from './src/screens/DashboardScreen';
 import FriendeScreen from './src/screens/FriendeScreen';
@@ -29,6 +31,8 @@ import GoalsScreen from './src/screens/GoalsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import WorkoutRewardScreen from './src/screens/WorkoutRewardScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import AuthScreen from './src/screens/AuthScreen';
+import MigrationCheckScreen from './src/screens/MigrationCheckScreen';
 import MinigameScreen from './src/minigame/MinigameScreen';
 import GLBTestScreen from './src/screens/GLBTestScreen';
 import RealmScreen3D from './src/screens/RealmScreen3D';
@@ -89,6 +93,12 @@ export default function App() {
   const refreshGoalProgress  = useGameStore(s => s.refreshGoalProgress);
   const hasCompletedOnboarding = useGameStore(s => s.hasCompletedOnboarding);
 
+  // Auth state
+  const initializeAuth    = useAuthStore(s => s.initialize);
+  const isAuthInitialized = useAuthStore(s => s.isInitialized);
+  const session           = useAuthStore(s => s.session);
+  const migrationComplete = useAuthStore(s => s.migrationComplete);
+
   // Pre-load ALL icon fonts before rendering anything.
   // Without this, icons on the first screen can render as "?" on cold start.
   const [fontsLoaded] = useFonts({
@@ -97,6 +107,7 @@ export default function App() {
   });
 
   useEffect(() => {
+    initializeAuth();
     initialize().then(() => {
       initializeWaveSystem();
       refreshGoalProgress();
@@ -112,7 +123,8 @@ export default function App() {
     }
   }, []);
 
-  if (!fontsLoaded) {
+  // Loading: fonts or auth not ready
+  if (!fontsLoaded || !isAuthInitialized) {
     return (
       <View style={{ flex: 1, backgroundColor: AppColors.background, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={AppColors.gold} />
@@ -120,37 +132,64 @@ export default function App() {
     );
   }
 
+  // Navigation Guard: not logged in → Auth screen
+  if (!session) {
+    return (
+      <NavigationContainer theme={DarkTheme}>
+        <StatusBar style="light" />
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          <RootStack.Screen name="Auth" component={AuthScreen} />
+        </RootStack.Navigator>
+      </NavigationContainer>
+    );
+  }
+
+  // Navigation Guard: logged in but migration not done → MigrationCheck
+  if (!migrationComplete) {
+    return (
+      <NavigationContainer theme={DarkTheme}>
+        <StatusBar style="light" />
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          <RootStack.Screen name="MigrationCheck" component={MigrationCheckScreen} />
+        </RootStack.Navigator>
+      </NavigationContainer>
+    );
+  }
+
+  // Fully authenticated + migrated → main app with sync
   return (
-    <NavigationContainer theme={DarkTheme}>
-      <StatusBar style="light" />
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        <RootStack.Screen name="Main" component={TabNavigator} />
-        <RootStack.Screen
-          name="Onboarding"
-          component={OnboardingScreen}
-          options={{ presentation: 'fullScreenModal' }}
-        />
-        <RootStack.Screen
-          name="WorkoutReward"
-          component={WorkoutRewardScreen}
-          options={{ presentation: 'modal' }}
-        />
-        <RootStack.Screen
-          name="Minigame"
-          component={MinigameScreen}
-          options={{ presentation: 'fullScreenModal' }}
-        />
-        <RootStack.Screen
-          name="GLBTest"
-          component={GLBTestScreen}
-          options={{ presentation: 'fullScreenModal', headerShown: false }}
-        />
-        <RootStack.Screen
-          name="RealmScreen3D"
-          component={RealmScreen3D}
-          options={{ presentation: 'fullScreenModal', headerShown: false }}
-        />
-      </RootStack.Navigator>
-    </NavigationContainer>
+    <SyncProvider>
+      <NavigationContainer theme={DarkTheme}>
+        <StatusBar style="light" />
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          <RootStack.Screen name="Main" component={TabNavigator} />
+          <RootStack.Screen
+            name="Onboarding"
+            component={OnboardingScreen}
+            options={{ presentation: 'fullScreenModal' }}
+          />
+          <RootStack.Screen
+            name="WorkoutReward"
+            component={WorkoutRewardScreen}
+            options={{ presentation: 'modal' }}
+          />
+          <RootStack.Screen
+            name="Minigame"
+            component={MinigameScreen}
+            options={{ presentation: 'fullScreenModal' }}
+          />
+          <RootStack.Screen
+            name="GLBTest"
+            component={GLBTestScreen}
+            options={{ presentation: 'fullScreenModal', headerShown: false }}
+          />
+          <RootStack.Screen
+            name="RealmScreen3D"
+            component={RealmScreen3D}
+            options={{ presentation: 'fullScreenModal', headerShown: false }}
+          />
+        </RootStack.Navigator>
+      </NavigationContainer>
+    </SyncProvider>
   );
 }

@@ -88,7 +88,7 @@ export default function OnboardingScreen({ navigation }: Props) {
       gender,
       fitnessFocus,
     });
-    navigation.replace('Main');
+    navigation.replace('Auth');
   }
 
   // Animate HRmax count-up when reaching result page
