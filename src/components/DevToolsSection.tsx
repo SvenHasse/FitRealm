@@ -20,6 +20,8 @@ import { useWorkoutStore } from '../store/workoutStore';
 import { resetAllData, resetWithMockData } from '../utils/resetUtils';
 import { ANIMAL_CONFIGS, EGG_HATCH_CONFIGS } from '../config/GameConfig';
 import { saveGameState } from '../engines/GameEngine';
+import { useFriendsStore } from '../store/useFriendsStore';
+import { getMmBoostForLevel } from '../utils/friendsUtils';
 import { gameStateRathausLevel } from '../models/types';
 import { waveService } from '../services/WaveService';
 import { combatService } from '../services/CombatService';
@@ -514,6 +516,67 @@ export default function DevToolsSection() {
     Alert.alert('🔥 Streak', `Streak auf 30 Tage gesetzt (war ${currentStreak}).`);
   };
 
+  // ── Stamm-Handlers ────────────────────────────────────────────────────────
+
+  const handleCreateMockTribe = () => {
+    useFriendsStore.getState().createTribe('Eisenwölfe', 'stamm', 'open');
+    Alert.alert('Stamm erstellt', 'Eisenwölfe — Level 1 (+3% MM-Buff)\n\nDashboard-Buffs sollten jetzt sichtbar sein.');
+  };
+
+  const handleTribeLevelUp = () => {
+    const tribe = useFriendsStore.getState().tribe;
+    if (!tribe) { Alert.alert('Kein Stamm', 'Zuerst einen Stamm erstellen.'); return; }
+    const newLevel = Math.min(tribe.level + 1, 5);
+    useFriendsStore.setState((s) => ({
+      tribe: s.tribe ? {
+        ...s.tribe,
+        level: newLevel,
+        mmBoostPercent: getMmBoostForLevel(newLevel),
+        // Simulate accumulated member MM so the level bar fills
+        members: [{
+          id: 'dev_self',
+          name: 'Du',
+          avatarColor: '#4A90D9',
+          role: 'chief' as const,
+          totalMM: [0, 5000, 15000, 35000, 70000, 120000][newLevel] ?? 5000,
+          weeklyMM: 2000,
+          currentStreak: 7,
+          lastActiveAt: Date.now(),
+          joinedAt: Date.now(),
+          fitnessFocus: 'muskelaufbau' as const,
+          hasStammeshaus: true,
+        }],
+      } : null,
+    }));
+    Alert.alert('Level-Up', `Stamm ist jetzt Level ${newLevel}\nBuff: +${getMmBoostForLevel(newLevel)}% MM`);
+  };
+
+  const handleAddTribeMM = () => {
+    const tribe = useFriendsStore.getState().tribe;
+    if (!tribe) { Alert.alert('Kein Stamm', 'Zuerst einen Stamm erstellen.'); return; }
+    useFriendsStore.getState().updateTribeProgress(500);
+    Alert.alert('Stamm-MM', '+500 MM zum Wochenfortschritt hinzugefügt.');
+  };
+
+  const handleShowTribeStatus = () => {
+    const tribe = useFriendsStore.getState().tribe;
+    if (!tribe) { Alert.alert('Kein Stamm', 'Noch kein Stamm vorhanden.'); return; }
+    Alert.alert(
+      `Stamm: ${tribe.name}`,
+      `Level: ${tribe.level}\nBuff: +${tribe.mmBoostPercent}% MM\nWöchentlich: ${tribe.currentWeeklyMM} / ${tribe.weeklyMMGoal} MM\nEmblem: ${tribe.emblem}\nMitglieder: ${tribe.members.length}`
+    );
+  };
+
+  const handleRemoveTribe = () => {
+    Alert.alert('Stamm auflösen', 'Stamm-Daten werden gelöscht.', [
+      { text: 'Abbrechen', style: 'cancel' },
+      { text: 'Auflösen', style: 'destructive', onPress: () => {
+        useFriendsStore.getState().leaveTribe();
+        Alert.alert('Stamm', 'Stamm aufgelöst.');
+      }},
+    ]);
+  };
+
   const handleFullReset = () => {
     Alert.alert(
       'Wirklich alles loeschen?',
@@ -710,6 +773,16 @@ export default function DevToolsSection() {
       <View style={s.grid}>
         <DevBtn label="🔥 Zufälligen Effekt" onPress={handleAddDamageEffect} />
         <DevBtn label="✅ Alle löschen" onPress={handleClearDamageEffects} />
+      </View>
+
+      {/* ── STAMM ─────────────────────────────────────────────── */}
+      <SectionLabel text="STAMM & BUFFS" />
+      <View style={s.grid}>
+        <DevBtn label="Stamm erstellen (Lv.1)" onPress={handleCreateMockTribe} />
+        <DevBtn label="Stamm Level +1" onPress={handleTribeLevelUp} />
+        <DevBtn label="+500 MM Woche" onPress={handleAddTribeMM} />
+        <DevBtn label="Status anzeigen" onPress={handleShowTribeStatus} />
+        <DevBtn label="Stamm auflösen" onPress={handleRemoveTribe} />
       </View>
 
       {/* ── RESET ─────────────────────────────────────────────── */}
