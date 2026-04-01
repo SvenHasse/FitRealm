@@ -3,6 +3,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated as RNAnimated,
   Dimensions,
   Modal,
@@ -98,6 +99,32 @@ const SHIELD_COLOR       = '#C4622D';  // terracotta
 const SHIELD_GLOW        = 'rgba(196,98,45,0.35)';
 const SHIELD_GLOW_LIGHT  = 'rgba(196,98,45,0.15)';
 const SHIELD_INACTIVE    = 'rgba(255,255,255,0.15)';
+
+// ─── ShieldIconItem — each icon needs its own useAnimatedStyle call ──────────
+
+function ShieldIconItem({
+  sv,
+  hasShield,
+}: {
+  sv: { scale: ReturnType<typeof useSharedValue<number>>; opacity: ReturnType<typeof useSharedValue<number>> };
+  hasShield: boolean;
+}) {
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: sv.scale.value }],
+    opacity: sv.opacity.value,
+  }));
+  return (
+    <Animated.View style={[shieldStyles.shieldIconWrap, iconStyle]}>
+      <View style={[
+        shieldStyles.shieldIconBg,
+        hasShield ? shieldStyles.shieldIconBgActive : shieldStyles.shieldIconBgEmpty,
+      ]}>
+        <GameIcon name="shield-active" size={26} color={hasShield ? '#7D9B76' : '#3A4A3C'} />
+      </View>
+      {hasShield && <View style={shieldStyles.shieldGlowDot} />}
+    </Animated.View>
+  );
+}
 
 // ─── ShieldSection component ─────────────────────────────────────────────────
 
@@ -267,27 +294,13 @@ function ShieldSection({ streakShields, activateStreakShield, animKey }: ShieldS
           <View style={shieldStyles.inactiveWrap}>
             {/* Shield icons with staggered bounce-in */}
             <View style={shieldStyles.iconRow}>
-              {Array.from({ length: MAX_ICONS }).map((_, i) => {
-                const sv = iconScales[Math.min(i, iconScales.length - 1)];
-                const iconStyle = useAnimatedStyle(() => ({
-                  transform: [{ scale: sv.scale.value }],
-                  opacity: sv.opacity.value,
-                }));
-                const hasShield = i < streakShields.count;
-                return (
-                  <Animated.View key={i} style={[shieldStyles.shieldIconWrap, iconStyle]}>
-                    <View style={[
-                      shieldStyles.shieldIconBg,
-                      hasShield ? shieldStyles.shieldIconBgActive : shieldStyles.shieldIconBgEmpty,
-                    ]}>
-                      <GameIcon name="shield-active" size={26} color={hasShield ? '#7D9B76' : '#3A4A3C'} />
-                    </View>
-                    {hasShield && (
-                      <View style={shieldStyles.shieldGlowDot} />
-                    )}
-                  </Animated.View>
-                );
-              })}
+              {Array.from({ length: MAX_ICONS }).map((_, i) => (
+                <ShieldIconItem
+                  key={i}
+                  sv={iconScales[Math.min(i, iconScales.length - 1)]}
+                  hasShield={i < streakShields.count}
+                />
+              ))}
             </View>
 
             {/* Count label */}
@@ -304,9 +317,22 @@ function ShieldSection({ streakShields, activateStreakShield, animKey }: ShieldS
             ]}>
               <TouchableOpacity
                 style={[shieldStyles.activateBtn, !canActivate && shieldStyles.activateBtnDisabled]}
-                onPress={canActivate ? async () => {
-                  try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
-                  activateStreakShield();
+                onPress={canActivate ? () => {
+                  Alert.alert(
+                    'Schild aktivieren?',
+                    `Du verbrauchst 1 Schild und schützt deinen Streak für 7 Tage. Du hast noch ${streakShields.count} Schild${streakShields.count !== 1 ? 'e' : ''}.`,
+                    [
+                      { text: 'Abbrechen', style: 'cancel' },
+                      {
+                        text: 'Aktivieren',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch {}
+                          activateStreakShield();
+                        },
+                      },
+                    ],
+                  );
                 } : undefined}
                 disabled={!canActivate}
                 activeOpacity={0.8}
