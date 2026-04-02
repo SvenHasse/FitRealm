@@ -9,7 +9,10 @@ import {
 import { useTranslation } from 'react-i18next';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+// GoogleSignin is lazy-required inside handleGoogle to avoid loading the native
+// module at bundle time (crashes Expo Go when native binary is not present).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const getGoogleSignin = () => require('@react-native-google-signin/google-signin').GoogleSignin;
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import * as Auth from '../services/AuthService';
@@ -73,6 +76,7 @@ export default function AuthScreen() {
   // ── Google Sign-In ─────────────────────────────────────────────────────
   const handleGoogle = async () => {
     try {
+      const GoogleSignin = getGoogleSignin();
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
       const idToken = response.data?.idToken;
