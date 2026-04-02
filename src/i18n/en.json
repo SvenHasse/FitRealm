@@ -272,7 +272,18 @@
     "fitnessFocus": "Fitness Focus",
     "focus_steps": "Steps",
     "focus_workouts": "Workouts",
-    "focus_calories": "Calories"
+    "focus_calories": "Calories",
+    "account": "Account",
+    "displayName": "Display Name",
+    "emailAddress": "Email",
+    "loginMethod": "Sign-in Method",
+    "inviteCode": "Invite Code",
+    "inviteCodeCopied": "Invite code copied!",
+    "logout": "Sign Out",
+    "logoutTitle": "Sign Out",
+    "logoutConfirm": "Are you sure you want to sign out?",
+    "logoutAction": "Yes, sign out",
+    "editDisplayName": "Change display name"
   },
   "storage": {
     "currentOf": "{{current}} / {{max}}",
