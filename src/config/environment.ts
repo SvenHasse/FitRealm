@@ -54,8 +54,8 @@ function detectEnvironment(): Environment {
     return explicit;
   }
 
-  // 2. Fallback: __DEV__ → local, else production
-  return __DEV__ ? 'local' : 'production';
+  // 2. Fallback: __DEV__ → dev (Supabase cloud dev project), else production
+  return __DEV__ ? 'dev' : 'production';
 }
 
 const CONFIGS: Record<Environment, EnvironmentConfig> = {
