@@ -273,7 +273,18 @@
     "fitnessFocus": "Fitness-Fokus",
     "focus_steps": "Schritte",
     "focus_workouts": "Workouts",
-    "focus_calories": "Kalorien"
+    "focus_calories": "Kalorien",
+    "account": "Konto",
+    "displayName": "Anzeigename",
+    "emailAddress": "E-Mail",
+    "loginMethod": "Anmeldung",
+    "inviteCode": "Einladungscode",
+    "inviteCodeCopied": "Einladungscode kopiert!",
+    "logout": "Abmelden",
+    "logoutTitle": "Abmelden",
+    "logoutConfirm": "Möchtest du dich wirklich abmelden?",
+    "logoutAction": "Ja, abmelden",
+    "editDisplayName": "Anzeigename ändern"
   },
   "storage": {
     "currentOf": "{{current}} / {{max}}",

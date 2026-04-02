@@ -9,11 +9,15 @@ import {
 import { useTranslation } from 'react-i18next';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+// GoogleSignin is lazy-required inside handleGoogle to avoid loading the native
+// module at bundle time (crashes Expo Go when native binary is not present).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const getGoogleSignin = () => require('@react-native-google-signin/google-signin').GoogleSignin;
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import * as Auth from '../services/AuthService';
 import { AppColors } from '../models/types';
+import { DEV } from '../config/developerConfig';
 
 type AuthMode = 'login' | 'register';
 
@@ -72,6 +76,7 @@ export default function AuthScreen() {
   // ── Google Sign-In ─────────────────────────────────────────────────────
   const handleGoogle = async () => {
     try {
+      const GoogleSignin = getGoogleSignin();
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
       const idToken = response.data?.idToken;
@@ -147,10 +152,12 @@ export default function AuthScreen() {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.googleBtn} onPress={handleGoogle} disabled={isLoading}>
-          <Ionicons name="logo-google" size={20} color="#fff" />
-          <Text style={styles.socialBtnText}>{t('auth.continueGoogle')}</Text>
-        </TouchableOpacity>
+        {!DEV.SKIP_GOOGLE_SIGNIN && (
+          <TouchableOpacity style={styles.googleBtn} onPress={handleGoogle} disabled={isLoading}>
+            <Ionicons name="logo-google" size={20} color="#fff" />
+            <Text style={styles.socialBtnText}>{t('auth.continueGoogle')}</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Divider */}
         <View style={styles.divider}>
