@@ -82,7 +82,7 @@ export const DEV = {
    * true  → Mock-Freunde werden beim ersten Start automatisch geladen
    * false → Leere Freundesliste (Echtbetrieb)
    */
-  USE_MOCK_FRIENDS: true,
+  USE_MOCK_FRIENDS: false,  // Deprecated — Phase 4 uses real Supabase data
 
   MOCK_FRIENDS: [
     {

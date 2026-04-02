@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFriendsStore } from '../../store/useFriendsStore';
@@ -167,45 +169,65 @@ interface FriendCardProps {
 
 function FriendCard({ friend }: FriendCardProps) {
   const initials = avatarInitials(friend.name);
+  const removeFriend = useFriendsStore((st) => st.removeFriend);
+
+  const handleLongPress = () => {
+    Alert.alert(
+      'Freundschaft beenden',
+      `Möchtest du ${friend.name} wirklich entfernen?`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Entfernen', style: 'destructive', onPress: () => removeFriend(friend.id) },
+      ],
+    );
+  };
 
   return (
-    <View style={s.friendCard}>
-      <View style={[s.avatar, { backgroundColor: friend.avatarColor }]}>
-        <Text style={s.avatarText}>{initials}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <FocusIcon focus={friend.fitnessFocus} />
-          <Text style={s.friendName}>{friend.name}</Text>
+    <TouchableOpacity onLongPress={handleLongPress} activeOpacity={0.85}>
+      <View style={s.friendCard}>
+        <View style={[s.avatar, { backgroundColor: friend.avatarColor }]}>
+          <Text style={s.avatarText}>{initials}</Text>
         </View>
-        {(() => {
-          const sl = statusLabel(friend);
-          return (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              {sl.status === 'active' && <GameIcon name="check" size={12} />}
-              {sl.status === 'danger' && <GameIcon name="warning" size={12} />}
-              {sl.status === 'none' && <GameIcon name="sleep" size={12} />}
-              <Text style={s.friendStatus}>{sl.text}</Text>
-            </View>
-          );
-        })()}
-      </View>
-      <View style={s.friendStats}>
-        <Text style={s.friendMM}>{friend.weeklyMM.toLocaleString('de-DE')} MM</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-          <GameIcon name="streak" size={12} />
-          <Text style={s.friendStreak}>{friend.currentStreak}d</Text>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <FocusIcon focus={friend.fitnessFocus} />
+            <Text style={s.friendName}>{friend.name}</Text>
+          </View>
+          {(() => {
+            const sl = statusLabel(friend);
+            return (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                {sl.status === 'active' && <GameIcon name="check" size={12} />}
+                {sl.status === 'danger' && <GameIcon name="warning" size={12} />}
+                {sl.status === 'none' && <GameIcon name="sleep" size={12} />}
+                <Text style={s.friendStatus}>{sl.text}</Text>
+              </View>
+            );
+          })()}
+        </View>
+        <View style={s.friendStats}>
+          <Text style={s.friendMM}>{friend.weeklyMM.toLocaleString('de-DE')} MM</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <GameIcon name="streak" size={12} />
+            <Text style={s.friendStreak}>{friend.currentStreak}d</Text>
+          </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 // ─── FreundeListeScreen ──────────────────────────────────────────────────────
 export function FreundeListeScreen() {
-  const friends  = useFriendsStore((st) => st.friends);
-  const rivalId  = useFriendsStore((st) => st.rivalId);
+  const friends     = useFriendsStore((st) => st.friends);
+  const rivalId     = useFriendsStore((st) => st.rivalId);
+  const isLoading   = useFriendsStore((st) => st.isLoading);
+  const loadFriends = useFriendsStore((st) => st.loadFriends);
   const dailyEffKcal = useGameStore((st) => st.dailyEffKcal);
+
+  useEffect(() => {
+    loadFriends();
+  }, []);
 
   // Rough weekly MM estimate from daily eff kcal (capped at 10,000)
   const myWeeklyMM = Math.min(Math.round(dailyEffKcal) * 7, 10_000);
@@ -220,6 +242,14 @@ export function FreundeListeScreen() {
   const rival = rivalId ? friends.find((f) => f.id === rivalId) ?? null : null;
 
   const leaderboard = getLeaderboard(friends, myWeeklyMM);
+
+  if (isLoading && friends.length === 0) {
+    return (
+      <View style={s.centeredPlaceholder}>
+        <ActivityIndicator size="large" color={AppColors.gold} />
+      </View>
+    );
+  }
 
   if (friends.length === 0) {
     return (
