@@ -53,6 +53,12 @@ export const DEV = {
 
   // ─── Feature Flags ────────────────────────────────────────────────────────
   /**
+   * true  → Google Sign-In Button wird ausgeblendet (Expo Go crasht sonst)
+   * false → Nativer Google Sign-In aktiv (npx expo run:ios / Production Build)
+   */
+  SKIP_GOOGLE_SIGNIN: true,
+
+  /**
    * Fokusziel-Sperre (14 Tage): true = Sperre aktiv, false = jederzeit änderbar
    * Im Dev-Mode auf false für ungehinderte Fokus-Tests
    */
