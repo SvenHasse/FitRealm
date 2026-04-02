@@ -5,15 +5,47 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FriendsState, Friend, Tribe, TribeQuest, TribeType } from '../models/types';
+import { FriendsState, Friend, Tribe, TribeQuest, TribeType, FitnessFocus } from '../models/types';
 import { findRival, getMmBoostForLevel } from '../utils/friendsUtils';
+import { FriendStats } from '../services/FriendsService';
+import * as FriendsService from '../services/FriendsService';
+
+// ── FriendStats → Friend mapping ─────────────────────────────────────────────
+
+const AVATAR_COLORS = ['#E57373','#F06292','#BA68C8','#64B5F6','#4DB6AC','#81C784','#FFD54F','#FF8A65'];
+
+function avatarColorFromId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function mapToFriend(fs: FriendStats): Friend {
+  return {
+    id: fs.friend_id,
+    name: fs.display_name || 'Unbekannt',
+    weeklyMM: Number(fs.weekly_mm),
+    totalMM: Number(fs.total_mm),
+    currentStreak: fs.streak_count,
+    lastActiveAt: fs.last_workout_at ? new Date(fs.last_workout_at).getTime() : 0,
+    avatarColor: avatarColorFromId(fs.friend_id),
+    fitnessFocus: (fs.focus_goal as FitnessFocus) ?? 'ausdauer',
+    hasStammeshaus: false,
+  };
+}
 
 interface FriendsStore extends FriendsState {
+  // Sync state
+  isLoading: boolean;
+  friendsError: string | null;
+
   // Freunde
   addFriend: (friend: Friend) => void;
-  removeFriend: (id: string) => void;
+  removeFriend: (id: string) => Promise<void>;
   updateFriendActivity: (id: string, weeklyMM: number, streak: number, lastActiveAt: number) => void;
   updateRival: (myWeeklyMM: number) => void;
+  loadFriends: () => Promise<void>;
+  addFriendByCode: (code: string) => Promise<{ success: boolean; error: string | null }>;
 
   // Stamm
   createTribe: (name: string, emblem: string, type: TribeType) => void;
@@ -80,6 +112,8 @@ export const useFriendsStore = create<FriendsStore>()(
       friends: [],
       tribe: null,
       rivalId: null,
+      isLoading: false,
+      friendsError: null,
       inviteStats: {
         myCode: '',
         invitedCount: 0,
@@ -92,8 +126,12 @@ export const useFriendsStore = create<FriendsStore>()(
       addFriend: (friend) =>
         set((s) => ({ friends: [...s.friends, friend] })),
 
-      removeFriend: (id) =>
-        set((s) => ({ friends: s.friends.filter((f) => f.id !== id) })),
+      removeFriend: async (id) => {
+        const result = await FriendsService.removeFriend(id);
+        if (result.success) {
+          set((s) => ({ friends: s.friends.filter((f) => f.id !== id) }));
+        }
+      },
 
       updateFriendActivity: (id, weeklyMM, streak, lastActiveAt) =>
         set((s) => ({
@@ -105,6 +143,33 @@ export const useFriendsStore = create<FriendsStore>()(
       updateRival: (myWeeklyMM) => {
         const rival = findRival(myWeeklyMM, get().friends);
         set({ rivalId: rival?.id ?? null });
+      },
+
+      loadFriends: async () => {
+        set({ isLoading: true, friendsError: null });
+        const result = await FriendsService.getFriendsWithStats();
+        if (result.success) {
+          set({ friends: result.friends.map(mapToFriend), isLoading: false });
+        } else {
+          set({ isLoading: false, friendsError: result.error });
+        }
+      },
+
+      addFriendByCode: async (code) => {
+        set({ isLoading: true, friendsError: null });
+        const result = await FriendsService.addFriendByInviteCode(code);
+        if (result.success) {
+          const listResult = await FriendsService.getFriendsWithStats();
+          if (listResult.success) {
+            set({ friends: listResult.friends.map(mapToFriend), isLoading: false });
+          } else {
+            set({ isLoading: false });
+          }
+          return { success: true, error: null };
+        } else {
+          set({ isLoading: false, friendsError: result.error });
+          return { success: false, error: result.error };
+        }
       },
 
       // ── Stamm ─────────────────────────────────────────────────────────────────

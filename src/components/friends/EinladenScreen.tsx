@@ -1,29 +1,30 @@
 // EinladenScreen.tsx
 // Invite friends screen: shows the personal invite code, copy/share functionality,
-// stats (invited / active / shields), and "how it works" explanation.
+// add-friend-by-code input, friend count, and "how it works" explanation.
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   Animated,
   Share,
-  // Clipboard is deprecated in newer RN but @react-native-clipboard/clipboard
-  // is not guaranteed to be installed. We use Share API as the primary mechanism
-  // and fall back to an in-app copy via Share sheet when clipboard is unavailable.
+  ActivityIndicator,
 } from 'react-native';
 import { useFriendsStore } from '../../store/useFriendsStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { friendStyles as s } from './styles';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import GameIcon, { GameIconName } from '../GameIcon';
+import { AppColors } from '../../models/types';
 
 const HOW_IT_WORKS: { iconName: GameIconName; text: string }[] = [
   { iconName: 'send' as GameIconName, text: 'Teile deinen persönlichen Einladungscode mit Freunden.' },
-  { iconName: 'person-add' as GameIconName, text: 'Dein Freund gibt den Code beim ersten Start in FitRealm ein.' },
-  { iconName: 'trophy' as GameIconName, text: 'Nach 7 aktiven Tagen erhältst du 3 Streak-Shields als Belohnung.' },
-  { iconName: 'streak' as GameIconName, text: 'Je mehr aktive Freunde, desto mehr Shields sicherst du dir!' },
+  { iconName: 'person-add' as GameIconName, text: 'Dein Freund gibt den Code in FitRealm ein — ihr seid sofort verbunden.' },
+  { iconName: 'trophy' as GameIconName, text: 'Kämpft gemeinsam um MM-Dominanz im Wochenranking!' },
+  { iconName: 'streak' as GameIconName, text: 'Haltet euch gegenseitig motiviert und schützt eure Streaks.' },
 ];
 
 // ─── CodeCard ─────────────────────────────────────────────────────────────────
@@ -51,13 +52,11 @@ function CodeCard({ code }: CodeCardProps) {
 
   const handleCopy = async () => {
     try {
-      // Try to use @react-native-clipboard/clipboard if available
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const Clipboard = require('@react-native-clipboard/clipboard').default;
       Clipboard.setString(displayCode);
     } catch {
       // Clipboard package not available — silently ignore.
-      // The Share button below also exposes the code.
     }
   };
 
@@ -72,44 +71,6 @@ function CodeCard({ code }: CodeCardProps) {
         </View>
       </TouchableOpacity>
     </Animated.View>
-  );
-}
-
-// ─── StatsSection ─────────────────────────────────────────────────────────────
-interface StatsSectionProps {
-  invitedCount: number;
-  activeCount: number;
-  shieldsEarned: number;
-  pendingRewards: number;
-}
-
-function StatsSection({ invitedCount, activeCount, shieldsEarned, pendingRewards }: StatsSectionProps) {
-  return (
-    <View style={s.statsCard}>
-      <Text style={s.cardTitle}>Deine Einlade-Statistik</Text>
-      <View style={s.statsRow}>
-        <View style={s.statBox}>
-          <Text style={s.statBoxValue}>{invitedCount}</Text>
-          <Text style={s.statBoxLabel}>Eingeladen</Text>
-        </View>
-        <View style={s.statBox}>
-          <Text style={s.statBoxValue}>{activeCount}</Text>
-          <Text style={s.statBoxLabel}>Aktiv (7 Tage)</Text>
-        </View>
-        <View style={s.statBox}>
-          <Text style={s.statBoxValue}>{shieldsEarned}</Text>
-          <Text style={s.statBoxLabel}>Shields verdient</Text>
-        </View>
-      </View>
-      {pendingRewards > 0 && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <GameIcon name="timer" size={13} />
-          <Text style={s.pendingHint}>
-            {pendingRewards} Einladung{pendingRewards !== 1 ? 'en' : ''} warten auf 7-Tage-Aktivierung
-          </Text>
-        </View>
-      )}
-    </View>
   );
 }
 
@@ -130,10 +91,34 @@ function HowItWorksSection() {
 
 // ─── EinladenScreen ───────────────────────────────────────────────────────────
 export function EinladenScreen() {
-  const inviteStats = useFriendsStore((st) => st.inviteStats);
+  const profile = useAuthStore(s => s.profile);
+  const myCode = profile?.invite_code ?? '';
+
+  const friends = useFriendsStore((st) => st.friends);
+  const addFriendByCode = useFriendsStore((st) => st.addFriendByCode);
+
+  const [inputCode, setInputCode] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState(false);
+
+  const handleAddFriend = async () => {
+    if (!inputCode.trim()) return;
+    setAddLoading(true);
+    setAddError(null);
+    setAddSuccess(false);
+    const result = await addFriendByCode(inputCode.trim());
+    setAddLoading(false);
+    if (result.success) {
+      setAddSuccess(true);
+      setInputCode('');
+    } else {
+      setAddError(result.error);
+    }
+  };
 
   const handleShare = async () => {
-    const code = inviteStats.myCode || '------';
+    const code = myCode || '------';
     try {
       await Share.share({
         message: `Tritt FitRealm bei und wir sammeln zusammen MM! 💪\nMein Einladungscode: ${code}\n\nHol dir die App und gib den Code beim ersten Start ein.`,
@@ -148,7 +133,7 @@ export function EinladenScreen() {
     <ScrollView style={s.container} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
 
       {/* Code card with scale-in animation */}
-      <CodeCard code={inviteStats.myCode} />
+      <CodeCard code={myCode} />
 
       {/* Share button */}
       <TouchableOpacity style={s.shareButton} onPress={handleShare} activeOpacity={0.8}>
@@ -158,13 +143,43 @@ export function EinladenScreen() {
         </View>
       </TouchableOpacity>
 
-      {/* Stats */}
-      <StatsSection
-        invitedCount={inviteStats.invitedCount}
-        activeCount={inviteStats.activeCount}
-        shieldsEarned={inviteStats.shieldsEarned}
-        pendingRewards={inviteStats.pendingRewards}
-      />
+      {/* Add friend by code */}
+      <View style={addFriendStyles.card}>
+        <Text style={s.cardTitle}>Freund hinzufügen</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TextInput
+            style={addFriendStyles.codeInput}
+            placeholder="Einladungscode eingeben"
+            placeholderTextColor="rgba(255,255,255,0.3)"
+            value={inputCode}
+            onChangeText={text => {
+              setInputCode(text.toUpperCase());
+              setAddError(null);
+              setAddSuccess(false);
+            }}
+            autoCapitalize="characters"
+            maxLength={6}
+          />
+          <TouchableOpacity
+            style={[addFriendStyles.addBtn, (!inputCode.trim() || addLoading) && { opacity: 0.5 }]}
+            onPress={handleAddFriend}
+            disabled={addLoading || !inputCode.trim()}
+          >
+            {addLoading
+              ? <ActivityIndicator size="small" color="#000" />
+              : <Text style={addFriendStyles.addBtnText}>+</Text>
+            }
+          </TouchableOpacity>
+        </View>
+        {addError && <Text style={addFriendStyles.addError}>{addError}</Text>}
+        {addSuccess && <Text style={addFriendStyles.addSuccess}>Freund hinzugefügt! 🎉</Text>}
+      </View>
+
+      {/* Friend count */}
+      <View style={addFriendStyles.countRow}>
+        <GameIcon name="people" size={16} color="rgba(255,255,255,0.5)" />
+        <Text style={addFriendStyles.countText}>{friends.length} {friends.length === 1 ? 'Freund' : 'Freunde'}</Text>
+      </View>
 
       {/* How it works */}
       <HowItWorksSection />
@@ -172,3 +187,28 @@ export function EinladenScreen() {
     </ScrollView>
   );
 }
+
+const addFriendStyles = {
+  card: {
+    backgroundColor: AppColors.cardBackground,
+    borderRadius: 14, padding: 16, marginBottom: 12,
+  },
+  codeInput: {
+    flex: 1, backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 10, paddingHorizontal: 14, height: 48,
+    color: '#fff', fontSize: 18, fontWeight: '700' as const, letterSpacing: 3,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  },
+  addBtn: {
+    backgroundColor: AppColors.gold, borderRadius: 10,
+    width: 48, height: 48, alignItems: 'center' as const, justifyContent: 'center' as const,
+  },
+  addBtnText: { color: '#000', fontSize: 24, fontWeight: 'bold' as const },
+  addError: { color: '#FF6B6B', fontSize: 13, marginTop: 8 },
+  addSuccess: { color: '#4CAF50', fontSize: 13, marginTop: 8 },
+  countRow: {
+    flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6,
+    paddingVertical: 8, paddingHorizontal: 4, marginBottom: 4,
+  },
+  countText: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+};
