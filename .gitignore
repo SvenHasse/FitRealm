@@ -40,3 +40,7 @@ yarn-error.*
 /ios
 /android
 Low Poly Grafiken/
+
+# Supabase
+supabase/.temp/
+supabase/.branches/

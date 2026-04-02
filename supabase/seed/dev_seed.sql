@@ -1,0 +1,31 @@
+-- ============================================================================
+-- FitRealm — Dev Seed Data
+-- ============================================================================
+--
+-- HOW TO USE:
+-- 1. Start local Supabase: `supabase start`
+-- 2. Open Studio: http://localhost:54323
+-- 3. Go to Authentication > Users > Create User
+--    Email: test@fitrealm.dev  Password: test1234
+-- 4. Copy the UUID from the users table
+-- 5. Replace <AUTH_USER_UUID> below with the actual UUID
+-- 6. Run: psql -h localhost -p 54322 -U postgres -d postgres -f supabase/seed/dev_seed.sql
+--    (Password: postgres)
+--
+-- NOTE: The handle_new_user() trigger already creates a profile + game_state
+-- row when a user signs up. This seed just adds workout data for testing.
+-- ============================================================================
+
+-- UPDATE public.profiles
+-- SET display_name = 'Test Spieler', focus_goal = 'muskelaufbau'
+-- WHERE id = '<AUTH_USER_UUID>';
+
+-- INSERT INTO public.workout_logs (user_id, workout_type, duration_min, active_kcal, steps, avg_hr, hr_zone, mm_earned, protein_earned, workout_date, healthkit_uuid)
+-- VALUES
+--   ('<AUTH_USER_UUID>', 'Running',             35.0, 320.5, 4200, 145, 'zone3', 180.50, 0, '2026-03-30', 'hk_seed_001'),
+--   ('<AUTH_USER_UUID>', 'Strength Training',   45.0, 280.0, 500,  130, 'zone2', 150.00, 1, '2026-03-31', 'hk_seed_002'),
+--   ('<AUTH_USER_UUID>', 'Cycling',             60.0, 450.0, 0,    155, 'zone4', 220.00, 2, '2026-04-01', 'hk_seed_003');
+
+-- INSERT INTO public.weekly_stats (user_id, week_start, total_mm, total_protein, total_workouts, total_minutes, total_kcal, total_steps, streak_max)
+-- VALUES
+--   ('<AUTH_USER_UUID>', '2026-03-30', 550.50, 3, 3, 140.0, 1050.5, 4700, 5);
