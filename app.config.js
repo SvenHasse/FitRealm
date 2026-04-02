@@ -18,7 +18,7 @@ module.exports = ({ config }) => ({
   },
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.fitrealm.app',
+    bundleIdentifier: 'de.timetogetswifty.fitrealm',
     usesAppleSignIn: true,
     infoPlist: {
       NSHealthShareUsageDescription:
@@ -28,7 +28,7 @@ module.exports = ({ config }) => ({
     },
   },
   android: {
-    package: 'com.fitrealm.app',
+    package: 'de.timetogetswifty.fitrealm',
     adaptiveIcon: {
       backgroundColor: '#1A1A2E',
       foregroundImage: './assets/android-icon-foreground.png',
