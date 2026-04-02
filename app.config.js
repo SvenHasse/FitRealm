@@ -28,6 +28,7 @@ module.exports = ({ config }) => ({
     },
   },
   android: {
+    package: 'com.fitrealm.app',
     adaptiveIcon: {
       backgroundColor: '#1A1A2E',
       foregroundImage: './assets/android-icon-foreground.png',
@@ -50,5 +51,8 @@ module.exports = ({ config }) => ({
   // gets embedded here and is readable via Constants.expoConfig.extra.FITREALM_ENV
   extra: {
     FITREALM_ENV: process.env.FITREALM_ENV ?? null,
+    eas: {
+      projectId: '33bc29d0-b3d7-4b56-906a-a87e74cdc40b',
+    },
   },
 });
