@@ -4,14 +4,27 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import GameIcon from '../components/GameIcon';
 import { useTranslation } from 'react-i18next';
 import { useGameStore as useEngineStore } from '../store/useGameStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { AppColors, FitnessFocus } from '../models/types';
 import { setLanguage } from '../i18n';
 import DevToolsSection from '../components/DevToolsSection';
 import { isFocusGoalLocked, getFocusGoalUnlockDaysRemaining } from '../utils/focusGoalUtils';
 import { DEV } from '../config/developerConfig';
+import type { User } from '@supabase/supabase-js';
+
+function getLoginMethodLabel(user: User | null): string {
+  const provider = user?.app_metadata?.provider;
+  switch (provider) {
+    case 'apple': return 'Apple';
+    case 'google': return 'Google';
+    case 'email': return 'E-Mail';
+    default: return provider ?? '–';
+  }
+}
 
 function promptForValue(title: string, current: string, onConfirm: (val: string) => void) {
   if (Platform.OS === 'ios') {
@@ -32,8 +45,80 @@ export default function SettingsScreen() {
   const [allowManualStepInput, setAllowManualStepInput] = useState(false);
   const currentLang = i18n.language as 'de' | 'en';
 
+  const session = useAuthStore(s => s.session);
+  const user = useAuthStore(s => s.user);
+  const profile = useAuthStore(s => s.profile);
+  const signOut = useAuthStore(s => s.signOut);
+  const updateAuthProfile = useAuthStore(s => s.updateProfile);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+
+      {/* Account Card */}
+      {session && (
+        <View style={styles.card}>
+          <SectionHeader title={t('settings.account')} icon="person-circle" />
+
+          {/* Display Name (editable) */}
+          <ProfileRow
+            label={t('settings.displayName')}
+            value={profile?.display_name || '–'}
+            onEdit={() => promptForValue(
+              t('settings.editDisplayName'),
+              profile?.display_name ?? '',
+              (v) => updateAuthProfile({ display_name: v }),
+            )}
+          />
+
+          {/* Email (read-only) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
+            <Text style={{ fontSize: 14, color: AppColors.textSecondary, flex: 1 }}>{t('settings.emailAddress')}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: AppColors.textPrimary }}>{user?.email ?? '–'}</Text>
+          </View>
+
+          {/* Sign-in Method (read-only) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
+            <Text style={{ fontSize: 14, color: AppColors.textSecondary, flex: 1 }}>{t('settings.loginMethod')}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: AppColors.textPrimary }}>{getLoginMethodLabel(user)}</Text>
+          </View>
+
+          {/* Invite Code (copyable) */}
+          {profile?.invite_code && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
+              <Text style={{ fontSize: 14, color: AppColors.textSecondary, flex: 1 }}>{t('settings.inviteCode')}</Text>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: AppColors.gold, letterSpacing: 2 }}>
+                {profile.invite_code}
+              </Text>
+              <TouchableOpacity
+                style={{ marginLeft: 10, padding: 4 }}
+                onPress={async () => {
+                  await Clipboard.setStringAsync(profile.invite_code);
+                  Alert.alert('', t('settings.inviteCodeCopied'));
+                }}
+              >
+                <Ionicons name="copy-outline" size={16} color={AppColors.gold} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Logout Button */}
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={() => Alert.alert(
+              t('settings.logoutTitle'),
+              t('settings.logoutConfirm'),
+              [
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('settings.logoutAction'), style: 'destructive', onPress: () => signOut() },
+              ],
+            )}
+          >
+            <Ionicons name="log-out-outline" size={18} color="#FF6B6B" />
+            <Text style={styles.logoutBtnText}>{t('settings.logout')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* My Profile Card */}
       {userProfile && (
         <View style={styles.card}>
@@ -139,7 +224,10 @@ export default function SettingsScreen() {
                             {
                               text: 'Ja, ändern',
                               style: 'destructive',
-                              onPress: () => updateUserProfile({ fitnessFocus: f }),
+                              onPress: () => {
+                                updateUserProfile({ fitnessFocus: f });
+                                updateAuthProfile({ focus_goal: f });
+                              },
                             },
                           ],
                         );
@@ -392,4 +480,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: AppColors.textSecondary,
   },
+  logoutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 14, marginTop: 16,
+    backgroundColor: 'rgba(255,107,107,0.1)',
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,107,107,0.3)',
+  },
+  logoutBtnText: { color: '#FF6B6B', fontWeight: '600', fontSize: 15 },
 });
