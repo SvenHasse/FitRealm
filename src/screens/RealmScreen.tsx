@@ -39,6 +39,7 @@ import IsometricBuilding from '../components/IsometricBuilding';
 import { ForestParallax } from '../components/village/ForestParallax';
 import { ResourceBubble } from '../components/village/ResourceBubble';
 import { BuildingSpriteOverlay } from '../components/BuildingSpriteOverlay';
+import { ObstacleSpriteOverlay } from '../components/ObstacleSpriteOverlay';
 // import { PlayfieldAnimals } from '../components/village/PlayfieldAnimals';
 import BuildingDetailSheet from '../components/BuildingDetailSheet';
 import BuildMenuSheet from '../components/BuildMenuSheet';
@@ -556,16 +557,6 @@ export default function RealmScreen() {
             );
           }
           // Completed buildings: PNG rendered by BuildingSpriteOverlay (Layer 2)
-        } else if (obstacle) {
-          elements.push(
-            <ObstacleSvg
-              key={`obs-${row}-${col}`}
-              x={x}
-              y={y}
-              type={obstacle.type}
-              isClearing={obstacle.isClearing}
-            />
-          );
         } else if (trophyHere) {
           elements.push(
             <TrophySvg
@@ -672,6 +663,14 @@ export default function RealmScreen() {
             {/* Layer 2: Building sprites — PNG for rathaus/holzfaeller, SVG for all others */}
             <BuildingSpriteOverlay
               buildings={gameState.buildings}
+              gridSize={GRID_SIZE}
+              svgOffsetX={svgOffsetX}
+              svgOffsetY={svgOffsetY}
+            />
+
+            {/* Layer 2b: Obstacle sprites — 3D PNG sprites */}
+            <ObstacleSpriteOverlay
+              obstacles={obstacles}
               gridSize={GRID_SIZE}
               svgOffsetX={svgOffsetX}
               svgOffsetY={svgOffsetY}
