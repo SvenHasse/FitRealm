@@ -14,6 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fitrealm.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSHealthShareUsageDescription": "FitRealm uses your health data to convert workouts into in-game resources.",
         "NSHealthUpdateUsageDescription": "FitRealm records your fitness achievements."
@@ -33,7 +34,9 @@
     "plugins": [
       "expo-asset",
       "expo-font",
-      "expo-localization"
+      "expo-localization",
+      "expo-apple-authentication",
+      "@react-native-google-signin/google-signin"
     ]
   }
 }
