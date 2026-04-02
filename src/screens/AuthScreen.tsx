@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/useAuthStore';
 import * as Auth from '../services/AuthService';
 import { AppColors } from '../models/types';
+import { DEV } from '../config/developerConfig';
 
 type AuthMode = 'login' | 'register';
 
@@ -147,10 +148,12 @@ export default function AuthScreen() {
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity style={styles.googleBtn} onPress={handleGoogle} disabled={isLoading}>
-          <Ionicons name="logo-google" size={20} color="#fff" />
-          <Text style={styles.socialBtnText}>{t('auth.continueGoogle')}</Text>
-        </TouchableOpacity>
+        {!DEV.SKIP_GOOGLE_SIGNIN && (
+          <TouchableOpacity style={styles.googleBtn} onPress={handleGoogle} disabled={isLoading}>
+            <Ionicons name="logo-google" size={20} color="#fff" />
+            <Text style={styles.socialBtnText}>{t('auth.continueGoogle')}</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Divider */}
         <View style={styles.divider}>
